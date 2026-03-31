@@ -10,7 +10,7 @@ export const runtime = "nodejs";
 
 type RouteContext = {
   params: Promise<{
-    documentId: string;
+    documentsId: string;
   }>;
 };
 
@@ -21,7 +21,7 @@ function toAbsolutePublicPath(filePath: string) {
 
 export async function DELETE(_request: NextRequest, context: RouteContext) {
   try {
-    const { documentId } = await context.params;
+    const { documentsId: documentId } = await context.params;
 
     const document = await getChecklistDocumentById(documentId);
 
@@ -46,7 +46,7 @@ export async function DELETE(_request: NextRequest, context: RouteContext) {
     return NextResponse.json(result);
   } catch (error) {
     console.error(
-      "DELETE /api/application-checklists/documents/[documentId] error:",
+      "DELETE /api/application-checklists/documents/[documentsId] error:",
       error
     );
 
