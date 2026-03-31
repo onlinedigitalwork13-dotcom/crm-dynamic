@@ -24,7 +24,6 @@ export async function DELETE(_request: NextRequest, context: RouteContext) {
     const { documentsId: documentId } = await context.params;
 
     const document = await getChecklistDocumentById(documentId);
-
     const result = await deleteChecklistDocument(documentId);
 
     const filePath = document.filePath;
