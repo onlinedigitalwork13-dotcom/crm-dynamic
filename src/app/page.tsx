@@ -3,48 +3,48 @@ import Link from "next/link";
 const stats = [
   {
     title: "Multi-branch",
-    description: "Branch-ready structure for scalable operations.",
+    description: "Built for branch-ready teams managing growing operations.",
   },
   {
-    title: "Dynamic CRM",
-    description: "Workflow-driven operations with configurable movement.",
+    title: "Workflow-driven",
+    description: "Move every client through structured operational stages.",
   },
   {
     title: "End-to-end",
-    description: "Lead to enrollment journey in one connected system.",
+    description: "Manage leads, applications, tasks, and follow-up in one system.",
   },
 ];
 
 const features = [
   {
-    title: "Dynamic Workflows",
+    title: "Lead & Intake Capture",
     description:
-      "Configure journeys, stages, and operational movement without rebuilding the platform every time the process evolves.",
+      "Collect new enquiries, public form submissions, and check-ins in one connected intake flow.",
   },
   {
-    title: "Client & Intake Engine",
+    title: "Client Journey Management",
     description:
-      "Capture new prospects, manage public intake forms, and move submissions into clean internal workflows with clarity.",
+      "Track each student or client from first contact through every operational stage with clarity.",
   },
   {
-    title: "Provider & Course Control",
+    title: "Workflow Automation",
     description:
-      "Track providers, courses, offerings, and linked opportunities inside one connected operational workspace.",
+      "Automate movement, follow-ups, alerts, and stage-based actions without relying on spreadsheets.",
   },
   {
-    title: "Application Management",
+    title: "Applications Tracking",
     description:
-      "Monitor submissions, progression, milestones, and client application journeys with stronger visibility and structure.",
+      "Manage providers, courses, submissions, milestones, and application progress in one place.",
   },
   {
     title: "Task & Team Execution",
     description:
-      "Coordinate staff assignments, actions, follow-ups, and responsibilities across teams without operational confusion.",
+      "Coordinate staff assignments, priorities, reminders, and actions across teams and branches.",
   },
   {
-    title: "Check-In & Front Desk Flow",
+    title: "Front Desk Check-In",
     description:
-      "Support walk-ins and reception handling with a direct path into the CRM so front desk activity is never disconnected.",
+      "Handle walk-ins and reception flow with direct CRM-linked check-in, lookup, and follow-up.",
   },
 ];
 
@@ -63,25 +63,41 @@ const modulePills = [
 
 const intelligenceBlocks = [
   {
-    label: "Client Pipeline",
-    value: "Structured",
-    description: "Workflow, stages, follow-up, assignment, and visibility.",
+    label: "Student Pipeline",
+    value: "Controlled",
+    description: "Track every client from enquiry to application with full visibility.",
   },
   {
     label: "Intake & Forms",
     value: "Connected",
-    description: "Public intake to internal processing without messy handoff.",
+    description: "Move from public form capture to internal action without messy handoff.",
   },
   {
     label: "Applications",
     value: "Tracked",
-    description: "Courses, providers, submissions, and progression in one flow.",
+    description: "Monitor providers, courses, submissions, and progression in one flow.",
   },
   {
-    label: "Team Execution",
+    label: "Team Operations",
     value: "Aligned",
-    description: "Tasks, branch coordination, and operational accountability.",
+    description: "Keep staff, tasks, follow-up, and accountability structured across branches.",
   },
+];
+
+const useCases = [
+  "Education Consultants",
+  "Migration Agents",
+  "Multi-branch Agencies",
+  "Student Recruitment Teams",
+];
+
+const trustItems = [
+  "Role-based access control",
+  "Multi-branch architecture",
+  "Workflow-driven operations",
+  "Notifications and task accountability",
+  "Built for live operational use",
+  "Reception and intake ready",
 ];
 
 export default function HomePage() {
@@ -116,10 +132,10 @@ export default function HomePage() {
                   Features
                 </a>
                 <a
-                  href="#why"
+                  href="#how-it-works"
                   className="text-sm font-medium text-slate-600 transition hover:text-slate-950"
                 >
-                  Why It Wins
+                  How It Works
                 </a>
                 <a
                   href="#modules"
@@ -149,24 +165,21 @@ export default function HomePage() {
           <section className="grid gap-14 pt-14 lg:grid-cols-[1.05fr_0.95fr] lg:items-center lg:pt-20">
             <div>
               <div className="inline-flex rounded-full border border-blue-200 bg-blue-50 px-4 py-2 text-[11px] font-semibold uppercase tracking-[0.26em] text-blue-700 shadow-sm">
-                World-class CRM foundation
+                Built for real operations
               </div>
 
               <h1 className="mt-6 max-w-4xl text-[42px] font-semibold leading-[0.96] tracking-[-0.05em] text-slate-950 sm:text-[58px] lg:text-[72px]">
-                A premium CRM
+                All-in-One CRM for
                 <br />
-                experience for education,
+                Education & Migration
                 <br />
-                migration, and modern
-                <br />
-                operations.
+                Businesses
               </h1>
 
               <p className="mt-7 max-w-2xl text-base leading-8 text-slate-600 sm:text-lg">
-                Replace scattered spreadsheets, disconnected follow-ups, and
-                manual operational chaos with a structured platform built for
-                client journeys, intake, applications, staff coordination, and
-                scalable branch operations.
+                Manage students, applications, workflows, and multi-branch
+                operations in one powerful system — built for real teams, not
+                spreadsheets.
               </p>
 
               <div className="mt-8 flex flex-col gap-3 sm:flex-row">
@@ -174,13 +187,13 @@ export default function HomePage() {
                   href="/login"
                   className="inline-flex items-center justify-center rounded-2xl bg-slate-950 px-6 py-3.5 text-sm font-semibold text-white shadow-[0_12px_24px_-12px_rgba(15,23,42,0.55)] transition hover:-translate-y-0.5 hover:bg-slate-800"
                 >
-                  Start Secure Sign In
+                  Request Demo
                 </Link>
                 <Link
                   href="/check-in"
                   className="inline-flex items-center justify-center rounded-2xl border border-slate-300 bg-white px-6 py-3.5 text-sm font-semibold text-slate-700 transition hover:-translate-y-0.5 hover:bg-slate-50"
                 >
-                  Open Check-In Flow
+                  Try Check-In
                 </Link>
               </div>
 
@@ -277,64 +290,20 @@ export default function HomePage() {
       </div>
 
       <section
-        id="why"
-        className="border-y border-slate-200 bg-white/60 backdrop-blur"
-      >
-        <div className="mx-auto max-w-7xl px-4 py-16 sm:px-6 lg:px-8">
-          <div className="grid gap-6 lg:grid-cols-[1.05fr_0.95fr_0.95fr]">
-            <div className="rounded-[28px] border border-transparent bg-transparent p-1">
-              <div className="h-full rounded-[24px] bg-transparent p-0">
-                <p className="text-[11px] font-semibold uppercase tracking-[0.28em] text-slate-500">
-                  Why it feels premium
-                </p>
-                <h2 className="mt-4 max-w-xl text-3xl font-semibold tracking-tight text-slate-950 sm:text-4xl">
-                  Designed to look sharp,
-                  <br />
-                  move fast, and scale cleanly.
-                </h2>
-              </div>
-            </div>
-
-            <div className="group rounded-[28px] border border-slate-200 bg-white p-6 shadow-[0_18px_45px_-26px_rgba(15,23,42,0.16)] transition duration-300 hover:-translate-y-1 hover:shadow-[0_24px_55px_-28px_rgba(15,23,42,0.2)]">
-              <div className="mb-4 h-11 w-11 rounded-2xl bg-slate-100" />
-              <h3 className="text-xl font-semibold text-slate-950">
-                Clear visual hierarchy
-              </h3>
-              <p className="mt-3 text-sm leading-7 text-slate-600">
-                Strong sections, balanced spacing, premium cards, and clean
-                emphasis make the platform feel trustworthy from the first
-                screen.
-              </p>
-            </div>
-
-            <div className="group rounded-[28px] border border-slate-200 bg-white p-6 shadow-[0_18px_45px_-26px_rgba(15,23,42,0.16)] transition duration-300 hover:-translate-y-1 hover:shadow-[0_24px_55px_-28px_rgba(15,23,42,0.2)]">
-              <div className="mb-4 h-11 w-11 rounded-2xl bg-slate-100" />
-              <h3 className="text-xl font-semibold text-slate-950">
-                Responsive by default
-              </h3>
-              <p className="mt-3 text-sm leading-7 text-slate-600">
-                The layout is designed to stay polished across desktop, tablet,
-                and mobile without collapsing into a cramped stacked experience.
-              </p>
-            </div>
-          </div>
-        </div>
-      </section>
-
-      <section
         id="features"
         className="mx-auto max-w-7xl px-4 py-16 sm:px-6 lg:px-8 lg:py-20"
       >
         <div className="max-w-2xl">
           <p className="text-[11px] font-semibold uppercase tracking-[0.28em] text-slate-500">
-            Core strengths
+            Core capabilities
           </p>
           <h2 className="mt-4 text-3xl font-semibold tracking-tight text-slate-950 sm:text-4xl">
-            A homepage that reflects the product behind it.
+            Everything you need to run your student operations
           </h2>
           <p className="mt-4 text-base leading-8 text-slate-600">
-            The public entry point should communicate trust, capability, and
-            software maturity instantly — not look like a temporary placeholder.
+            From lead capture to application tracking and workflow automation,
+            CRM Dynamic gives your team full visibility and control over every
+            stage.
           </p>
         </div>
 
@@ -359,6 +328,67 @@ export default function HomePage() {
       </section>
 
       <section
+        id="how-it-works"
+        className="border-y border-slate-200 bg-white/60 backdrop-blur"
+      >
+        <div className="mx-auto max-w-7xl px-4 py-16 sm:px-6 lg:px-8">
+          <div className="max-w-2xl">
+            <p className="text-[11px] font-semibold uppercase tracking-[0.28em] text-slate-500">
+              How it works
+            </p>
+            <h2 className="mt-4 text-3xl font-semibold tracking-tight text-slate-950 sm:text-4xl">
+              A clearer way to run daily operations
+            </h2>
+            <p className="mt-4 text-base leading-8 text-slate-600">
+              CRM Dynamic gives your team one connected system to capture,
+              manage, and move clients through the full operational journey.
+            </p>
+          </div>
+
+          <div className="mt-10 grid gap-5 lg:grid-cols-3">
+            <div className="rounded-[28px] border border-slate-200 bg-white p-6 shadow-[0_18px_45px_-26px_rgba(15,23,42,0.16)]">
+              <div className="inline-flex h-10 w-10 items-center justify-center rounded-2xl bg-slate-950 text-sm font-semibold text-white">
+                1
+              </div>
+              <h3 className="mt-5 text-xl font-semibold text-slate-950">
+                Capture Leads
+              </h3>
+              <p className="mt-3 text-sm leading-7 text-slate-600">
+                Collect enquiries through forms, intake submissions, and
+                front-desk check-in without losing visibility.
+              </p>
+            </div>
+
+            <div className="rounded-[28px] border border-slate-200 bg-white p-6 shadow-[0_18px_45px_-26px_rgba(15,23,42,0.16)]">
+              <div className="inline-flex h-10 w-10 items-center justify-center rounded-2xl bg-slate-950 text-sm font-semibold text-white">
+                2
+              </div>
+              <h3 className="mt-5 text-xl font-semibold text-slate-950">
+                Manage Workflow
+              </h3>
+              <p className="mt-3 text-sm leading-7 text-slate-600">
+                Move each client through structured stages with assigned tasks,
+                internal coordination, and operational clarity.
+              </p>
+            </div>
+
+            <div className="rounded-[28px] border border-slate-200 bg-white p-6 shadow-[0_18px_45px_-26px_rgba(15,23,42,0.16)]">
+              <div className="inline-flex h-10 w-10 items-center justify-center rounded-2xl bg-slate-950 text-sm font-semibold text-white">
+                3
+              </div>
+              <h3 className="mt-5 text-xl font-semibold text-slate-950">
+                Track Outcomes
+              </h3>
+              <p className="mt-3 text-sm leading-7 text-slate-600">
+                Keep applications, follow-up, notifications, and client progress
+                connected in one accountable system.
+              </p>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <section
         id="modules"
         className="relative overflow-hidden bg-slate-950 text-white"
       >
@@ -376,9 +406,9 @@ export default function HomePage() {
                 A full operational command layer.
               </h2>
               <p className="mt-5 text-base leading-8 text-slate-300">
-                From leads and intake to applications, documents, tasks,
-                notifications, and reporting, the experience should feel
-                cohesive, premium, and unmistakably product-grade.
+                Manage leads, intake, applications, tasks, workflows,
+                notifications, providers, and internal execution from one
+                connected platform.
               </p>
 
               <div className="mt-8 flex flex-col gap-3 sm:flex-row">
@@ -411,11 +441,103 @@ export default function HomePage() {
         </div>
       </section>
 
+      <section className="mx-auto max-w-7xl px-4 py-16 sm:px-6 lg:px-8 lg:py-20">
+        <div className="grid gap-8 lg:grid-cols-[0.95fr_1.05fr] lg:items-start">
+          <div>
+            <p className="text-[11px] font-semibold uppercase tracking-[0.28em] text-slate-500">
+              Built for
+            </p>
+            <h2 className="mt-4 text-3xl font-semibold tracking-tight text-slate-950 sm:text-4xl">
+              Teams that need structure,
+              <br />
+              visibility, and control
+            </h2>
+            <p className="mt-4 text-base leading-8 text-slate-600">
+              CRM Dynamic is designed for operational teams that manage
+              high-volume enquiries, applications, follow-up, and internal
+              workflows across one or multiple branches.
+            </p>
+          </div>
+
+          <div className="grid gap-4 sm:grid-cols-2">
+            {useCases.map((item) => (
+              <div
+                key={item}
+                className="rounded-[24px] border border-slate-200 bg-white px-5 py-5 text-sm font-semibold text-slate-800 shadow-[0_18px_45px_-26px_rgba(15,23,42,0.16)]"
+              >
+                {item}
+              </div>
+            ))}
+          </div>
+        </div>
+      </section>
+
+      <section className="border-y border-slate-200 bg-white">
+        <div className="mx-auto max-w-7xl px-4 py-16 sm:px-6 lg:px-8">
+          <div className="max-w-2xl">
+            <p className="text-[11px] font-semibold uppercase tracking-[0.28em] text-slate-500">
+              Trust layer
+            </p>
+            <h2 className="mt-4 text-3xl font-semibold tracking-tight text-slate-950 sm:text-4xl">
+              Built to support real operational use
+            </h2>
+            <p className="mt-4 text-base leading-8 text-slate-600">
+              The platform is structured for live usage with controlled access,
+              internal accountability, workflow progression, and branch-ready
+              operations.
+            </p>
+          </div>
+
+          <div className="mt-10 grid gap-4 md:grid-cols-2 xl:grid-cols-3">
+            {trustItems.map((item) => (
+              <div
+                key={item}
+                className="rounded-[24px] border border-slate-200 bg-slate-50 px-5 py-4 text-sm font-medium text-slate-800"
+              >
+                {item}
+              </div>
+            ))}
+          </div>
+        </div>
+      </section>
+
+      <section className="mx-auto max-w-7xl px-4 py-16 sm:px-6 lg:px-8 lg:py-20">
+        <div className="rounded-[34px] border border-slate-200 bg-white p-8 shadow-[0_24px_60px_-30px_rgba(15,23,42,0.18)] sm:p-10 lg:p-12">
+          <div className="max-w-3xl">
+            <p className="text-[11px] font-semibold uppercase tracking-[0.28em] text-slate-500">
+              Final CTA
+            </p>
+            <h2 className="mt-4 text-3xl font-semibold tracking-tight text-slate-950 sm:text-4xl">
+              Start managing your operations properly
+            </h2>
+            <p className="mt-4 text-base leading-8 text-slate-600">
+              Replace disconnected systems with a structured CRM built for
+              education, migration, applications, workflows, and team
+              coordination.
+            </p>
+          </div>
+
+          <div className="mt-8 flex flex-col gap-3 sm:flex-row">
+            <Link
+              href="/login"
+              className="inline-flex items-center justify-center rounded-2xl bg-slate-950 px-6 py-3.5 text-sm font-semibold text-white shadow-[0_12px_24px_-12px_rgba(15,23,42,0.55)] transition hover:-translate-y-0.5 hover:bg-slate-800"
+            >
+              Request Demo
+            </Link>
+            <Link
+              href="/check-in"
+              className="inline-flex items-center justify-center rounded-2xl border border-slate-300 bg-white px-6 py-3.5 text-sm font-semibold text-slate-700 transition hover:-translate-y-0.5 hover:bg-slate-50"
+            >
+              Try Check-In
+            </Link>
+          </div>
+        </div>
+      </section>
+
       <footer className="border-t border-slate-200 bg-white">
         <div className="mx-auto flex max-w-7xl flex-col gap-4 px-4 py-8 text-sm text-slate-500 sm:px-6 lg:flex-row lg:items-center lg:justify-between lg:px-8">
           <p>
-            CRM Dynamic — premium operations software for education and
-            migration teams.
+            CRM Dynamic — operations software for education and migration teams.
           </p>
 
           <div className="flex gap-4">
