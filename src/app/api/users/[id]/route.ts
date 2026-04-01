@@ -15,9 +15,9 @@ const updateUserSchema = z.object({
 });
 
 type RouteContext = {
-  params: {
+  params: Promise<{
     id: string;
-  };
+  }>;
 };
 
 function normalizeRole(value?: string | null) {
@@ -40,6 +40,7 @@ async function requireSuperAdminApi() {
   return { error: null, status: 200 as const, session };
 }
 
+// ================= GET =================
 export async function GET(
   _request: NextRequest,
   context: RouteContext
@@ -51,8 +52,10 @@ export async function GET(
       return NextResponse.json({ error: auth.error }, { status: auth.status });
     }
 
+    const { id } = await context.params;
+
     const user = await prisma.user.findUnique({
-      where: { id: context.params.id },
+      where: { id },
       select: {
         id: true,
         firstName: true,
@@ -64,17 +67,10 @@ export async function GET(
         roleId: true,
         branchId: true,
         role: {
-          select: {
-            id: true,
-            name: true,
-          },
+          select: { id: true, name: true },
         },
         branch: {
-          select: {
-            id: true,
-            name: true,
-            code: true,
-          },
+          select: { id: true, name: true, code: true },
         },
       },
     });
@@ -90,6 +86,7 @@ export async function GET(
   }
 }
 
+// ================= PATCH =================
 export async function PATCH(
   request: NextRequest,
   context: RouteContext
@@ -116,17 +113,9 @@ export async function PATCH(
 
     const { id: userId } = await context.params;
 
-    if (!userId) {
-      return NextResponse.json({ error: "User id is required" }, { status: 400 });
-    }
-
     const existingUser = await prisma.user.findUnique({
       where: { id: userId },
-      select: {
-        id: true,
-        email: true,
-        isActive: true,
-      },
+      select: { id: true, email: true, isActive: true },
     });
 
     if (!existingUser) {
@@ -222,17 +211,10 @@ export async function PATCH(
         roleId: true,
         branchId: true,
         role: {
-          select: {
-            id: true,
-            name: true,
-          },
+          select: { id: true, name: true },
         },
         branch: {
-          select: {
-            id: true,
-            name: true,
-            code: true,
-          },
+          select: { id: true, name: true, code: true },
         },
       },
     });
