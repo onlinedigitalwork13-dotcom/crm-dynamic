@@ -4,9 +4,9 @@ import { prisma } from "@/lib/prisma";
 import { createNotification } from "@/lib/notification-service";
 
 type RouteContext = {
-  params: {
+  params: Promise<{
     token: string;
-  };
+  }>;
 };
 
 function normalizeString(value: FormDataEntryValue | null) {
@@ -27,7 +27,7 @@ export async function GET(
   { params }: RouteContext
 ) {
   try {
-    const { token } = params;
+    const { token } = await params;
 
     const form = await prisma.intakeFormRequest.findUnique({
       where: { token },
@@ -53,7 +53,7 @@ export async function POST(
   { params }: RouteContext
 ) {
   try {
-    const { token } = params;
+    const { token } = await params;
 
     const intakeForm = await prisma.intakeFormRequest.findUnique({
       where: { token },
@@ -94,7 +94,6 @@ export async function POST(
       },
     });
 
-    // 🔔 NOTIFICATIONS (FIXED)
     const users = await prisma.user.findMany({
       where: {
         branchId: intakeForm.branchId,
