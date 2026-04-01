@@ -395,19 +395,12 @@ export async function updateIntakeFormRequest(
   const nextStatus = data.status ?? existing.status;
 
   let sharedAt: Date | undefined | null = undefined;
-  let closedAt: Date | undefined | null = undefined;
 
   if (
-    nextStatus === IntakeFormRequestStatus.shared &&
-    existing.status !== IntakeFormRequestStatus.shared
+    nextStatus === IntakeFormRequestStatus.active &&
+    existing.status !== IntakeFormRequestStatus.active
   ) {
     sharedAt = new Date();
-  }
-
-  if (nextStatus === IntakeFormRequestStatus.closed) {
-    closedAt = new Date();
-  } else if (data.status && data.status !== IntakeFormRequestStatus.closed) {
-    closedAt = null;
   }
 
   return prisma.intakeFormRequest.update({
@@ -417,7 +410,6 @@ export async function updateIntakeFormRequest(
       description: normalizeNullableString(data.description),
       status: data.status,
       sharedAt,
-      closedAt,
       expiresAt: toDateOrNull(data.expiresAt),
       notes: normalizeNullableString(data.notes),
     },
@@ -472,9 +464,9 @@ export async function assignIntakeFormRequest(
   }
 
   const nextStatus =
-    request.status === IntakeFormRequestStatus.submitted ||
-    request.status === IntakeFormRequestStatus.shared
-      ? IntakeFormRequestStatus.assigned
+    request.status === IntakeFormRequestStatus.draft ||
+    request.status === IntakeFormRequestStatus.inactive
+      ? IntakeFormRequestStatus.active
       : request.status;
 
   return prisma.intakeFormRequest.update({
@@ -525,8 +517,11 @@ export async function submitIntakeFormByToken(
     throw new Error("Intake form request not found.");
   }
 
-  if (request.status === IntakeFormRequestStatus.closed) {
-    throw new Error("This intake form is closed.");
+  if (
+    request.status === IntakeFormRequestStatus.archived ||
+    request.status === IntakeFormRequestStatus.inactive
+  ) {
+    throw new Error("This intake form is not accepting submissions.");
   }
 
   if (request.expiresAt && request.expiresAt.getTime() < Date.now()) {
@@ -552,23 +547,11 @@ export async function submitIntakeFormByToken(
         address: normalizeNullableString(input.address),
         nationality: normalizeNullableString(input.nationality),
         dateOfBirth: toDateOrNull(input.dateOfBirth) ?? null,
-        interestedCountry: normalizeNullableString(input.interestedCountry),
-        interestedCourse: normalizeNullableString(input.interestedCourse),
-        studyLevel: normalizeNullableString(input.studyLevel),
-        preferredIntake: normalizeNullableString(input.preferredIntake),
-        preferredYear: input.preferredYear ?? null,
-        englishTestStatus: normalizeNullableString(input.englishTestStatus),
-        englishTestScore: normalizeNullableString(input.englishTestScore),
-        passportStatus: normalizeNullableString(input.passportStatus),
         passportNumber: normalizeNullableString(input.passportNumber),
-        educationLevel: normalizeNullableString(input.educationLevel),
-        workExperience: normalizeNullableString(input.workExperience),
-        budget: normalizeNullableString(input.budget),
-        fundingSource: normalizeNullableString(input.fundingSource),
         notes: normalizeNullableString(input.notes),
         status: request.assignedToId
           ? IntakeFormSubmissionStatus.assigned
-          : IntakeFormSubmissionStatus.pending_review,
+          : IntakeFormSubmissionStatus.new,
       },
       include: {
         assignedTo: {
@@ -593,10 +576,7 @@ export async function submitIntakeFormByToken(
     await tx.intakeFormRequest.update({
       where: { id: request.id },
       data: {
-        status: request.assignedToId
-          ? IntakeFormRequestStatus.assigned
-          : IntakeFormRequestStatus.submitted,
-        submittedAt: new Date(),
+        status: IntakeFormRequestStatus.active,
       },
     });
 
@@ -793,13 +773,14 @@ export async function reviewIntakeSubmission(
     throw new Error("You can only review submissions inside your own branch.");
   }
 
-  const nextStatus = input.status ?? IntakeFormSubmissionStatus.reviewed;
+  const nextStatus =
+    input.status ?? IntakeFormSubmissionStatus.under_review;
 
   let reviewedAt: Date | null | undefined = undefined;
   let closedAt: Date | null | undefined = undefined;
 
   if (
-    nextStatus === IntakeFormSubmissionStatus.reviewed ||
+    nextStatus === IntakeFormSubmissionStatus.under_review ||
     nextStatus === IntakeFormSubmissionStatus.converted ||
     nextStatus === IntakeFormSubmissionStatus.closed
   ) {
@@ -910,11 +891,16 @@ export async function convertIntakeSubmissionToClient(
   const createdClient = await prisma.$transaction(async (tx) => {
     let existingClient = null;
 
-    if (submission.email) {
+    const submissionEmail = normalizeNullableString(submission.email);
+    const submissionPhone = submission.phone
+      ? requireNonEmptyString(submission.phone, "Phone")
+      : null;
+
+    if (submissionEmail) {
       existingClient = await tx.client.findFirst({
         where: {
           branchId: submission.branchId,
-          email: submission.email,
+          email: submissionEmail,
         },
         select: {
           id: true,
@@ -922,11 +908,11 @@ export async function convertIntakeSubmissionToClient(
       });
     }
 
-    if (!existingClient) {
+    if (!existingClient && submissionPhone) {
       existingClient = await tx.client.findFirst({
         where: {
           branchId: submission.branchId,
-          phone: submission.phone,
+          phone: submissionPhone,
         },
         select: {
           id: true,
@@ -940,12 +926,22 @@ export async function convertIntakeSubmissionToClient(
       );
     }
 
+    const firstName = requireNonEmptyString(
+      submission.firstName ?? "",
+      "First name"
+    );
+    const lastName = requireNonEmptyString(
+      submission.lastName ?? "",
+      "Last name"
+    );
+    const phone = requireNonEmptyString(submission.phone ?? "", "Phone");
+
     const client = await tx.client.create({
       data: {
-        firstName: submission.firstName,
-        lastName: submission.lastName,
-        email: normalizeNullableString(submission.email),
-        phone: submission.phone,
+        firstName,
+        lastName,
+        email: submissionEmail,
+        phone,
         passport: normalizeNullableString(submission.passportNumber),
         branchId: submission.branchId,
         sourceId,
@@ -969,8 +965,7 @@ export async function convertIntakeSubmissionToClient(
     await tx.intakeFormRequest.update({
       where: { id: submission.intakeFormRequestId },
       data: {
-        status: IntakeFormRequestStatus.converted,
-        convertedAt: new Date(),
+        status: IntakeFormRequestStatus.archived,
       },
     });
 
@@ -978,7 +973,7 @@ export async function convertIntakeSubmissionToClient(
       data: {
         clientId: client.id,
         type: "intake_conversion",
-        message: `Client created from intake submission for ${submission.firstName} ${submission.lastName}.`,
+        message: `Client created from intake submission for ${submission.firstName ?? ""} ${submission.lastName ?? ""}.`,
       },
     });
 
@@ -1014,13 +1009,13 @@ export async function convertIntakeSubmissionToClient(
 
 export async function markIntakeFormRequestShared(id: string) {
   return updateIntakeFormRequest(id, {
-    status: IntakeFormRequestStatus.shared,
+    status: IntakeFormRequestStatus.active,
   });
 }
 
 export async function closeIntakeFormRequest(id: string) {
   return updateIntakeFormRequest(id, {
-    status: IntakeFormRequestStatus.closed,
+    status: IntakeFormRequestStatus.archived,
   });
 }
 

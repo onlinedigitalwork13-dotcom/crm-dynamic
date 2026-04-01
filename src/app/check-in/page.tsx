@@ -39,6 +39,11 @@ type LookupResult =
     }
   | null;
 
+function toSafeString(value: unknown) {
+  if (value == null) return "";
+  return String(value);
+}
+
 export default function CheckInPage() {
   const [phone, setPhone] = useState("");
   const [result, setResult] = useState<LookupResult>(null);
@@ -128,40 +133,40 @@ export default function CheckInPage() {
       const payload = {
         phone:
           result?.mode === "new"
-            ? dynamicValues.mobile || phone
+            ? toSafeString(dynamicValues.mobile) || phone
             : phone,
         firstName:
           result?.mode === "existing_client"
             ? result.client.firstName
             : result?.mode === "existing_intake_submission"
             ? result.intakeSubmission.firstName
-            : dynamicValues.firstName,
+            : toSafeString(dynamicValues.firstName),
         lastName:
           result?.mode === "existing_client"
             ? result.client.lastName
             : result?.mode === "existing_intake_submission"
             ? result.intakeSubmission.lastName
-            : dynamicValues.surname,
+            : toSafeString(dynamicValues.surname),
         email:
           result?.mode === "new"
-            ? dynamicValues.email
+            ? toSafeString(dynamicValues.email)
             : email,
         passportNumber:
           result?.mode === "new"
-            ? dynamicValues.passportNumber
+            ? toSafeString(dynamicValues.passportNumber)
             : passportNumber,
         country:
           result?.mode === "new"
-            ? dynamicValues.country
+            ? toSafeString(dynamicValues.country)
             : "",
         city: "",
         address:
           result?.mode === "new"
-            ? dynamicValues.residentialAddress
+            ? toSafeString(dynamicValues.residentialAddress)
             : "",
         nationality:
           result?.mode === "new"
-            ? dynamicValues.nationality
+            ? toSafeString(dynamicValues.nationality)
             : "",
         dateOfBirth: null,
         visitReason,
@@ -219,6 +224,10 @@ export default function CheckInPage() {
     resetDynamicValues();
   };
 
+  const firstName = toSafeString(dynamicValues.firstName).trim();
+  const surname = toSafeString(dynamicValues.surname).trim();
+  const mobile = toSafeString(dynamicValues.mobile).trim();
+
   return (
     <div className="p-6 max-w-6xl mx-auto">
       <h1 className="text-xl font-bold mb-4">Check In</h1>
@@ -259,172 +268,20 @@ export default function CheckInPage() {
         </div>
       ) : null}
 
-      {result?.mode === "existing_client" && !successMessage && (
-        <div className="mt-6 max-w-md">
-          <h2 className="text-lg font-semibold">
-            Welcome back {result.client.firstName} 👋
-          </h2>
-
-          <p className="text-sm text-gray-600 mt-2">
-            Phone: {result.client.phone || "N/A"}
-          </p>
-
-          {result.client.email ? (
-            <p className="text-sm text-gray-600">Email: {result.client.email}</p>
-          ) : null}
-
-          <div className="mt-4">
-            <label className="block text-sm mb-1">Visit Reason</label>
-            <input
-              type="text"
-              value={visitReason}
-              onChange={(e) => setVisitReason(e.target.value)}
-              className="border p-2 w-full rounded-lg"
-              placeholder="Reason for visit"
-            />
-          </div>
-
-          <div className="mt-3">
-            <label className="block text-sm mb-1">Notes</label>
-            <textarea
-              value={notes}
-              onChange={(e) => setNotes(e.target.value)}
-              className="border p-2 w-full rounded-lg"
-              placeholder="Optional notes"
-              rows={3}
-            />
-          </div>
-
-          <button
-            type="button"
-            onClick={handleSubmit}
-            disabled={submitting}
-            className="mt-4 bg-green-600 text-white px-4 py-2 rounded-lg disabled:opacity-50"
-          >
-            {submitting ? "Submitting..." : "Confirm Check-In"}
-          </button>
-
-          <button
-            type="button"
-            onClick={handleReset}
-            className="mt-4 ml-3 border px-4 py-2 rounded-lg"
-          >
-            Back
-          </button>
-        </div>
-      )}
-
-      {result?.mode === "existing_intake_submission" && !successMessage && (
-        <div className="mt-6 max-w-md">
-          <h2 className="text-lg font-semibold">
-            Welcome back {result.intakeSubmission.firstName} 👋
-          </h2>
-
-          <p className="text-sm text-gray-600 mt-2">
-            Phone: {result.intakeSubmission.phone || "N/A"}
-          </p>
-
-          {result.intakeSubmission.email ? (
-            <p className="text-sm text-gray-600">
-              Email: {result.intakeSubmission.email}
-            </p>
-          ) : null}
-
-          <div className="mt-4">
-            <label className="block text-sm mb-1">Visit Reason</label>
-            <input
-              type="text"
-              value={visitReason}
-              onChange={(e) => setVisitReason(e.target.value)}
-              className="border p-2 w-full rounded-lg"
-              placeholder="Reason for visit"
-            />
-          </div>
-
-          <div className="mt-3">
-            <label className="block text-sm mb-1">Notes</label>
-            <textarea
-              value={notes}
-              onChange={(e) => setNotes(e.target.value)}
-              className="border p-2 w-full rounded-lg"
-              placeholder="Optional notes"
-              rows={3}
-            />
-          </div>
-
-          <button
-            type="button"
-            onClick={handleSubmit}
-            disabled={submitting}
-            className="mt-4 bg-green-600 text-white px-4 py-2 rounded-lg disabled:opacity-50"
-          >
-            {submitting ? "Submitting..." : "Confirm Check-In"}
-          </button>
-
-          <button
-            type="button"
-            onClick={handleReset}
-            className="mt-4 ml-3 border px-4 py-2 rounded-lg"
-          >
-            Back
-          </button>
-        </div>
-      )}
-
       {result?.mode === "new" && !successMessage && (
         <div className="mt-6 space-y-6">
-          <div>
-            <h2 className="text-lg font-semibold">New Visitor</h2>
-            <p className="mt-1 text-sm text-gray-600">
-              Please complete the form below to continue check-in.
-            </p>
-          </div>
-
           <DynamicFormRenderer
             schema={clientMasterSchema}
             values={dynamicValues}
             onChange={setDynamicValue}
           />
 
-          <div className="rounded-xl border border-gray-200 bg-white p-4 shadow-sm">
-            <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Visit Reason
-                </label>
-                <input
-                  type="text"
-                  value={visitReason}
-                  onChange={(e) => setVisitReason(e.target.value)}
-                  className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm"
-                  placeholder="Reason for visit"
-                />
-              </div>
-
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Notes
-                </label>
-                <input
-                  type="text"
-                  value={notes}
-                  onChange={(e) => setNotes(e.target.value)}
-                  className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm"
-                  placeholder="Optional notes"
-                />
-              </div>
-            </div>
-          </div>
-
           <div className="flex gap-3">
             <button
               type="button"
               onClick={handleSubmit}
               disabled={
-                submitting ||
-                !dynamicValues.firstName?.trim() ||
-                !dynamicValues.surname?.trim() ||
-                !dynamicValues.mobile?.trim()
+                submitting || !firstName || !surname || !mobile
               }
               className="rounded-lg bg-blue-600 px-4 py-2 text-white disabled:opacity-50"
             >

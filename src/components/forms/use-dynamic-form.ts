@@ -3,8 +3,11 @@
 import { useMemo, useState } from "react";
 import { FormSchema } from "./form-types";
 
-function buildInitialValues(schema: FormSchema) {
-  const initialValues: Record<string, string> = {};
+export type DynamicFormValue = string | number | boolean;
+export type DynamicFormValues = Record<string, DynamicFormValue>;
+
+function buildInitialValues(schema: FormSchema): DynamicFormValues {
+  const initialValues: DynamicFormValues = {};
 
   for (const section of schema) {
     for (const field of section.fields) {
@@ -17,18 +20,18 @@ function buildInitialValues(schema: FormSchema) {
 
 export function useDynamicForm(
   schema: FormSchema,
-  initialOverrides?: Record<string, string>
+  initialOverrides?: DynamicFormValues
 ) {
-  const initialValues = useMemo(() => {
+  const initialValues = useMemo<DynamicFormValues>(() => {
     return {
       ...buildInitialValues(schema),
       ...(initialOverrides ?? {}),
     };
   }, [schema, initialOverrides]);
 
-  const [values, setValues] = useState<Record<string, string>>(initialValues);
+  const [values, setValues] = useState<DynamicFormValues>(initialValues);
 
-  const setValue = (key: string, value: string) => {
+  const setValue = (key: string, value: DynamicFormValue) => {
     setValues((prev) => ({
       ...prev,
       [key]: value,
@@ -39,7 +42,7 @@ export function useDynamicForm(
     setValues(initialValues);
   };
 
-  const setAllValues = (nextValues: Record<string, string>) => {
+  const setAllValues = (nextValues: DynamicFormValues) => {
     setValues({
       ...buildInitialValues(schema),
       ...nextValues,

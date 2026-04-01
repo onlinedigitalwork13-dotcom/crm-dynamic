@@ -11,6 +11,11 @@ type LeadSource = {
   name: string;
 };
 
+function toSafeString(value: unknown) {
+  if (value == null) return "";
+  return String(value);
+}
+
 export default function NewClientPage() {
   const router = useRouter();
 
@@ -44,33 +49,33 @@ export default function NewClientPage() {
     setError("");
 
     const payload = {
-      firstName: values.firstName || "",
-      lastName: values.surname || "",
-      email: values.email || "",
-      phone: values.mobile || "",
-      passport: values.passportNumber || "",
+      firstName: toSafeString(values.firstName).trim(),
+      lastName: toSafeString(values.surname).trim(),
+      email: toSafeString(values.email).trim(),
+      phone: toSafeString(values.mobile).trim(),
+      passport: toSafeString(values.passportNumber).trim(),
       sourceId,
       profileData: {
-        title: values.title || "",
-        preferredName: values.preferredName || "",
-        nationality: values.nationality || "",
-        country: values.country || "",
-        residentialAddress: values.residentialAddress || "",
-        postalAddress: values.postalAddress || "",
-        homePhone: values.homePhone || "",
-        workPhone: values.workPhone || "",
-        occupation: values.occupation || "",
-        visaSubclass: values.visaSubclass || "",
-        visaExpiry: values.visaExpiry || "",
-        visaConditions: values.visaConditions || "",
-        visaIssues: values.visaIssues || "",
-        emergencyFirstName: values.emergencyFirstName || "",
-        emergencySurname: values.emergencySurname || "",
-        emergencyAddress: values.emergencyAddress || "",
-        emergencyMobile: values.emergencyMobile || "",
-        emergencyHome: values.emergencyHome || "",
-        emergencyWork: values.emergencyWork || "",
-        emergencyEmail: values.emergencyEmail || "",
+        title: values.title ?? "",
+        preferredName: values.preferredName ?? "",
+        nationality: values.nationality ?? "",
+        country: values.country ?? "",
+        residentialAddress: values.residentialAddress ?? "",
+        postalAddress: values.postalAddress ?? "",
+        homePhone: values.homePhone ?? "",
+        workPhone: values.workPhone ?? "",
+        occupation: values.occupation ?? "",
+        visaSubclass: values.visaSubclass ?? "",
+        visaExpiry: values.visaExpiry ?? "",
+        visaConditions: values.visaConditions ?? "",
+        visaIssues: values.visaIssues ?? "",
+        emergencyFirstName: values.emergencyFirstName ?? "",
+        emergencySurname: values.emergencySurname ?? "",
+        emergencyAddress: values.emergencyAddress ?? "",
+        emergencyMobile: values.emergencyMobile ?? "",
+        emergencyHome: values.emergencyHome ?? "",
+        emergencyWork: values.emergencyWork ?? "",
+        emergencyEmail: values.emergencyEmail ?? "",
       },
     };
 
@@ -102,15 +107,14 @@ export default function NewClientPage() {
     setLoading(false);
   }
 
-  const canSubmit =
-    !loading &&
-    !!values.firstName?.trim() &&
-    !!values.surname?.trim() &&
-    !!values.mobile?.trim();
+  const firstName = toSafeString(values.firstName).trim();
+  const surname = toSafeString(values.surname).trim();
+  const mobile = toSafeString(values.mobile).trim();
+
+  const canSubmit = !loading && !!firstName && !!surname && !!mobile;
 
   return (
     <div className="mx-auto max-w-7xl space-y-6">
-      {/* Premium hero */}
       <div className="relative overflow-hidden rounded-[28px] bg-gradient-to-br from-slate-950 via-slate-900 to-slate-800 px-6 py-7 text-white shadow-[0_20px_60px_-20px_rgba(15,23,42,0.7)] ring-1 ring-slate-800">
         <div className="absolute inset-0 bg-[radial-gradient(circle_at_top_right,rgba(255,255,255,0.14),transparent_30%),radial-gradient(circle_at_bottom_left,rgba(59,130,246,0.16),transparent_28%)]" />
         <div className="relative flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
@@ -141,7 +145,6 @@ export default function NewClientPage() {
       </div>
 
       <form onSubmit={handleSubmit} className="space-y-6">
-        {/* Main form section */}
         <div className="rounded-3xl border border-slate-200 bg-white p-4 shadow-sm sm:p-6">
           <div className="mb-5 flex flex-col gap-2">
             <h2 className="text-lg font-semibold text-slate-900">
@@ -160,7 +163,6 @@ export default function NewClientPage() {
           />
         </div>
 
-        {/* Meta / submission section */}
         <div className="rounded-3xl border border-slate-200 bg-white p-4 shadow-sm sm:p-6">
           <div className="grid gap-6 xl:grid-cols-[1.2fr_0.8fr]">
             <div className="space-y-4">
@@ -208,19 +210,19 @@ export default function NewClientPage() {
                 <div className="flex items-center justify-between rounded-xl bg-white px-4 py-3">
                   <span className="text-slate-600">First name</span>
                   <span className="font-medium text-slate-900">
-                    {values.firstName?.trim() ? "Ready" : "Missing"}
+                    {firstName ? "Ready" : "Missing"}
                   </span>
                 </div>
                 <div className="flex items-center justify-between rounded-xl bg-white px-4 py-3">
                   <span className="text-slate-600">Last name</span>
                   <span className="font-medium text-slate-900">
-                    {values.surname?.trim() ? "Ready" : "Missing"}
+                    {surname ? "Ready" : "Missing"}
                   </span>
                 </div>
                 <div className="flex items-center justify-between rounded-xl bg-white px-4 py-3">
                   <span className="text-slate-600">Mobile</span>
                   <span className="font-medium text-slate-900">
-                    {values.mobile?.trim() ? "Ready" : "Missing"}
+                    {mobile ? "Ready" : "Missing"}
                   </span>
                 </div>
                 <div className="flex items-center justify-between rounded-xl bg-white px-4 py-3">

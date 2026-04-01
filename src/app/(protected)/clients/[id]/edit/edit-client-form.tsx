@@ -1,11 +1,14 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import type { Prisma } from "@prisma/client";
 import DynamicFormRenderer from "@/components/forms/dynamic-form-renderer";
 import { clientMasterSchema } from "@/components/forms/client-master-schema";
-import { useDynamicForm } from "@/components/forms/use-dynamic-form";
+import {
+  useDynamicForm,
+  type DynamicFormValues,
+} from "@/components/forms/use-dynamic-form";
 
 type LeadSource = {
   id: string;
@@ -23,6 +26,31 @@ type ClientRecord = {
   profileData: Prisma.JsonValue;
 };
 
+function toSafeString(value: unknown) {
+  if (value == null) return "";
+  return String(value);
+}
+
+function buildClientFormValues(client: ClientRecord): DynamicFormValues {
+  const profile =
+    client.profileData &&
+    typeof client.profileData === "object" &&
+    !Array.isArray(client.profileData)
+      ? (client.profileData as Record<string, unknown>)
+      : {};
+
+  return {
+    ...Object.fromEntries(
+      Object.entries(profile).map(([key, value]) => [key, value ?? ""])
+    ),
+    firstName: client.firstName ?? "",
+    surname: client.lastName ?? "",
+    email: client.email ?? "",
+    mobile: client.phone ?? "",
+    passportNumber: client.passport ?? "",
+  };
+}
+
 export default function EditClientForm({ client }: { client: ClientRecord }) {
   const router = useRouter();
 
@@ -32,16 +60,21 @@ export default function EditClientForm({ client }: { client: ClientRecord }) {
   const [loadingSources, setLoadingSources] = useState(true);
   const [error, setError] = useState("");
 
-  const { values, setValue, resetValues } = useDynamicForm(clientMasterSchema);
+  const initialFormValues = useMemo(() => buildClientFormValues(client), [client]);
+
+  const { values, setValue, setAllValues } = useDynamicForm(
+    clientMasterSchema,
+    initialFormValues
+  );
 
   useEffect(() => {
     async function fetchSources() {
       try {
         const res = await fetch("/api/sources");
         const data = await res.json();
-        setSources(data);
-      } catch (error) {
-        console.error("Failed to load sources", error);
+        setSources(Array.isArray(data) ? data : []);
+      } catch (fetchError) {
+        console.error("Failed to load sources", fetchError);
       } finally {
         setLoadingSources(false);
       }
@@ -51,66 +84,60 @@ export default function EditClientForm({ client }: { client: ClientRecord }) {
   }, []);
 
   useEffect(() => {
-    const profile =
-      client.profileData &&
-      typeof client.profileData === "object" &&
-      !Array.isArray(client.profileData)
-        ? (client.profileData as Record<string, unknown>)
-        : {};
-
-    const mergedValues: Record<string, string> = {
-      ...Object.fromEntries(
-        Object.entries(profile).map(([key, value]) => [
-          key,
-          value == null ? "" : String(value),
-        ])
-      ),
-      firstName: client.firstName ?? "",
-      surname: client.lastName ?? "",
-      email: client.email ?? "",
-      mobile: client.phone ?? "",
-      passportNumber: client.passport ?? "",
-    };
-
-    for (const [key, value] of Object.entries(mergedValues)) {
-      setValue(key, value);
-    }
-  }, [client, setValue]);
+    setAllValues(initialFormValues);
+    setSourceId(client.sourceId ?? "");
+    setError("");
+  }, [client, initialFormValues, setAllValues]);
 
   async function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
     setLoading(true);
     setError("");
 
+    const firstName = toSafeString(values.firstName).trim();
+    const lastName = toSafeString(values.surname).trim();
+    const email = toSafeString(values.email).trim();
+    const phone = toSafeString(values.mobile).trim();
+    const passport = toSafeString(values.passportNumber).trim();
+
     const payload = {
-      firstName: values.firstName || "",
-      lastName: values.surname || "",
-      email: values.email || "",
-      phone: values.mobile || "",
-      passport: values.passportNumber || "",
+      firstName,
+      lastName,
+      email,
+      phone,
+      passport,
       sourceId,
       profileData: values,
     };
 
-    const res = await fetch(`/api/clients/${client.id}`, {
-      method: "PATCH",
-      headers: {
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify(payload),
-    });
+    try {
+      const res = await fetch(`/api/clients/${client.id}`, {
+        method: "PATCH",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify(payload),
+      });
 
-    setLoading(false);
+      if (!res.ok) {
+        const data = await res.json().catch(() => null);
+        setError(data?.error || "Failed to update client");
+        return;
+      }
 
-    if (!res.ok) {
-      const data = await res.json().catch(() => null);
-      setError(data?.error || "Failed to update client");
-      return;
+      router.push(`/clients/${client.id}`);
+      router.refresh();
+    } catch (submitError) {
+      console.error("Failed to update client", submitError);
+      setError("Failed to update client");
+    } finally {
+      setLoading(false);
     }
-
-    router.push(`/clients/${client.id}`);
-    router.refresh();
   }
+
+  const firstName = toSafeString(values.firstName).trim();
+  const surname = toSafeString(values.surname).trim();
+  const mobile = toSafeString(values.mobile).trim();
 
   return (
     <form onSubmit={handleSubmit} className="space-y-6">
@@ -122,9 +149,7 @@ export default function EditClientForm({ client }: { client: ClientRecord }) {
 
       <div className="rounded-xl border bg-white p-6 shadow-sm">
         <div>
-          <label className="mb-1 block text-sm font-medium">
-            Lead Source
-          </label>
+          <label className="mb-1 block text-sm font-medium">Lead Source</label>
           <select
             className="w-full rounded-lg border px-3 py-2"
             value={sourceId}
@@ -145,12 +170,7 @@ export default function EditClientForm({ client }: { client: ClientRecord }) {
         <div className="mt-6 flex gap-3">
           <button
             type="submit"
-            disabled={
-              loading ||
-              !values.firstName?.trim() ||
-              !values.surname?.trim() ||
-              !values.mobile?.trim()
-            }
+            disabled={loading || !firstName || !surname || !mobile}
             className="rounded-lg bg-black px-4 py-2 text-white disabled:opacity-50"
           >
             {loading ? "Updating..." : "Update Client"}
@@ -159,7 +179,7 @@ export default function EditClientForm({ client }: { client: ClientRecord }) {
           <button
             type="button"
             onClick={() => {
-              resetValues();
+              setAllValues(initialFormValues);
               setSourceId(client.sourceId ?? "");
               setError("");
             }}

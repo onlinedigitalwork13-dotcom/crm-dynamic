@@ -21,6 +21,12 @@ type Props = {
   schema: FormSchema;
 };
 
+function toFormDataValue(value: unknown) {
+  if (value == null) return "";
+  if (typeof value === "boolean") return value ? "true" : "false";
+  return String(value);
+}
+
 export default function PublicDynamicIntakeForm({ form, schema }: Props) {
   const { values, setValue, resetValues } = useDynamicForm(schema);
 
@@ -39,16 +45,16 @@ export default function PublicDynamicIntakeForm({ form, schema }: Props) {
 
       for (const section of schema) {
         for (const field of section.fields) {
-          const value = values[field.key] ?? "";
+          const value = values[field.key];
 
           if (field.type === "checkbox") {
-            if (value === "true") {
+            if (value === true || value === "true") {
               formData.append(field.key, "on");
             }
             continue;
           }
 
-          formData.append(field.key, value);
+          formData.append(field.key, toFormDataValue(value));
         }
       }
 

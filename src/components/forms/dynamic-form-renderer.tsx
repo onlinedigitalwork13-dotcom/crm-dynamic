@@ -1,11 +1,12 @@
 "use client";
 
 import { FormField, FormSchema } from "./form-types";
+import type { DynamicFormValue, DynamicFormValues } from "./use-dynamic-form";
 
 type DynamicFormRendererProps = {
   schema: FormSchema;
-  values: Record<string, string>;
-  onChange: (key: string, value: string) => void;
+  values: DynamicFormValues;
+  onChange: (key: string, value: DynamicFormValue) => void;
 };
 
 function getWidthClass(field: FormField) {
@@ -20,6 +21,19 @@ function getWidthClass(field: FormField) {
     default:
       return "md:col-span-12";
   }
+}
+
+function getStringValue(value: DynamicFormValue | undefined) {
+  if (typeof value === "string") return value;
+  if (typeof value === "number") return String(value);
+  return "";
+}
+
+function getBooleanValue(value: DynamicFormValue | undefined) {
+  if (typeof value === "boolean") return value;
+  if (typeof value === "string") return value === "true";
+  if (typeof value === "number") return value !== 0;
+  return false;
 }
 
 export default function DynamicFormRenderer({
@@ -47,14 +61,19 @@ export default function DynamicFormRenderer({
           </div>
 
           <div className="grid grid-cols-1 gap-5 p-6 md:grid-cols-12">
-            {section.fields
-              .filter((field) => field.visible !== false)
+            {schema
+              .find((s) => s.key === section.key)
+              ?.fields.filter((field) => field.visible !== false)
               .map((field) => {
-                const value = values[field.key] ?? "";
+                const rawValue = values[field.key];
+                const value = getStringValue(rawValue);
+                const checked = getBooleanValue(rawValue);
+
                 const isTextarea = field.type === "textarea";
                 const isRadio = field.type === "radio";
                 const isCheckbox = field.type === "checkbox";
                 const isSelect = field.type === "select";
+                const isNumber = field.type === "number";
 
                 return (
                   <div key={field.key} className={getWidthClass(field)}>
@@ -110,10 +129,8 @@ export default function DynamicFormRenderer({
                       <label className="flex items-center gap-2 text-sm text-gray-700">
                         <input
                           type="checkbox"
-                          checked={value === "true"}
-                          onChange={(e) =>
-                            onChange(field.key, e.target.checked ? "true" : "false")
-                          }
+                          checked={checked}
+                          onChange={(e) => onChange(field.key, e.target.checked)}
                         />
                         {field.label}
                       </label>
@@ -121,7 +138,16 @@ export default function DynamicFormRenderer({
                       <input
                         type={field.type}
                         value={value}
-                        onChange={(e) => onChange(field.key, e.target.value)}
+                        onChange={(e) =>
+                          onChange(
+                            field.key,
+                            isNumber
+                              ? e.target.value === ""
+                                ? ""
+                                : Number(e.target.value)
+                              : e.target.value
+                          )
+                        }
                         placeholder={field.placeholder}
                         className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm outline-none transition focus:border-black"
                       />
