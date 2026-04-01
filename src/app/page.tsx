@@ -1,128 +1,184 @@
 import Link from "next/link";
 
 const stats = [
-  { label: "Branch-ready structure", value: "Multi-branch" },
-  { label: "Workflow-driven operations", value: "Dynamic CRM" },
-  { label: "Lead to enrollment journey", value: "End-to-end" },
+  {
+    title: "Multi-branch",
+    description: "Branch-ready structure for scalable operations.",
+  },
+  {
+    title: "Dynamic CRM",
+    description: "Workflow-driven operations with configurable movement.",
+  },
+  {
+    title: "End-to-end",
+    description: "Lead to enrollment journey in one connected system.",
+  },
 ];
 
 const features = [
   {
     title: "Dynamic Workflows",
     description:
-      "Build and manage client journeys with configurable workflows, stages, and operational visibility tailored for education and migration teams.",
+      "Configure journeys, stages, and operational movement without rebuilding the platform every time the process evolves.",
   },
   {
     title: "Client & Intake Engine",
     description:
-      "Capture leads, manage intake forms, track submissions, and move prospects into active client pipelines with clean operational flow.",
+      "Capture new prospects, manage public intake forms, and move submissions into clean internal workflows with clarity.",
   },
   {
-    title: "Provider & Course Management",
+    title: "Provider & Course Control",
     description:
-      "Organise providers, courses, applications, and progression paths in one connected workspace designed for real operational use.",
+      "Track providers, courses, offerings, and linked opportunities inside one connected operational workspace.",
   },
   {
-    title: "Task & Team Coordination",
+    title: "Application Management",
     description:
-      "Assign, follow up, and monitor staff actions with a CRM structure built for accountability, speed, and branch collaboration.",
+      "Monitor submissions, progression, milestones, and client application journeys with stronger visibility and structure.",
+  },
+  {
+    title: "Task & Team Execution",
+    description:
+      "Coordinate staff assignments, actions, follow-ups, and responsibilities across teams without operational confusion.",
   },
   {
     title: "Check-In & Front Desk Flow",
     description:
-      "Support reception and walk-in experiences with structured check-in handling tied directly into the CRM ecosystem.",
-  },
-  {
-    title: "Production-Ready Foundation",
-    description:
-      "Built for real teams with role-based access, modular architecture, scalable data structure, and future-ready expansion paths.",
+      "Support walk-ins and reception handling with a direct path into the CRM so front desk activity is never disconnected.",
   },
 ];
 
-const pillars = [
-  "Education CRM",
-  "Migration Operations",
-  "Lead Conversion",
-  "Workflow Automation",
-  "Team Productivity",
-  "Branch Collaboration",
+const modulePills = [
+  "Clients",
+  "Leads",
+  "Intake Forms",
+  "Submissions",
+  "Applications",
+  "Providers",
+  "Courses",
+  "Tasks",
+  "Notifications",
+  "Workflows",
+];
+
+const intelligenceBlocks = [
+  {
+    label: "Client Pipeline",
+    value: "Structured",
+    description: "Workflow, stages, follow-up, assignment, and visibility.",
+  },
+  {
+    label: "Intake & Forms",
+    value: "Connected",
+    description: "Public intake to internal processing without messy handoff.",
+  },
+  {
+    label: "Applications",
+    value: "Tracked",
+    description: "Courses, providers, submissions, and progression in one flow.",
+  },
+  {
+    label: "Team Execution",
+    value: "Aligned",
+    description: "Tasks, branch coordination, and operational accountability.",
+  },
 ];
 
 export default function HomePage() {
   return (
-    <main className="min-h-screen bg-white text-slate-900">
-      <section className="relative overflow-hidden">
-        <div className="absolute inset-0 bg-[radial-gradient(circle_at_top_left,rgba(59,130,246,0.14),transparent_28%),radial-gradient(circle_at_top_right,rgba(99,102,241,0.14),transparent_24%),radial-gradient(circle_at_bottom_left,rgba(15,23,42,0.08),transparent_28%)]" />
-        <div className="mx-auto max-w-7xl px-4 py-6 sm:px-6 lg:px-8">
-          <header className="flex items-center justify-between rounded-full border border-slate-200/80 bg-white/80 px-4 py-3 shadow-sm backdrop-blur md:px-6">
-            <div className="flex items-center gap-3">
-              <div className="flex h-10 w-10 items-center justify-center rounded-2xl bg-slate-950 text-sm font-bold text-white shadow-lg">
-                C
-              </div>
-              <div>
-                <p className="text-sm font-semibold tracking-tight">CRM Dynamic</p>
-                <p className="text-xs text-slate-500">
-                  Education & Migration Operations Platform
-                </p>
-              </div>
-            </div>
+    <main className="min-h-screen bg-[#f6f8fc] text-slate-900">
+      <div className="relative overflow-hidden">
+        <div className="absolute inset-0 bg-[radial-gradient(circle_at_top_left,rgba(59,130,246,0.18),transparent_28%),radial-gradient(circle_at_top_right,rgba(129,140,248,0.16),transparent_26%),radial-gradient(circle_at_70%_30%,rgba(15,23,42,0.05),transparent_26%),linear-gradient(to_bottom,rgba(255,255,255,0.96),rgba(241,245,249,0.96))]" />
+        <div className="absolute inset-0 opacity-[0.035] [background-image:linear-gradient(to_right,#0f172a_1px,transparent_1px),linear-gradient(to_bottom,#0f172a_1px,transparent_1px)] [background-size:36px_36px]" />
 
-            <nav className="hidden items-center gap-6 md:flex">
-              <a href="#features" className="text-sm text-slate-600 transition hover:text-slate-950">
-                Features
-              </a>
-              <a href="#why" className="text-sm text-slate-600 transition hover:text-slate-950">
-                Why It Wins
-              </a>
-              <a href="#modules" className="text-sm text-slate-600 transition hover:text-slate-950">
-                Modules
-              </a>
-            </nav>
+        <div className="relative mx-auto max-w-7xl px-4 pb-16 pt-6 sm:px-6 lg:px-8 lg:pb-24">
+          <header className="rounded-full border border-white/70 bg-white/80 px-4 py-3 shadow-[0_12px_40px_-18px_rgba(15,23,42,0.18)] backdrop-blur-xl md:px-6">
+            <div className="flex items-center justify-between gap-4">
+              <Link href="/" className="flex min-w-0 items-center gap-3">
+                <div className="flex h-11 w-11 items-center justify-center rounded-2xl bg-slate-950 text-sm font-bold text-white shadow-lg">
+                  C
+                </div>
+                <div className="min-w-0">
+                  <p className="truncate text-sm font-semibold tracking-tight text-slate-950">
+                    CRM Dynamic
+                  </p>
+                  <p className="truncate text-xs text-slate-500">
+                    Education & Migration Operations Platform
+                  </p>
+                </div>
+              </Link>
 
-            <div className="flex items-center gap-2">
-              <Link
-                href="/login"
-                className="rounded-xl border border-slate-300 px-4 py-2 text-sm font-semibold text-slate-700 transition hover:bg-slate-50"
-              >
-                Sign In
-              </Link>
-              <Link
-                href="/dashboard"
-                className="rounded-xl bg-slate-950 px-4 py-2 text-sm font-semibold text-white transition hover:bg-slate-800"
-              >
-                Open CRM
-              </Link>
+              <nav className="hidden items-center gap-7 lg:flex">
+                <a
+                  href="#features"
+                  className="text-sm font-medium text-slate-600 transition hover:text-slate-950"
+                >
+                  Features
+                </a>
+                <a
+                  href="#why"
+                  className="text-sm font-medium text-slate-600 transition hover:text-slate-950"
+                >
+                  Why It Wins
+                </a>
+                <a
+                  href="#modules"
+                  className="text-sm font-medium text-slate-600 transition hover:text-slate-950"
+                >
+                  Modules
+                </a>
+              </nav>
+
+              <div className="flex items-center gap-2">
+                <Link
+                  href="/login"
+                  className="rounded-xl border border-slate-300 bg-white px-4 py-2 text-sm font-semibold text-slate-700 transition hover:-translate-y-0.5 hover:bg-slate-50"
+                >
+                  Sign In
+                </Link>
+                <Link
+                  href="/dashboard"
+                  className="rounded-xl bg-slate-950 px-4 py-2 text-sm font-semibold text-white shadow-[0_10px_20px_-10px_rgba(15,23,42,0.6)] transition hover:-translate-y-0.5 hover:bg-slate-800"
+                >
+                  Open CRM
+                </Link>
+              </div>
             </div>
           </header>
 
-          <div className="grid gap-12 px-1 pb-12 pt-12 lg:grid-cols-[1.15fr_0.85fr] lg:items-center lg:pt-20">
+          <section className="grid gap-14 pt-14 lg:grid-cols-[1.05fr_0.95fr] lg:items-center lg:pt-20">
             <div>
-              <div className="inline-flex items-center rounded-full border border-blue-200 bg-blue-50 px-4 py-2 text-xs font-semibold uppercase tracking-[0.22em] text-blue-700">
+              <div className="inline-flex rounded-full border border-blue-200 bg-blue-50 px-4 py-2 text-[11px] font-semibold uppercase tracking-[0.26em] text-blue-700 shadow-sm">
                 World-class CRM foundation
               </div>
 
-              <h1 className="mt-6 max-w-4xl text-4xl font-semibold tracking-tight text-slate-950 sm:text-5xl lg:text-6xl">
-                A premium CRM experience for education, migration, and modern
-                client operations.
+              <h1 className="mt-6 max-w-4xl text-[42px] font-semibold leading-[0.96] tracking-[-0.05em] text-slate-950 sm:text-[58px] lg:text-[72px]">
+                A premium CRM
+                <br />
+                experience for education,
+                <br />
+                migration, and modern
+                <br />
+                operations.
               </h1>
 
-              <p className="mt-6 max-w-2xl text-base leading-8 text-slate-600 sm:text-lg">
+              <p className="mt-7 max-w-2xl text-base leading-8 text-slate-600 sm:text-lg">
                 Replace scattered spreadsheets, disconnected follow-ups, and
                 manual operational chaos with a structured platform built for
-                client journeys, intake, applications, team collaboration, and
+                client journeys, intake, applications, staff coordination, and
                 scalable branch operations.
               </p>
 
               <div className="mt-8 flex flex-col gap-3 sm:flex-row">
                 <Link
                   href="/login"
-                  className="inline-flex items-center justify-center rounded-2xl bg-slate-950 px-6 py-3.5 text-sm font-semibold text-white transition hover:bg-slate-800"
+                  className="inline-flex items-center justify-center rounded-2xl bg-slate-950 px-6 py-3.5 text-sm font-semibold text-white shadow-[0_12px_24px_-12px_rgba(15,23,42,0.55)] transition hover:-translate-y-0.5 hover:bg-slate-800"
                 >
                   Start Secure Sign In
                 </Link>
                 <Link
                   href="/check-in"
-                  className="inline-flex items-center justify-center rounded-2xl border border-slate-300 bg-white px-6 py-3.5 text-sm font-semibold text-slate-700 transition hover:bg-slate-50"
+                  className="inline-flex items-center justify-center rounded-2xl border border-slate-300 bg-white px-6 py-3.5 text-sm font-semibold text-slate-700 transition hover:-translate-y-0.5 hover:bg-slate-50"
                 >
                   Open Check-In Flow
                 </Link>
@@ -131,134 +187,154 @@ export default function HomePage() {
               <div className="mt-10 grid gap-4 sm:grid-cols-3">
                 {stats.map((item) => (
                   <div
-                    key={item.label}
-                    className="rounded-2xl border border-slate-200 bg-white/90 p-4 shadow-sm"
+                    key={item.title}
+                    className="group rounded-[24px] border border-slate-200 bg-white/90 p-5 shadow-[0_16px_40px_-22px_rgba(15,23,42,0.18)] transition duration-300 hover:-translate-y-1 hover:shadow-[0_24px_50px_-24px_rgba(15,23,42,0.22)]"
                   >
-                    <div className="text-lg font-semibold text-slate-950">
-                      {item.value}
+                    <div className="flex items-start justify-between gap-3">
+                      <div>
+                        <p className="text-lg font-semibold text-slate-950">
+                          {item.title}
+                        </p>
+                        <p className="mt-2 text-sm leading-6 text-slate-500">
+                          {item.description}
+                        </p>
+                      </div>
+                      <div className="h-2.5 w-2.5 rounded-full bg-blue-500 shadow-[0_0_18px_rgba(59,130,246,0.55)]" />
                     </div>
-                    <div className="mt-1 text-sm text-slate-500">{item.label}</div>
                   </div>
                 ))}
               </div>
             </div>
 
             <div className="relative">
-              <div className="absolute -inset-4 rounded-[36px] bg-gradient-to-br from-slate-200 via-blue-100 to-indigo-100 blur-2xl opacity-60" />
-              <div className="relative overflow-hidden rounded-[32px] border border-slate-200 bg-slate-950 p-5 text-white shadow-[0_30px_80px_-25px_rgba(15,23,42,0.55)]">
-                <div className="flex items-center justify-between rounded-2xl border border-white/10 bg-white/5 px-4 py-3">
-                  <div>
-                    <p className="text-xs uppercase tracking-[0.24em] text-slate-300">
-                      Operations Overview
-                    </p>
-                    <h2 className="mt-1 text-lg font-semibold">
-                      CRM Intelligence Panel
-                    </h2>
-                  </div>
-                  <div className="rounded-xl bg-emerald-500/15 px-3 py-1 text-xs font-semibold text-emerald-300">
-                    Live Ready
+              <div className="absolute -inset-8 bg-[radial-gradient(circle_at_center,rgba(15,23,42,0.16),transparent_44%)] blur-3xl" />
+              <div className="absolute -inset-2 rounded-[36px] bg-gradient-to-br from-slate-200/60 via-blue-100/70 to-indigo-100/60 blur-2xl" />
+
+              <div className="relative overflow-hidden rounded-[34px] border border-slate-900/10 bg-[#040b23] p-4 text-white shadow-[0_40px_100px_-32px_rgba(15,23,42,0.6)] sm:p-5">
+                <div className="absolute inset-0 bg-[radial-gradient(circle_at_top_right,rgba(255,255,255,0.08),transparent_24%),radial-gradient(circle_at_bottom_left,rgba(59,130,246,0.12),transparent_28%)]" />
+
+                <div className="relative rounded-[24px] border border-white/10 bg-white/[0.03] px-5 py-4 backdrop-blur">
+                  <div className="flex items-center justify-between gap-4">
+                    <div>
+                      <p className="text-[11px] font-semibold uppercase tracking-[0.24em] text-slate-400">
+                        Operations Overview
+                      </p>
+                      <h2 className="mt-1 text-[26px] font-semibold tracking-tight text-white">
+                        CRM Intelligence Panel
+                      </h2>
+                    </div>
+
+                    <div className="rounded-full border border-emerald-400/20 bg-emerald-400/10 px-3 py-1.5 text-xs font-semibold text-emerald-300">
+                      Live Ready
+                    </div>
                   </div>
                 </div>
 
-                <div className="mt-5 grid gap-4 sm:grid-cols-2">
-                  <div className="rounded-2xl border border-white/10 bg-white/5 p-4">
-                    <p className="text-sm text-slate-300">Client Pipeline</p>
-                    <p className="mt-2 text-3xl font-semibold">Structured</p>
-                    <p className="mt-2 text-sm text-slate-400">
-                      Workflow, stages, follow-up, assignment, and visibility.
-                    </p>
-                  </div>
-
-                  <div className="rounded-2xl border border-white/10 bg-white/5 p-4">
-                    <p className="text-sm text-slate-300">Intake & Forms</p>
-                    <p className="mt-2 text-3xl font-semibold">Connected</p>
-                    <p className="mt-2 text-sm text-slate-400">
-                      Public intake to internal processing without messy handoff.
-                    </p>
-                  </div>
-
-                  <div className="rounded-2xl border border-white/10 bg-white/5 p-4">
-                    <p className="text-sm text-slate-300">Applications</p>
-                    <p className="mt-2 text-3xl font-semibold">Tracked</p>
-                    <p className="mt-2 text-sm text-slate-400">
-                      Courses, providers, submissions, and progression in one flow.
-                    </p>
-                  </div>
-
-                  <div className="rounded-2xl border border-white/10 bg-white/5 p-4">
-                    <p className="text-sm text-slate-300">Team Execution</p>
-                    <p className="mt-2 text-3xl font-semibold">Aligned</p>
-                    <p className="mt-2 text-sm text-slate-400">
-                      Tasks, branch coordination, and operational accountability.
-                    </p>
-                  </div>
+                <div className="relative mt-4 grid gap-4 sm:grid-cols-2">
+                  {intelligenceBlocks.map((block) => (
+                    <div
+                      key={block.label}
+                      className="rounded-[22px] border border-white/10 bg-white/[0.035] p-5 transition duration-300 hover:-translate-y-1 hover:bg-white/[0.055]"
+                    >
+                      <p className="text-sm text-slate-300">{block.label}</p>
+                      <p className="mt-3 text-[22px] font-semibold tracking-tight text-white sm:text-[25px]">
+                        {block.value}
+                      </p>
+                      <p className="mt-3 text-sm leading-6 text-slate-400">
+                        {block.description}
+                      </p>
+                    </div>
+                  ))}
                 </div>
 
-                <div className="mt-5 rounded-2xl border border-white/10 bg-white/5 p-4">
-                  <p className="text-sm text-slate-300">Built for high-clarity operations</p>
-                  <div className="mt-3 flex flex-wrap gap-2">
-                    {pillars.map((pillar) => (
+                <div className="relative mt-4 rounded-[24px] border border-white/10 bg-white/[0.035] p-5">
+                  <p className="text-sm text-slate-300">
+                    Built for high-clarity operations
+                  </p>
+
+                  <div className="mt-4 flex flex-wrap gap-2">
+                    {[
+                      "Education CRM",
+                      "Migration Operations",
+                      "Lead Conversion",
+                      "Workflow Automation",
+                      "Team Productivity",
+                      "Branch Collaboration",
+                    ].map((item) => (
                       <span
-                        key={pillar}
-                        className="rounded-full border border-white/10 bg-white/10 px-3 py-1 text-xs text-slate-200"
+                        key={item}
+                        className="rounded-full border border-white/10 bg-white/[0.06] px-3 py-1.5 text-xs text-slate-200"
                       >
-                        {pillar}
+                        {item}
                       </span>
                     ))}
                   </div>
                 </div>
               </div>
             </div>
-          </div>
+          </section>
         </div>
-      </section>
+      </div>
 
-      <section id="why" className="border-y border-slate-200 bg-slate-50">
-        <div className="mx-auto max-w-7xl px-4 py-14 sm:px-6 lg:px-8">
-          <div className="grid gap-8 lg:grid-cols-3">
-            <div>
-              <p className="text-sm font-semibold uppercase tracking-[0.22em] text-slate-500">
-                Why it feels premium
-              </p>
-              <h2 className="mt-3 text-3xl font-semibold tracking-tight text-slate-950">
-                Designed to look sharp, move fast, and scale cleanly.
-              </h2>
+      <section
+        id="why"
+        className="border-y border-slate-200 bg-white/60 backdrop-blur"
+      >
+        <div className="mx-auto max-w-7xl px-4 py-16 sm:px-6 lg:px-8">
+          <div className="grid gap-6 lg:grid-cols-[1.05fr_0.95fr_0.95fr]">
+            <div className="rounded-[28px] border border-transparent bg-transparent p-1">
+              <div className="h-full rounded-[24px] bg-transparent p-0">
+                <p className="text-[11px] font-semibold uppercase tracking-[0.28em] text-slate-500">
+                  Why it feels premium
+                </p>
+                <h2 className="mt-4 max-w-xl text-3xl font-semibold tracking-tight text-slate-950 sm:text-4xl">
+                  Designed to look sharp,
+                  <br />
+                  move fast, and scale cleanly.
+                </h2>
+              </div>
             </div>
 
-            <div className="rounded-3xl border border-slate-200 bg-white p-6 shadow-sm">
-              <h3 className="text-lg font-semibold text-slate-950">
+            <div className="group rounded-[28px] border border-slate-200 bg-white p-6 shadow-[0_18px_45px_-26px_rgba(15,23,42,0.16)] transition duration-300 hover:-translate-y-1 hover:shadow-[0_24px_55px_-28px_rgba(15,23,42,0.2)]">
+              <div className="mb-4 h-11 w-11 rounded-2xl bg-slate-100" />
+              <h3 className="text-xl font-semibold text-slate-950">
                 Clear visual hierarchy
               </h3>
               <p className="mt-3 text-sm leading-7 text-slate-600">
-                Strong sections, balanced spacing, clean cards, and enterprise-grade
-                polish make the platform feel trustworthy from the first screen.
+                Strong sections, balanced spacing, premium cards, and clean
+                emphasis make the platform feel trustworthy from the first
+                screen.
               </p>
             </div>
 
-            <div className="rounded-3xl border border-slate-200 bg-white p-6 shadow-sm">
-              <h3 className="text-lg font-semibold text-slate-950">
+            <div className="group rounded-[28px] border border-slate-200 bg-white p-6 shadow-[0_18px_45px_-26px_rgba(15,23,42,0.16)] transition duration-300 hover:-translate-y-1 hover:shadow-[0_24px_55px_-28px_rgba(15,23,42,0.2)]">
+              <div className="mb-4 h-11 w-11 rounded-2xl bg-slate-100" />
+              <h3 className="text-xl font-semibold text-slate-950">
                 Responsive by default
               </h3>
               <p className="mt-3 text-sm leading-7 text-slate-600">
-                The layout is built to feel polished across desktop, tablet, and
-                mobile without turning into a stacked mess.
+                The layout is designed to stay polished across desktop, tablet,
+                and mobile without collapsing into a cramped stacked experience.
               </p>
             </div>
           </div>
         </div>
       </section>
 
-      <section id="features" className="mx-auto max-w-7xl px-4 py-16 sm:px-6 lg:px-8">
+      <section
+        id="features"
+        className="mx-auto max-w-7xl px-4 py-16 sm:px-6 lg:px-8 lg:py-20"
+      >
         <div className="max-w-2xl">
-          <p className="text-sm font-semibold uppercase tracking-[0.22em] text-slate-500">
+          <p className="text-[11px] font-semibold uppercase tracking-[0.28em] text-slate-500">
             Core strengths
           </p>
-          <h2 className="mt-3 text-3xl font-semibold tracking-tight text-slate-950">
-            A landing page that reflects the power of the system behind it.
+          <h2 className="mt-4 text-3xl font-semibold tracking-tight text-slate-950 sm:text-4xl">
+            A homepage that reflects the product behind it.
           </h2>
           <p className="mt-4 text-base leading-8 text-slate-600">
-            This public entry point should instantly communicate trust, capability,
-            and modern product maturity instead of looking like a dev placeholder.
+            The public entry point should communicate trust, capability, and
+            software maturity instantly — not look like a temporary placeholder.
           </p>
         </div>
 
@@ -266,12 +342,12 @@ export default function HomePage() {
           {features.map((feature) => (
             <div
               key={feature.title}
-              className="group rounded-3xl border border-slate-200 bg-white p-6 shadow-sm transition duration-300 hover:-translate-y-1 hover:shadow-xl"
+              className="group rounded-[30px] border border-slate-200 bg-white p-6 shadow-[0_18px_45px_-26px_rgba(15,23,42,0.16)] transition duration-300 hover:-translate-y-1.5 hover:shadow-[0_28px_60px_-28px_rgba(15,23,42,0.22)]"
             >
-              <div className="inline-flex rounded-2xl bg-slate-100 px-3 py-2 text-xs font-semibold uppercase tracking-[0.18em] text-slate-700">
+              <div className="inline-flex rounded-full border border-slate-200 bg-slate-50 px-3 py-1.5 text-[11px] font-semibold uppercase tracking-[0.22em] text-slate-600">
                 CRM Module
               </div>
-              <h3 className="mt-4 text-xl font-semibold text-slate-950">
+              <h3 className="mt-5 text-2xl font-semibold tracking-tight text-slate-950">
                 {feature.title}
               </h3>
               <p className="mt-3 text-sm leading-7 text-slate-600">
@@ -282,32 +358,39 @@ export default function HomePage() {
         </div>
       </section>
 
-      <section id="modules" className="bg-slate-950 text-white">
-        <div className="mx-auto max-w-7xl px-4 py-16 sm:px-6 lg:px-8">
-          <div className="grid gap-10 lg:grid-cols-[0.95fr_1.05fr] lg:items-center">
+      <section
+        id="modules"
+        className="relative overflow-hidden bg-slate-950 text-white"
+      >
+        <div className="absolute inset-0 bg-[radial-gradient(circle_at_top_left,rgba(59,130,246,0.16),transparent_26%),radial-gradient(circle_at_bottom_right,rgba(129,140,248,0.14),transparent_24%)]" />
+
+        <div className="relative mx-auto max-w-7xl px-4 py-16 sm:px-6 lg:px-8 lg:py-20">
+          <div className="grid gap-12 lg:grid-cols-[0.95fr_1.05fr] lg:items-center">
             <div>
-              <p className="text-sm font-semibold uppercase tracking-[0.22em] text-slate-400">
+              <p className="text-[11px] font-semibold uppercase tracking-[0.28em] text-slate-400">
                 Built for serious operations
               </p>
-              <h2 className="mt-3 text-3xl font-semibold tracking-tight">
-                Not just a dashboard. A full operational command layer.
+              <h2 className="mt-4 text-3xl font-semibold tracking-tight sm:text-4xl">
+                Not just a dashboard.
+                <br />
+                A full operational command layer.
               </h2>
-              <p className="mt-4 text-base leading-8 text-slate-300">
-                From leads and intake to applications, documents, team tasks,
-                notifications, and reporting, the experience should feel cohesive,
-                premium, and unmistakably enterprise-grade.
+              <p className="mt-5 text-base leading-8 text-slate-300">
+                From leads and intake to applications, documents, tasks,
+                notifications, and reporting, the experience should feel
+                cohesive, premium, and unmistakably product-grade.
               </p>
 
               <div className="mt-8 flex flex-col gap-3 sm:flex-row">
                 <Link
                   href="/login"
-                  className="inline-flex items-center justify-center rounded-2xl bg-white px-6 py-3 text-sm font-semibold text-slate-950 transition hover:bg-slate-200"
+                  className="inline-flex items-center justify-center rounded-2xl bg-white px-6 py-3 text-sm font-semibold text-slate-950 transition hover:-translate-y-0.5 hover:bg-slate-200"
                 >
                   Access Platform
                 </Link>
                 <Link
                   href="/forms"
-                  className="inline-flex items-center justify-center rounded-2xl border border-white/15 bg-white/5 px-6 py-3 text-sm font-semibold text-white transition hover:bg-white/10"
+                  className="inline-flex items-center justify-center rounded-2xl border border-white/10 bg-white/[0.05] px-6 py-3 text-sm font-semibold text-white transition hover:-translate-y-0.5 hover:bg-white/[0.1]"
                 >
                   Open Forms
                 </Link>
@@ -315,21 +398,10 @@ export default function HomePage() {
             </div>
 
             <div className="grid gap-4 sm:grid-cols-2">
-              {[
-                "Clients",
-                "Leads",
-                "Intake Forms",
-                "Submissions",
-                "Applications",
-                "Providers",
-                "Courses",
-                "Tasks",
-                "Notifications",
-                "Workflows",
-              ].map((item) => (
+              {modulePills.map((item) => (
                 <div
                   key={item}
-                  className="rounded-2xl border border-white/10 bg-white/5 px-5 py-4 text-sm font-medium text-slate-100"
+                  className="rounded-[22px] border border-white/10 bg-white/[0.05] px-5 py-4 text-sm font-medium text-slate-100 transition duration-300 hover:-translate-y-1 hover:bg-white/[0.08]"
                 >
                   {item}
                 </div>
@@ -341,7 +413,11 @@ export default function HomePage() {
 
       <footer className="border-t border-slate-200 bg-white">
         <div className="mx-auto flex max-w-7xl flex-col gap-4 px-4 py-8 text-sm text-slate-500 sm:px-6 lg:flex-row lg:items-center lg:justify-between lg:px-8">
-          <p>CRM Dynamic — premium operations software for education and migration teams.</p>
+          <p>
+            CRM Dynamic — premium operations software for education and
+            migration teams.
+          </p>
+
           <div className="flex gap-4">
             <Link href="/login" className="transition hover:text-slate-950">
               Login
