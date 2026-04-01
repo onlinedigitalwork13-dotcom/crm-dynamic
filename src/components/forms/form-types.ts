@@ -16,6 +16,10 @@ export type FormFieldType =
 
 export type FormFieldWidth = "full" | "half" | "third" | "quarter";
 
+export type FormFieldVariant = "inline" | "stacked";
+
+export type FormSectionLayout = "paper" | "default";
+
 export type FormField = {
   key: string;
   label: string;
@@ -25,12 +29,14 @@ export type FormField = {
   width?: FormFieldWidth;
   visible?: boolean;
   options?: FormFieldOption[];
+  variant?: FormFieldVariant;
 };
 
 export type FormSection = {
   key: string;
   title: string;
   description?: string;
+  layout?: FormSectionLayout;
   fields: FormField[];
 };
 
