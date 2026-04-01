@@ -421,7 +421,22 @@ export default function MobileSidebarShell({
           ) : null}
         </div>
 
-        <main className="flex-1 p-4 md:p-6">{children}</main>
+        <main className="flex-1">
+  <div className="mx-auto w-full max-w-[1680px] px-3 py-3 sm:px-4 sm:py-4 md:px-6 md:py-6 xl:px-8">
+    
+    {/* Glass Container */}
+    <div className="rounded-[26px] border border-white/60 bg-white/70 shadow-[0_20px_60px_rgba(15,23,42,0.08)] backdrop-blur-xl">
+      
+      {/* Inner Content */}
+      <div className="min-h-[calc(100vh-120px)] rounded-[26px]">
+        <div className="px-4 py-4 sm:px-5 sm:py-5 md:px-6 md:py-6 xl:px-8 xl:py-8">
+          {children}
+        </div>
+      </div>
+
+    </div>
+  </div>
+</main>
       </div>
     </div>
   );
