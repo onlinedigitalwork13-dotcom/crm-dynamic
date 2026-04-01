@@ -1,236 +1,43 @@
-import { FormSchema } from "./form-types";
+export type FormFieldOption = {
+  label: string;
+  value: string;
+};
 
-export const clientMasterSchema: FormSchema = [
-  {
-    key: "personal_details",
-    title: "Personal Details",
-    layout: "paper",
-    fields: [
-      {
-        key: "title",
-        label: "Title",
-        type: "radio",
-        width: "full",
-        variant: "inline",
-        options: [
-          { label: "Mr", value: "Mr" },
-          { label: "Mrs", value: "Mrs" },
-          { label: "Ms", value: "Ms" },
-          { label: "Miss", value: "Miss" },
-          { label: "Other", value: "Other" },
-        ],
-      },
-      {
-        key: "surname",
-        label: "Surname",
-        type: "text",
-        required: true,
-        placeholder: "Enter surname",
-        width: "half",
-        variant: "inline",
-      },
-      {
-        key: "firstName",
-        label: "First Name(s)",
-        type: "text",
-        required: true,
-        placeholder: "Enter first name(s)",
-        width: "half",
-        variant: "inline",
-      },
-      {
-        key: "preferredName",
-        label: "Preferred Name",
-        type: "text",
-        placeholder: "Enter preferred name",
-        width: "half",
-        variant: "inline",
-      },
-      {
-        key: "nationality",
-        label: "Nationality",
-        type: "text",
-        placeholder: "Enter nationality",
-        width: "half",
-        variant: "inline",
-      },
-      {
-        key: "country",
-        label: "Country",
-        type: "text",
-        placeholder: "Enter country",
-        width: "half",
-        variant: "inline",
-      },
-      {
-        key: "passportNumber",
-        label: "Passport No",
-        type: "text",
-        placeholder: "Enter passport number",
-        width: "half",
-        variant: "inline",
-      },
-    ],
-  },
-  {
-    key: "address_contact",
-    title: "Address & Contact",
-    layout: "paper",
-    fields: [
-      {
-        key: "residentialAddress",
-        label: "Residential Address",
-        type: "textarea",
-        placeholder: "Enter residential address",
-        width: "full",
-      },
-      {
-        key: "postalAddress",
-        label: "Postal Address",
-        type: "textarea",
-        placeholder: "Enter postal address",
-        width: "full",
-      },
-      {
-        key: "mobile",
-        label: "Mobile",
-        type: "text",
-        required: true,
-        placeholder: "Enter mobile number",
-        width: "third",
-        variant: "inline",
-      },
-      {
-        key: "homePhone",
-        label: "Home",
-        type: "text",
-        placeholder: "Enter home number",
-        width: "third",
-        variant: "inline",
-      },
-      {
-        key: "workPhone",
-        label: "Work",
-        type: "text",
-        placeholder: "Enter work number",
-        width: "third",
-        variant: "inline",
-      },
-      {
-        key: "email",
-        label: "Email",
-        type: "email",
-        placeholder: "Enter email",
-        width: "half",
-        variant: "inline",
-      },
-      {
-        key: "occupation",
-        label: "Occupation",
-        type: "text",
-        placeholder: "Enter occupation",
-        width: "half",
-        variant: "inline",
-      },
-    ],
-  },
-  {
-    key: "visa_details",
-    title: "Current Visa",
-    layout: "paper",
-    fields: [
-      {
-        key: "visaSubclass",
-        label: "Subclass",
-        type: "text",
-        placeholder: "Enter visa subclass",
-        width: "third",
-        variant: "inline",
-      },
-      {
-        key: "visaExpiry",
-        label: "Expires On",
-        type: "date",
-        width: "third",
-        variant: "inline",
-      },
-      {
-        key: "visaConditions",
-        label: "Conditions",
-        type: "text",
-        placeholder: "Enter visa conditions",
-        width: "third",
-        variant: "inline",
-      },
-      {
-        key: "visaIssues",
-        label: "Any previous visa refusal/cancellation/issues",
-        type: "textarea",
-        placeholder: "Enter details if applicable",
-        width: "full",
-      },
-    ],
-  },
-  {
-    key: "emergency_contact",
-    title: "Emergency Contact Details",
-    layout: "paper",
-    fields: [
-      {
-        key: "emergencyFirstName",
-        label: "First Name(s)",
-        type: "text",
-        placeholder: "Enter emergency contact first name",
-        width: "half",
-        variant: "inline",
-      },
-      {
-        key: "emergencySurname",
-        label: "Surname",
-        type: "text",
-        placeholder: "Enter emergency contact surname",
-        width: "half",
-        variant: "inline",
-      },
-      {
-        key: "emergencyAddress",
-        label: "Address",
-        type: "textarea",
-        placeholder: "Enter emergency contact address",
-        width: "full",
-      },
-      {
-        key: "emergencyMobile",
-        label: "Mobile",
-        type: "text",
-        placeholder: "Enter emergency mobile number",
-        width: "third",
-        variant: "inline",
-      },
-      {
-        key: "emergencyHome",
-        label: "Home",
-        type: "text",
-        placeholder: "Enter emergency home number",
-        width: "third",
-        variant: "inline",
-      },
-      {
-        key: "emergencyWork",
-        label: "Work",
-        type: "text",
-        placeholder: "Enter emergency work number",
-        width: "third",
-        variant: "inline",
-      },
-      {
-        key: "emergencyEmail",
-        label: "Email",
-        type: "email",
-        placeholder: "Enter emergency email",
-        width: "full",
-        variant: "inline",
-      },
-    ],
-  },
-];
+export type FormFieldType =
+  | "text"
+  | "email"
+  | "tel"
+  | "number"
+  | "date"
+  | "textarea"
+  | "select"
+  | "radio"
+  | "checkbox";
+
+export type FormFieldWidth = "full" | "half" | "third" | "quarter";
+
+export type FormFieldVariant = "inline" | "stacked";
+
+export type FormSectionLayout = "paper" | "default";
+
+export type FormField = {
+  key: string;
+  label: string;
+  type: FormFieldType;
+  required?: boolean;
+  placeholder?: string;
+  width?: FormFieldWidth;
+  visible?: boolean;
+  options?: FormFieldOption[];
+  variant?: FormFieldVariant;
+};
+
+export type FormSection = {
+  key: string;
+  title: string;
+  description?: string;
+  layout?: FormSectionLayout;
+  fields: FormField[];
+};
+
+export type FormSchema = FormSection[];

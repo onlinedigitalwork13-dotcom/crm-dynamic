@@ -30,6 +30,7 @@ export type FormField = {
   visible?: boolean;
   options?: FormFieldOption[];
   variant?: FormFieldVariant;
+  defaultValue?: string | number | boolean | null;
 };
 
 export type FormSection = {
