@@ -12,18 +12,17 @@ import {
 type RouteContext = {
   params: Promise<{
     id: string;
-    itemId: string;
+    iteamId: string;
   }>;
 };
 
 export async function PATCH(request: NextRequest, { params }: RouteContext) {
   try {
-    const { itemId } = await params;
+    const { iteamId: itemId } = await params;
     const body = await request.json();
 
     let updated;
 
-    // 🔥 Action-based updates (clean approach)
     if (body.action === "verify") {
       updated = await verifyChecklistItem(itemId, body.verifiedById);
     } else if (body.action === "request") {
@@ -35,7 +34,6 @@ export async function PATCH(request: NextRequest, { params }: RouteContext) {
     } else if (body.action === "waive") {
       updated = await waiveChecklistItem(itemId, body.remarks);
     } else {
-      // 🔧 Generic update (title, dueDate, etc.)
       updated = await updateChecklistItem(itemId, {
         title: body.title,
         description: body.description,
@@ -66,7 +64,7 @@ export async function PATCH(request: NextRequest, { params }: RouteContext) {
 
 export async function DELETE(_request: NextRequest, { params }: RouteContext) {
   try {
-    const { itemId } = await params;
+    const { iteamId: itemId } = await params;
 
     const result = await deleteChecklistItem(itemId);
 
