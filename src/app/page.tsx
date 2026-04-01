@@ -11,7 +11,8 @@ const stats = [
   },
   {
     title: "End-to-end",
-    description: "Manage leads, applications, tasks, and follow-up in one system.",
+    description:
+      "Manage leads, applications, tasks, and follow-up in one connected system.",
   },
 ];
 
@@ -65,22 +66,26 @@ const intelligenceBlocks = [
   {
     label: "Student Pipeline",
     value: "Controlled",
-    description: "Track every client from enquiry to application with full visibility.",
+    description:
+      "Track every client from enquiry to application with full visibility.",
   },
   {
     label: "Intake & Forms",
     value: "Connected",
-    description: "Move from public form capture to internal action without messy handoff.",
+    description:
+      "Move from public form capture to internal action without messy handoff.",
   },
   {
     label: "Applications",
     value: "Tracked",
-    description: "Monitor providers, courses, submissions, and progression in one flow.",
+    description:
+      "Monitor providers, courses, submissions, and progression in one flow.",
   },
   {
     label: "Team Operations",
     value: "Aligned",
-    description: "Keep staff, tasks, follow-up, and accountability structured across branches.",
+    description:
+      "Keep staff, tasks, follow-up, and accountability structured across branches.",
   },
 ];
 
@@ -99,6 +104,85 @@ const trustItems = [
   "Built for live operational use",
   "Reception and intake ready",
 ];
+
+const proofCards = [
+  {
+    eyebrow: "Dashboard",
+    title: "Operational visibility at a glance",
+    description:
+      "Surface key numbers, active tasks, workflow movement, and team activity from one central command layer.",
+    accent: "from-sky-500/20 via-blue-500/10 to-indigo-500/20",
+    lines: [
+      "Live KPI overview",
+      "Follow-up workload",
+      "Branch operations snapshot",
+    ],
+  },
+  {
+    eyebrow: "Client Workspace",
+    title: "Everything around the client in one place",
+    description:
+      "Keep profile details, activity, applications, stage movement, notes, and tasks connected to the same record.",
+    accent: "from-violet-500/20 via-fuchsia-500/10 to-pink-500/20",
+    lines: [
+      "Profile + workflow stage",
+      "Notes, tasks, activity",
+      "Applications and documents",
+    ],
+  },
+  {
+    eyebrow: "Workflow Engine",
+    title: "Structured movement with accountability",
+    description:
+      "Standardize progression, improve handoff, and reduce missed follow-up with configurable workflow execution.",
+    accent: "from-emerald-500/20 via-teal-500/10 to-cyan-500/20",
+    lines: [
+      "Configurable stages",
+      "Team ownership",
+      "Alerts and follow-up triggers",
+    ],
+  },
+];
+
+const chooseReasons = [
+  {
+    title: "No more spreadsheet chaos",
+    description:
+      "Bring leads, applications, tasks, and follow-up into one operational system instead of scattered tools.",
+  },
+  {
+    title: "Built for branch operations",
+    description:
+      "Support multi-user and multi-branch workflows with clearer accountability and visibility across teams.",
+  },
+  {
+    title: "Made for real process flow",
+    description:
+      "Track how work actually moves from intake to outcome, instead of using a static contact list.",
+  },
+  {
+    title: "Better operational discipline",
+    description:
+      "Use structured stages, notifications, and task ownership to reduce missed action and internal confusion.",
+  },
+];
+
+const trustStrip = [
+  "Role-based access",
+  "Audit visibility",
+  "Workflow automation",
+  "Task accountability",
+  "Front-desk check-in",
+  "Live-ready architecture",
+];
+
+function SectionEyebrow({ children }: { children: React.ReactNode }) {
+  return (
+    <p className="text-[11px] font-semibold uppercase tracking-[0.28em] text-slate-500">
+      {children}
+    </p>
+  );
+}
 
 export default function HomePage() {
   return (
@@ -136,6 +220,12 @@ export default function HomePage() {
                   className="text-sm font-medium text-slate-600 transition hover:text-slate-950"
                 >
                   How It Works
+                </a>
+                <a
+                  href="#proof"
+                  className="text-sm font-medium text-slate-600 transition hover:text-slate-950"
+                >
+                  Product Proof
                 </a>
                 <a
                   href="#modules"
@@ -294,9 +384,7 @@ export default function HomePage() {
         className="mx-auto max-w-7xl px-4 py-16 sm:px-6 lg:px-8 lg:py-20"
       >
         <div className="max-w-2xl">
-          <p className="text-[11px] font-semibold uppercase tracking-[0.28em] text-slate-500">
-            Core capabilities
-          </p>
+          <SectionEyebrow>Core capabilities</SectionEyebrow>
           <h2 className="mt-4 text-3xl font-semibold tracking-tight text-slate-950 sm:text-4xl">
             Everything you need to run your student operations
           </h2>
@@ -333,9 +421,7 @@ export default function HomePage() {
       >
         <div className="mx-auto max-w-7xl px-4 py-16 sm:px-6 lg:px-8">
           <div className="max-w-2xl">
-            <p className="text-[11px] font-semibold uppercase tracking-[0.28em] text-slate-500">
-              How it works
-            </p>
+            <SectionEyebrow>How it works</SectionEyebrow>
             <h2 className="mt-4 text-3xl font-semibold tracking-tight text-slate-950 sm:text-4xl">
               A clearer way to run daily operations
             </h2>
@@ -389,6 +475,111 @@ export default function HomePage() {
       </section>
 
       <section
+        id="proof"
+        className="mx-auto max-w-7xl px-4 py-16 sm:px-6 lg:px-8 lg:py-20"
+      >
+        <div className="max-w-2xl">
+          <SectionEyebrow>Product proof</SectionEyebrow>
+          <h2 className="mt-4 text-3xl font-semibold tracking-tight text-slate-950 sm:text-4xl">
+            Built like a real operational platform
+          </h2>
+          <p className="mt-4 text-base leading-8 text-slate-600">
+            CRM Dynamic is more than a contact list. It is designed to support
+            live intake, workflow execution, client movement, and day-to-day
+            internal coordination.
+          </p>
+        </div>
+
+        <div className="mt-10 grid gap-5 xl:grid-cols-3">
+          {proofCards.map((card) => (
+            <div
+              key={card.title}
+              className="group overflow-hidden rounded-[30px] border border-slate-200 bg-white shadow-[0_18px_45px_-26px_rgba(15,23,42,0.16)] transition duration-300 hover:-translate-y-1.5 hover:shadow-[0_30px_70px_-30px_rgba(15,23,42,0.2)]"
+            >
+              <div
+                className={`relative h-56 border-b border-slate-200 bg-gradient-to-br ${card.accent}`}
+              >
+                <div className="absolute inset-4 rounded-[24px] border border-slate-900/10 bg-white/80 p-4 shadow-sm backdrop-blur">
+                  <div className="flex items-center justify-between gap-3">
+                    <div>
+                      <p className="text-[11px] font-semibold uppercase tracking-[0.24em] text-slate-500">
+                        {card.eyebrow}
+                      </p>
+                      <p className="mt-2 text-lg font-semibold text-slate-950">
+                        {card.title}
+                      </p>
+                    </div>
+                    <div className="rounded-full border border-emerald-200 bg-emerald-50 px-3 py-1 text-xs font-semibold text-emerald-700">
+                      Active
+                    </div>
+                  </div>
+
+                  <div className="mt-5 grid gap-2">
+                    {card.lines.map((line) => (
+                      <div
+                        key={line}
+                        className="rounded-xl border border-slate-200 bg-slate-50 px-3 py-2 text-sm text-slate-700"
+                      >
+                        {line}
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              </div>
+
+              <div className="p-6">
+                <p className="text-sm leading-7 text-slate-600">
+                  {card.description}
+                </p>
+              </div>
+            </div>
+          ))}
+        </div>
+      </section>
+
+      <section className="border-y border-slate-200 bg-white">
+        <div className="mx-auto max-w-7xl px-4 py-16 sm:px-6 lg:px-8">
+          <div className="max-w-2xl">
+            <SectionEyebrow>Why teams choose CRM Dynamic</SectionEyebrow>
+            <h2 className="mt-4 text-3xl font-semibold tracking-tight text-slate-950 sm:text-4xl">
+              Made for operational control, not just contact storage
+            </h2>
+            <p className="mt-4 text-base leading-8 text-slate-600">
+              The platform is designed to bring structure, accountability, and
+              visibility into real education and migration workflows.
+            </p>
+          </div>
+
+          <div className="mt-10 grid gap-5 md:grid-cols-2">
+            {chooseReasons.map((item) => (
+              <div
+                key={item.title}
+                className="rounded-[28px] border border-slate-200 bg-slate-50 p-6"
+              >
+                <h3 className="text-xl font-semibold text-slate-950">
+                  {item.title}
+                </h3>
+                <p className="mt-3 text-sm leading-7 text-slate-600">
+                  {item.description}
+                </p>
+              </div>
+            ))}
+          </div>
+
+          <div className="mt-10 flex flex-wrap gap-3">
+            {trustStrip.map((item) => (
+              <span
+                key={item}
+                className="rounded-full border border-slate-200 bg-white px-4 py-2 text-sm font-medium text-slate-700 shadow-sm"
+              >
+                {item}
+              </span>
+            ))}
+          </div>
+        </div>
+      </section>
+
+      <section
         id="modules"
         className="relative overflow-hidden bg-slate-950 text-white"
       >
@@ -397,9 +588,7 @@ export default function HomePage() {
         <div className="relative mx-auto max-w-7xl px-4 py-16 sm:px-6 lg:px-8 lg:py-20">
           <div className="grid gap-12 lg:grid-cols-[0.95fr_1.05fr] lg:items-center">
             <div>
-              <p className="text-[11px] font-semibold uppercase tracking-[0.28em] text-slate-400">
-                Built for serious operations
-              </p>
+              <SectionEyebrow>Built for serious operations</SectionEyebrow>
               <h2 className="mt-4 text-3xl font-semibold tracking-tight sm:text-4xl">
                 Not just a dashboard.
                 <br />
@@ -444,9 +633,7 @@ export default function HomePage() {
       <section className="mx-auto max-w-7xl px-4 py-16 sm:px-6 lg:px-8 lg:py-20">
         <div className="grid gap-8 lg:grid-cols-[0.95fr_1.05fr] lg:items-start">
           <div>
-            <p className="text-[11px] font-semibold uppercase tracking-[0.28em] text-slate-500">
-              Built for
-            </p>
+            <SectionEyebrow>Built for</SectionEyebrow>
             <h2 className="mt-4 text-3xl font-semibold tracking-tight text-slate-950 sm:text-4xl">
               Teams that need structure,
               <br />
@@ -475,9 +662,7 @@ export default function HomePage() {
       <section className="border-y border-slate-200 bg-white">
         <div className="mx-auto max-w-7xl px-4 py-16 sm:px-6 lg:px-8">
           <div className="max-w-2xl">
-            <p className="text-[11px] font-semibold uppercase tracking-[0.28em] text-slate-500">
-              Trust layer
-            </p>
+            <SectionEyebrow>Trust layer</SectionEyebrow>
             <h2 className="mt-4 text-3xl font-semibold tracking-tight text-slate-950 sm:text-4xl">
               Built to support real operational use
             </h2>
@@ -504,9 +689,7 @@ export default function HomePage() {
       <section className="mx-auto max-w-7xl px-4 py-16 sm:px-6 lg:px-8 lg:py-20">
         <div className="rounded-[34px] border border-slate-200 bg-white p-8 shadow-[0_24px_60px_-30px_rgba(15,23,42,0.18)] sm:p-10 lg:p-12">
           <div className="max-w-3xl">
-            <p className="text-[11px] font-semibold uppercase tracking-[0.28em] text-slate-500">
-              Final CTA
-            </p>
+            <SectionEyebrow>Final CTA</SectionEyebrow>
             <h2 className="mt-4 text-3xl font-semibold tracking-tight text-slate-950 sm:text-4xl">
               Start managing your operations properly
             </h2>
