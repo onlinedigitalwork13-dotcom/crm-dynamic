@@ -1,4 +1,3 @@
-import { PrismaClient } from "@prisma/client";
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 
@@ -13,6 +12,14 @@ function normalizeEmail(value: unknown) {
   return email ? email.toLowerCase() : null;
 }
 
+function normalizePhoneDigits(value: unknown) {
+  const phone = normalizeString(value);
+  if (!phone) return null;
+
+  const digits = phone.replace(/\D/g, "");
+  return digits.length > 0 ? digits : null;
+}
+
 export async function POST(req: NextRequest) {
   try {
     const body = await req.json();
@@ -20,6 +27,7 @@ export async function POST(req: NextRequest) {
     const phone = normalizeString(body.phone);
     const email = normalizeEmail(body.email);
     const passportNumber = normalizeString(body.passportNumber);
+    const phoneDigits = normalizePhoneDigits(body.phone);
 
     if (!phone && !email && !passportNumber) {
       return NextResponse.json(
@@ -59,6 +67,34 @@ export async function POST(req: NextRequest) {
       }
     }
 
+    if (phoneDigits) {
+      const clientByNormalizedPhone = await prisma.client.findMany({
+        select: {
+          id: true,
+          firstName: true,
+          lastName: true,
+          email: true,
+          phone: true,
+          passport: true,
+          branchId: true,
+        },
+        take: 100,
+      });
+
+      const matchedClient = clientByNormalizedPhone.find((client) => {
+        const existingDigits = (client.phone ?? "").replace(/\D/g, "");
+        return existingDigits.length > 0 && existingDigits === phoneDigits;
+      });
+
+      if (matchedClient) {
+        return NextResponse.json({
+          success: true,
+          mode: "existing_client",
+          client: matchedClient,
+        });
+      }
+    }
+
     const intakeIdentifiers = [
       phone ? { phone } : undefined,
       email ? { email } : undefined,
@@ -90,6 +126,38 @@ export async function POST(req: NextRequest) {
           success: true,
           mode: "existing_intake_submission",
           intakeSubmission,
+        });
+      }
+    }
+
+    if (phoneDigits) {
+      const intakeCandidates = await prisma.intakeFormSubmission.findMany({
+        select: {
+          id: true,
+          firstName: true,
+          lastName: true,
+          email: true,
+          phone: true,
+          passportNumber: true,
+          branchId: true,
+          clientId: true,
+        },
+        orderBy: {
+          createdAt: "desc",
+        },
+        take: 100,
+      });
+
+      const matchedSubmission = intakeCandidates.find((submission) => {
+        const existingDigits = (submission.phone ?? "").replace(/\D/g, "");
+        return existingDigits.length > 0 && existingDigits === phoneDigits;
+      });
+
+      if (matchedSubmission) {
+        return NextResponse.json({
+          success: true,
+          mode: "existing_intake_submission",
+          intakeSubmission: matchedSubmission,
         });
       }
     }
