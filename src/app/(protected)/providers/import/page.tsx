@@ -2,6 +2,8 @@
 
 import { useMemo, useState } from "react";
 
+type SourceType = "csv" | "website";
+
 type PreviewRow = {
   rowId: string;
   rawRowIndex?: number;
@@ -100,9 +102,7 @@ function parseCsv(text: string): Record<string, unknown>[] {
     .map((line) => line.trim())
     .filter(Boolean);
 
-  if (lines.length < 2) {
-    return [];
-  }
+  if (lines.length < 2) return [];
 
   const headers = parseCsvLine(lines[0]).map((header) => header.trim());
 
@@ -125,7 +125,97 @@ function getStatusLabel(row: PreviewRow) {
   return "Review";
 }
 
+function downloadSampleCsv() {
+  const headers = [
+    "providerName",
+    "courseName",
+    "courseCode",
+    "level",
+    "duration",
+    "tuitionFee",
+    "intakeMonths",
+    "campus",
+    "description",
+    "category",
+    "studyMode",
+    "durationValue",
+    "durationUnit",
+    "applicationFee",
+    "materialFee",
+    "currency",
+    "entryRequirements",
+    "englishRequirements",
+    "notes",
+  ];
+
+  const sampleRows = [
+    [
+      "Deakin University",
+      "Master of Information Technology",
+      "MIT001",
+      "Postgraduate",
+      "2 years",
+      "42000",
+      "February,July,November",
+      "Melbourne",
+      "Advanced IT program with specialisations",
+      "Information Technology",
+      "On-campus",
+      "2",
+      "years",
+      "0",
+      "0",
+      "AUD",
+      "Bachelor degree in related field",
+      "IELTS 6.5 overall",
+      "Popular course for international students",
+    ],
+    [
+      "La Trobe University",
+      "Bachelor of Business",
+      "BBUS101",
+      "Undergraduate",
+      "3 years",
+      "36500",
+      "February,July",
+      "Sydney",
+      "Business foundation with majors available",
+      "Business",
+      "On-campus",
+      "3",
+      "years",
+      "0",
+      "0",
+      "AUD",
+      "Year 12 or equivalent",
+      "IELTS 6.0 overall",
+      "Suitable for pathway students",
+    ],
+  ];
+
+  const csvLines = [
+    headers.join(","),
+    ...sampleRows.map((row) =>
+      row.map((value) => `"${String(value).replace(/"/g, '""')}"`).join(",")
+    ),
+  ];
+
+  const blob = new Blob([csvLines.join("\n")], {
+    type: "text/csv;charset=utf-8;",
+  });
+
+  const url = URL.createObjectURL(blob);
+  const link = document.createElement("a");
+  link.href = url;
+  link.setAttribute("download", "course-import-sample.csv");
+  document.body.appendChild(link);
+  link.click();
+  document.body.removeChild(link);
+  URL.revokeObjectURL(url);
+}
+
 export default function ProviderCourseImportPage() {
+  const [sourceType, setSourceType] = useState<SourceType>("csv");
   const [fileName, setFileName] = useState("");
   const [rows, setRows] = useState<Record<string, unknown>[]>([]);
   const [preview, setPreview] = useState<PreviewResult | null>(null);
@@ -136,12 +226,31 @@ export default function ProviderCourseImportPage() {
   const [error, setError] = useState("");
   const [successMessage, setSuccessMessage] = useState("");
 
+  const [websiteUrl, setWebsiteUrl] = useState("");
+  const [websiteProviderName, setWebsiteProviderName] = useState("");
+
   const hasRows = rows.length > 0;
 
   const readyRows = useMemo(
     () => preview?.rows.filter((row) => row.willImport).length ?? 0,
     [preview]
   );
+
+  function resetState() {
+    setRows([]);
+    setPreview(null);
+    setCommitResult(null);
+    setError("");
+    setSuccessMessage("");
+  }
+
+  function handleSourceChange(next: SourceType) {
+    setSourceType(next);
+    setFileName("");
+    setWebsiteUrl("");
+    setWebsiteProviderName("");
+    resetState();
+  }
 
   async function handleFileChange(event: React.ChangeEvent<HTMLInputElement>) {
     const file = event.target.files?.[0];
@@ -184,7 +293,7 @@ export default function ProviderCourseImportPage() {
     }
   }
 
-  async function handlePreview() {
+  async function handleCsvPreview() {
     if (!rows.length) {
       setError("Please upload a CSV with at least one row.");
       return;
@@ -212,14 +321,54 @@ export default function ProviderCourseImportPage() {
       const data = await response.json();
 
       if (!response.ok) {
-        setError(data?.error || "Failed to preview import.");
+        setError(data?.error || "Failed to preview CSV import.");
         return;
       }
 
       setPreview(data);
     } catch (err) {
       console.error(err);
-      setError("Something went wrong while previewing the import.");
+      setError("Something went wrong while previewing the CSV import.");
+    } finally {
+      setIsPreviewLoading(false);
+    }
+  }
+
+  async function handleWebsitePreview() {
+    if (!websiteUrl.trim()) {
+      setError("Please enter a website URL.");
+      return;
+    }
+
+    setError("");
+    setSuccessMessage("");
+    setCommitResult(null);
+    setIsPreviewLoading(true);
+    setPreview(null);
+
+    try {
+      const response = await fetch("/api/courses/import/website", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          url: websiteUrl.trim(),
+          providerName: websiteProviderName.trim() || undefined,
+        }),
+      });
+
+      const data = await response.json();
+
+      if (!response.ok) {
+        setError(data?.error || "Failed to preview website import.");
+        return;
+      }
+
+      setPreview(data);
+    } catch (err) {
+      console.error(err);
+      setError("Something went wrong while previewing the website import.");
     } finally {
       setIsPreviewLoading(false);
     }
@@ -275,11 +424,9 @@ export default function ProviderCourseImportPage() {
 
   function handleReset() {
     setFileName("");
-    setRows([]);
-    setPreview(null);
-    setCommitResult(null);
-    setError("");
-    setSuccessMessage("");
+    setWebsiteUrl("");
+    setWebsiteProviderName("");
+    resetState();
   }
 
   return (
@@ -295,8 +442,8 @@ export default function ProviderCourseImportPage() {
                 Course Import
               </h1>
               <p className="mt-2 max-w-3xl text-sm text-gray-600">
-                Upload provider course data via CSV and preview everything before it
-                touches live records.
+                Import provider course data from CSV now and website sync next
+                using the same shared pipeline.
               </p>
             </div>
 
@@ -313,51 +460,135 @@ export default function ProviderCourseImportPage() {
         <div className="grid gap-6 lg:grid-cols-12">
           <div className="lg:col-span-4">
             <div className="rounded-2xl border border-gray-200 bg-white p-6 shadow-sm">
-              <h2 className="text-lg font-semibold text-gray-900">Upload CSV</h2>
-              <p className="mt-2 text-sm text-gray-600">
-                Import courses from a spreadsheet export. Preview runs server-side
-                validation, provider matching, and duplicate detection.
-              </p>
-
-              <div className="mt-6">
-                <label
-                  htmlFor="csv-upload"
-                  className="flex cursor-pointer flex-col items-center justify-center rounded-2xl border border-dashed border-gray-300 bg-gray-50 px-6 py-10 text-center hover:bg-gray-100"
+              <div className="mb-6 flex rounded-xl bg-gray-100 p-1">
+                <button
+                  type="button"
+                  onClick={() => handleSourceChange("csv")}
+                  className={`flex-1 rounded-lg px-4 py-2 text-sm font-medium ${
+                    sourceType === "csv"
+                      ? "bg-white text-gray-900 shadow-sm"
+                      : "text-gray-600"
+                  }`}
                 >
-                  <span className="text-sm font-medium text-gray-900">
-                    Choose CSV file
-                  </span>
-                  <span className="mt-1 text-sm text-gray-500">
-                    Upload a .csv file with course rows
-                  </span>
-                </label>
-                <input
-                  id="csv-upload"
-                  type="file"
-                  accept=".csv,text/csv"
-                  onChange={handleFileChange}
-                  className="hidden"
-                />
+                  CSV Upload
+                </button>
+                <button
+                  type="button"
+                  onClick={() => handleSourceChange("website")}
+                  className={`flex-1 rounded-lg px-4 py-2 text-sm font-medium ${
+                    sourceType === "website"
+                      ? "bg-white text-gray-900 shadow-sm"
+                      : "text-gray-600"
+                  }`}
+                >
+                  Website URL
+                </button>
               </div>
 
-              <div className="mt-4 space-y-2 text-sm">
-                <div className="flex items-center justify-between rounded-lg bg-gray-50 px-3 py-2">
-                  <span className="text-gray-500">Selected file</span>
-                  <span className="font-medium text-gray-900">
-                    {fileName || "None"}
-                  </span>
-                </div>
+              {sourceType === "csv" ? (
+                <>
+                  <h2 className="text-lg font-semibold text-gray-900">
+                    Upload CSV
+                  </h2>
+                  <p className="mt-2 text-sm text-gray-600">
+                    Import courses from a spreadsheet export. Preview runs
+                    validation, provider matching, and duplicate detection.
+                  </p>
 
-                <div className="flex items-center justify-between rounded-lg bg-gray-50 px-3 py-2">
-                  <span className="text-gray-500">Parsed rows</span>
-                  <span className="font-medium text-gray-900">{rows.length}</span>
-                </div>
+                  <div className="mt-6">
+                    <label
+                      htmlFor="csv-upload"
+                      className="flex cursor-pointer flex-col items-center justify-center rounded-2xl border border-dashed border-gray-300 bg-gray-50 px-6 py-10 text-center hover:bg-gray-100"
+                    >
+                      <span className="text-sm font-medium text-gray-900">
+                        Choose CSV file
+                      </span>
+                      <span className="mt-1 text-sm text-gray-500">
+                        Upload a .csv file with course rows
+                      </span>
+                    </label>
+                    <input
+                      id="csv-upload"
+                      type="file"
+                      accept=".csv,text/csv"
+                      onChange={handleFileChange}
+                      className="hidden"
+                    />
+                  </div>
 
-                <div className="flex items-center justify-between rounded-lg bg-gray-50 px-3 py-2">
-                  <span className="text-gray-500">Ready to import</span>
-                  <span className="font-medium text-gray-900">{readyRows}</span>
-                </div>
-              </div>
+                  <div className="mt-3">
+                    <button
+                      type="button"
+                      onClick={downloadSampleCsv}
+                      disabled={isPreviewLoading || isCommitLoading}
+                      className="inline-flex w-full items-center justify-center rounded-xl border border-blue-200 bg-blue-50 px-4 py-3 text-sm font-medium text-blue-700 disabled:cursor-not-allowed disabled:opacity-50"
+                    >
+                      Download Sample CSV
+                    </button>
+                  </div>
+
+                  <div className="mt-4 space-y-2 text-sm">
+                    <div className="flex items-center justify-between rounded-lg bg-gray-50 px-3 py-2">
+                      <span className="text-gray-500">Selected file</span>
+                      <span className="font-medium text-gray-900">
+                        {fileName || "None"}
+                      </span>
+                    </div>
+
+                    <div className="flex items-center justify-between rounded-lg bg-gray-50 px-3 py-2">
+                      <span className="text-gray-500">Parsed rows</span>
+                      <span className="font-medium text-gray-900">
+                        {rows.length}
+                      </span>
+                    </div>
+
+                    <div className="flex items-center justify-between rounded-lg bg-gray-50 px-3 py-2">
+                      <span className="text-gray-500">Ready to import</span>
+                      <span className="font-medium text-gray-900">
+                        {readyRows}
+                      </span>
+                    </div>
+                  </div>
+                </>
+              ) : (
+                <>
+                  <h2 className="text-lg font-semibold text-gray-900">
+                    Website URL Preview
+                  </h2>
+                  <p className="mt-2 text-sm text-gray-600">
+                    Paste a provider course page URL. We will preview rows before
+                    import. This keeps live data safe.
+                  </p>
+
+                  <div className="mt-6 space-y-4">
+                    <div>
+                      <label className="mb-2 block text-sm font-medium text-gray-700">
+                        Provider Website URL
+                      </label>
+                      <input
+                        type="url"
+                        value={websiteUrl}
+                        onChange={(e) => setWebsiteUrl(e.target.value)}
+                        placeholder="https://example.edu/courses"
+                        className="w-full rounded-xl border border-gray-300 px-4 py-3 text-sm text-gray-900 outline-none ring-0 placeholder:text-gray-400 focus:border-gray-400"
+                      />
+                    </div>
+
+                    <div>
+                      <label className="mb-2 block text-sm font-medium text-gray-700">
+                        Provider Name (optional)
+                      </label>
+                      <input
+                        type="text"
+                        value={websiteProviderName}
+                        onChange={(e) => setWebsiteProviderName(e.target.value)}
+                        placeholder="Deakin University"
+                        className="w-full rounded-xl border border-gray-300 px-4 py-3 text-sm text-gray-900 outline-none ring-0 placeholder:text-gray-400 focus:border-gray-400"
+                      />
+                    </div>
+                  </div>
+                </>
+              )}
 
               {error ? (
                 <div className="mt-4 rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
@@ -374,9 +605,14 @@ export default function ProviderCourseImportPage() {
               <div className="mt-6 grid gap-3">
                 <button
                   type="button"
-                  onClick={handlePreview}
+                  onClick={
+                    sourceType === "csv" ? handleCsvPreview : handleWebsitePreview
+                  }
                   disabled={
-                    !hasRows || isParsing || isPreviewLoading || isCommitLoading
+                    isParsing ||
+                    isPreviewLoading ||
+                    isCommitLoading ||
+                    (sourceType === "csv" ? !hasRows : !websiteUrl.trim())
                   }
                   className="inline-flex w-full items-center justify-center rounded-xl bg-gray-900 px-4 py-3 text-sm font-medium text-white disabled:cursor-not-allowed disabled:opacity-50"
                 >
@@ -547,7 +783,7 @@ export default function ProviderCourseImportPage() {
                           colSpan={8}
                           className="px-4 py-10 text-center text-gray-500"
                         >
-                          No preview yet. Upload a CSV and click Preview Import.
+                          No preview yet. Upload a CSV or paste a website URL.
                         </td>
                       </tr>
                     ) : (
