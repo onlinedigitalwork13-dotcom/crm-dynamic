@@ -6,9 +6,7 @@ export default async function ApplicationsPage() {
   await requireAuth();
 
   const applications = await prisma.clientApplication.findMany({
-    orderBy: {
-      createdAt: "desc",
-    },
+    orderBy: { createdAt: "desc" },
     include: {
       client: true,
       provider: true,
@@ -17,236 +15,186 @@ export default async function ApplicationsPage() {
     },
   });
 
+  const total = applications.length;
+  const active = applications.filter(a => a.status?.includes("applied")).length;
+  const completed = applications.filter(a =>
+    a.status?.includes("granted")
+  ).length;
+  const pending = applications.filter(a =>
+    a.status?.includes("pending")
+  ).length;
+
   return (
     <div className="space-y-6">
-      <div className="rounded-xl border bg-white p-6 shadow-sm">
-        <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
+
+      {/* 🔥 HEADER */}
+      <div className="rounded-2xl border bg-white p-6 shadow-sm">
+        <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
           <div>
-            <h1 className="text-2xl font-bold">Applications</h1>
+            <h1 className="text-3xl font-bold tracking-tight">
+              Applications
+            </h1>
             <p className="mt-2 text-sm text-gray-600">
-              Manage student applications, provider selections, intake tracking,
-              and progress across education and visa workflow.
+              Manage student applications, workflows, and progress tracking across education and visa processes.
             </p>
           </div>
 
           <Link
             href="/applications/new"
-            className="rounded-lg bg-black px-4 py-2 text-sm font-medium text-white"
+            className="rounded-xl bg-black px-5 py-2.5 text-sm font-semibold text-white hover:bg-gray-800"
           >
-            Add Application
+            + Add Application
           </Link>
         </div>
       </div>
 
-      <div className="overflow-hidden rounded-xl border bg-white shadow-sm">
-        <div className="overflow-x-auto">
-          <table className="min-w-full text-sm">
-            <thead className="bg-gray-50 text-left">
-              <tr>
-                <th className="px-4 py-3 font-medium text-gray-600">Client</th>
-                <th className="px-4 py-3 font-medium text-gray-600">Provider</th>
-                <th className="px-4 py-3 font-medium text-gray-600">Course</th>
-                <th className="px-4 py-3 font-medium text-gray-600">Intake</th>
-                <th className="px-4 py-3 font-medium text-gray-600">Application</th>
-                <th className="px-4 py-3 font-medium text-gray-600">Education Workflow</th>
-                <th className="px-4 py-3 font-medium text-gray-600">Visa Workflow</th>
-                <th className="px-4 py-3 font-medium text-gray-600">Applied At</th>
-                <th className="px-4 py-3 font-medium text-gray-600">Action</th>
-              </tr>
-            </thead>
+      {/* 🔥 KPI CARDS */}
+      <div className="grid gap-4 md:grid-cols-4">
+        <KpiCard label="Total" value={total} />
+        <KpiCard label="Active" value={active} />
+        <KpiCard label="Pending" value={pending} />
+        <KpiCard label="Completed" value={completed} />
+      </div>
 
-            <tbody>
-              {applications.length === 0 ? (
+      {/* 🔥 TABLE / EMPTY */}
+      <div className="rounded-2xl border bg-white shadow-sm overflow-hidden">
+
+        {applications.length === 0 ? (
+          <div className="p-12 text-center">
+            <p className="text-lg font-semibold text-gray-900">
+              No applications yet
+            </p>
+            <p className="mt-2 text-sm text-gray-500">
+              Start by creating your first application and manage workflows efficiently.
+            </p>
+
+            <Link
+              href="/applications/new"
+              className="mt-6 inline-block rounded-xl bg-black px-6 py-3 text-sm font-semibold text-white hover:bg-gray-800"
+            >
+              Create Application
+            </Link>
+          </div>
+        ) : (
+          <div className="overflow-x-auto">
+            <table className="min-w-full text-sm">
+              <thead className="bg-gray-50 text-left text-xs uppercase tracking-wide text-gray-500">
                 <tr>
-                  <td colSpan={9} className="px-4 py-10 text-center">
-                    <div className="mx-auto max-w-md">
-                      <p className="text-sm font-medium text-gray-900">
-                        No applications found
-                      </p>
-                      <p className="mt-1 text-sm text-gray-500">
-                        Start by creating a new application for a client.
-                      </p>
-                      <div className="mt-4">
-                        <Link
-                          href="/applications/new"
-                          className="rounded-lg bg-black px-4 py-2 text-sm font-medium text-white"
-                        >
-                          Add Application
-                        </Link>
-                      </div>
-                    </div>
-                  </td>
+                  <th className="px-5 py-4">Client</th>
+                  <th className="px-5 py-4">Provider</th>
+                  <th className="px-5 py-4">Course</th>
+                  <th className="px-5 py-4">Intake</th>
+                  <th className="px-5 py-4">Status</th>
+                  <th className="px-5 py-4">Workflow</th>
+                  <th className="px-5 py-4">Date</th>
+                  <th className="px-5 py-4">Action</th>
                 </tr>
-              ) : (
-                applications.map((application) => (
-                  <tr key={application.id} className="border-t align-top">
-                    <td className="px-4 py-4">
-                      <div className="font-medium text-gray-900">
-                        {application.client.firstName} {application.client.lastName}
+              </thead>
+
+              <tbody>
+                {applications.map((app) => (
+                  <tr key={app.id} className="border-t hover:bg-gray-50 transition">
+
+                    {/* CLIENT */}
+                    <td className="px-5 py-4">
+                      <div className="font-semibold text-gray-900">
+                        {app.client.firstName} {app.client.lastName}
                       </div>
-                      <div className="mt-1 text-xs text-gray-500">
-                        {application.client.email || "No email"}
-                      </div>
-                    </td>
-
-                    <td className="px-4 py-4 text-gray-700">
-                      {application.provider.name}
-                    </td>
-
-                    <td className="px-4 py-4 text-gray-700">
-                      {application.course.name}
-                    </td>
-
-                    <td className="px-4 py-4 text-gray-700">
-                      {application.intake} {application.intakeYear || ""}
-                    </td>
-
-                    <td className="px-4 py-4">
-                      <div className="flex flex-col gap-2">
-                        <span
-                          className={`inline-flex w-fit rounded-full px-2.5 py-1 text-xs font-medium ${getApplicationStatusClass(
-                            application.status
-                          )}`}
-                        >
-                          {application.status}
-                        </span>
-                        <span className="text-xs text-gray-500">
-                          No: {application.applicationNo || "-"}
-                        </span>
+                      <div className="text-xs text-gray-500">
+                        {app.client.email || "No email"}
                       </div>
                     </td>
 
-                    <td className="px-4 py-4">
-                      <div className="flex flex-wrap gap-2">
-                        <StatusBadge
-                          label={`Offer: ${application.journey?.offerStatus || "-"}`}
-                          className={getJourneyStatusClass(
-                            application.journey?.offerStatus
-                          )}
-                        />
-                        <StatusBadge
-                          label={`COE: ${application.journey?.coeStatus || "-"}`}
-                          className={getJourneyStatusClass(
-                            application.journey?.coeStatus
-                          )}
-                        />
-                      </div>
+                    {/* PROVIDER */}
+                    <td className="px-5 py-4 text-gray-700">
+                      {app.provider.name}
                     </td>
 
-                    <td className="px-4 py-4">
-                      <div className="flex flex-wrap gap-2">
-                        <StatusBadge
-                          label={`Visa: ${application.journey?.visaStatus || "-"}`}
-                          className={getJourneyStatusClass(
-                            application.journey?.visaStatus
-                          )}
-                        />
-                      </div>
+                    {/* COURSE */}
+                    <td className="px-5 py-4 text-gray-700">
+                      {app.course.name}
                     </td>
 
-                    <td className="px-4 py-4 text-gray-700">
-                      {application.appliedAt
-                        ? new Date(application.appliedAt).toLocaleDateString()
+                    {/* INTAKE */}
+                    <td className="px-5 py-4 text-gray-700">
+                      {app.intake} {app.intakeYear || ""}
+                    </td>
+
+                    {/* STATUS */}
+                    <td className="px-5 py-4">
+                      <StatusBadge status={app.status} />
+                    </td>
+
+                    {/* WORKFLOW */}
+                    <td className="px-5 py-4 space-y-1">
+                      <MiniBadge label={`Offer: ${app.journey?.offerStatus || "-"}`} />
+                      <MiniBadge label={`Visa: ${app.journey?.visaStatus || "-"}`} />
+                    </td>
+
+                    {/* DATE */}
+                    <td className="px-5 py-4 text-gray-600">
+                      {app.appliedAt
+                        ? new Date(app.appliedAt).toLocaleDateString()
                         : "-"}
                     </td>
 
-                    <td className="px-4 py-4">
-                      <div className="flex flex-col gap-2">
-                        <Link
-                          href={`/applications/${application.id}`}
-                          className="text-sm font-medium text-black underline"
-                        >
+                    {/* ACTION */}
+                    <td className="px-5 py-4">
+                      <div className="flex gap-3">
+                        <Link href={`/applications/${app.id}`} className="text-black font-medium hover:underline">
                           View
                         </Link>
-                        <Link
-                          href={`/applications/${application.id}/edit`}
-                          className="text-sm font-medium text-blue-600 underline"
-                        >
+                        <Link href={`/applications/${app.id}/edit`} className="text-blue-600 font-medium hover:underline">
                           Edit
                         </Link>
                       </div>
                     </td>
+
                   </tr>
-                ))
-              )}
-            </tbody>
-          </table>
-        </div>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )}
       </div>
     </div>
   );
 }
 
-function StatusBadge({
-  label,
-  className,
-}: {
-  label: string;
-  className: string;
-}) {
+/* 🔥 COMPONENTS */
+
+function KpiCard({ label, value }: { label: string; value: number }) {
   return (
-    <span className={`inline-flex rounded-full px-2.5 py-1 text-xs font-medium ${className}`}>
-      {label}
+    <div className="rounded-2xl border bg-white p-5 shadow-sm">
+      <p className="text-xs text-gray-500 uppercase">{label}</p>
+      <p className="mt-2 text-2xl font-bold text-gray-900">{value}</p>
+    </div>
+  );
+}
+
+function StatusBadge({ status }: { status: string | null | undefined }) {
+  const value = (status || "").toLowerCase();
+
+  let style = "bg-gray-100 text-gray-700";
+
+  if (value.includes("granted") || value.includes("approved"))
+    style = "bg-green-100 text-green-700";
+  else if (value.includes("pending"))
+    style = "bg-yellow-100 text-yellow-700";
+  else if (value.includes("rejected"))
+    style = "bg-red-100 text-red-700";
+
+  return (
+    <span className={`px-3 py-1 text-xs font-semibold rounded-full ${style}`}>
+      {status || "-"}
     </span>
   );
 }
 
-function getApplicationStatusClass(status: string | null | undefined) {
-  const value = (status || "").toLowerCase();
-
-  if (
-    value.includes("approved") ||
-    value.includes("completed") ||
-    value.includes("active")
-  ) {
-    return "bg-green-100 text-green-700";
-  }
-
-  if (
-    value.includes("pending") ||
-    value.includes("draft") ||
-    value.includes("processing")
-  ) {
-    return "bg-yellow-100 text-yellow-700";
-  }
-
-  if (
-    value.includes("rejected") ||
-    value.includes("cancelled") ||
-    value.includes("closed")
-  ) {
-    return "bg-red-100 text-red-700";
-  }
-
-  return "bg-gray-100 text-gray-700";
-}
-
-function getJourneyStatusClass(status: string | null | undefined) {
-  const value = (status || "").toLowerCase();
-
-  if (
-    value.includes("issued") ||
-    value.includes("granted") ||
-    value.includes("accepted") ||
-    value.includes("unconditional_offer") ||
-    value.includes("offered")
-  ) {
-    return "bg-green-100 text-green-700";
-  }
-
-  if (
-    value.includes("pending") ||
-    value.includes("preparing") ||
-    value.includes("conditional_offer") ||
-    value.includes("lodged") ||
-    value.includes("applied")
-  ) {
-    return "bg-yellow-100 text-yellow-700";
-  }
-
-  if (value.includes("refused") || value.includes("rejected")) {
-    return "bg-red-100 text-red-700";
-  }
-
-  return "bg-gray-100 text-gray-700";
+function MiniBadge({ label }: { label: string }) {
+  return (
+    <div className="text-xs bg-gray-100 px-2 py-1 rounded-md text-gray-700">
+      {label}
+    </div>
+  );
 }

@@ -4,9 +4,7 @@ import { notFound } from "next/navigation";
 import JourneyForm from "./journey-form";
 
 type PageProps = {
-  params: Promise<{
-    id: string;
-  }>;
+  params: Promise<{ id: string }>;
 };
 
 export default async function ApplicationDetailPage({ params }: PageProps) {
@@ -19,236 +17,200 @@ export default async function ApplicationDetailPage({ params }: PageProps) {
       provider: true,
       course: true,
       journey: true,
-      checklistItems: {
-        orderBy: {
-          createdAt: "desc",
-        },
-      },
+      checklistItems: { orderBy: { createdAt: "desc" } },
     },
   });
 
-  if (!application) {
-    notFound();
-  }
+  if (!application) notFound();
 
   return (
     <div className="space-y-6">
-      <div className="rounded-xl border bg-white p-6 shadow-sm">
-        <div className="flex flex-col gap-4 md:flex-row md:items-start md:justify-between">
+
+      {/* 🔥 HEADER */}
+      <div className="rounded-2xl border bg-white p-6 shadow-sm">
+        <div className="flex flex-col gap-4 lg:flex-row lg:justify-between lg:items-center">
+
           <div>
-            <h1 className="text-2xl font-bold">
+            <p className="text-sm text-gray-500">Application</p>
+            <h1 className="text-3xl font-bold tracking-tight">
               {application.client.firstName} {application.client.lastName}
             </h1>
-            <p className="mt-2 text-sm text-gray-500">
-              Application details, journey tracking, and checklist overview
+            <p className="mt-2 text-sm text-gray-600">
+              {application.provider.name} • {application.course.name}
             </p>
           </div>
 
           <div className="flex gap-2">
-            <Link
-              href="/applications"
-              className="rounded-lg border px-4 py-2 text-sm font-medium hover:bg-gray-50"
-            >
+            <Link href="/applications" className="btn-secondary">
               Back
             </Link>
             <Link
               href={`/applications/${application.id}/edit`}
-              className="rounded-lg border px-4 py-2 text-sm font-medium hover:bg-gray-50"
+              className="btn-primary"
             >
               Edit
             </Link>
           </div>
+
         </div>
 
-        <div className="mt-6 grid gap-4 md:grid-cols-2 xl:grid-cols-3">
-          <InfoCard label="Provider" value={application.provider.name} />
-          <InfoCard label="Course" value={application.course.name} />
-          <InfoCard label="Status" value={application.status} />
-          <InfoCard
-            label="Intake"
-            value={`${application.intake} ${application.intakeYear || ""}`.trim()}
-          />
-          <InfoCard label="Application No" value={application.applicationNo || "-"} />
-          <InfoCard
-            label="Applied At"
-            value={
-              application.appliedAt
-                ? new Date(application.appliedAt).toLocaleDateString()
-                : "-"
-            }
-          />
-        </div>
-
-        <div className="mt-6 rounded-lg border bg-gray-50 p-4">
-          <h2 className="text-lg font-semibold">Notes</h2>
-          <p className="mt-2 text-sm text-gray-600">
-            {application.notes || "No notes added."}
-          </p>
+        {/* 🔥 STATUS BAR */}
+        <div className="mt-6 flex flex-wrap gap-3">
+          <StatusBadge status={application.status} />
+          <MiniBadge label={`Intake: ${application.intake}`} />
+          <MiniBadge label={`Year: ${application.intakeYear || "-"}`} />
+          <MiniBadge label={`App No: ${application.applicationNo || "-"}`} />
         </div>
       </div>
 
-      <div className="grid gap-6 xl:grid-cols-2">
-        <div className="rounded-xl border bg-white p-6 shadow-sm">
-          <div className="mb-4">
-            <h2 className="text-lg font-semibold">Application Journey</h2>
-            <p className="mt-1 text-sm text-gray-500">
-              Education workflow up to COE, then visa workflow after COE.
+      {/* 🔥 MAIN GRID */}
+      <div className="grid gap-6 xl:grid-cols-3">
+
+        {/* LEFT SIDE */}
+        <div className="xl:col-span-2 space-y-6">
+
+          {/* 🔥 JOURNEY */}
+          <Card title="Application Journey">
+            <JourneySection application={application} />
+
+            <div className="mt-6">
+              <JourneyForm
+                applicationId={application.id}
+                initialData={{
+                  offerStatus: application.journey?.offerStatus || "",
+                  offerType: application.journey?.offerType || "",
+                  offerConditions: application.journey?.offerConditions || "",
+                  offerReceivedAt: toDate(application.journey?.offerReceivedAt),
+                  offerAcceptedAt: toDate(application.journey?.offerAcceptedAt),
+                  coeStatus: application.journey?.coeStatus || "",
+                  coeNumber: application.journey?.coeNumber || "",
+                  coeIssuedAt: toDate(application.journey?.coeIssuedAt),
+                  visaStatus: application.journey?.visaStatus || "",
+                  visaFileNumber: application.journey?.visaFileNumber || "",
+                  visaLodgedAt: toDate(application.journey?.visaLodgedAt),
+                  visaGrantedAt: toDate(application.journey?.visaGrantedAt),
+                  visaRefusedAt: toDate(application.journey?.visaRefusedAt),
+                  remarks: application.journey?.remarks || "",
+                }}
+              />
+            </div>
+          </Card>
+
+          {/* 🔥 NOTES */}
+          <Card title="Internal Notes">
+            <p className="text-sm text-gray-600">
+              {application.notes || "No notes added."}
             </p>
-          </div>
+          </Card>
 
-          <div className="space-y-6">
-            <div className="rounded-lg border bg-gray-50 p-4">
-              <h3 className="text-sm font-semibold uppercase tracking-wide text-gray-600">
-                Education Workflow
-              </h3>
-
-              <div className="mt-4 grid gap-3 text-sm md:grid-cols-2">
-                <JourneyItem
-                  label="Offer Status"
-                  value={application.journey?.offerStatus || "-"}
-                />
-                <JourneyItem
-                  label="Offer Type"
-                  value={application.journey?.offerType || "-"}
-                />
-                <JourneyItem
-                  label="Offer Conditions"
-                  value={application.journey?.offerConditions || "-"}
-                />
-                <JourneyItem
-                  label="Offer Received At"
-                  value={formatDate(application.journey?.offerReceivedAt)}
-                />
-                <JourneyItem
-                  label="Offer Accepted At"
-                  value={formatDate(application.journey?.offerAcceptedAt)}
-                />
-                <JourneyItem
-                  label="COE Status"
-                  value={application.journey?.coeStatus || "-"}
-                />
-                <JourneyItem
-                  label="COE Number"
-                  value={application.journey?.coeNumber || "-"}
-                />
-                <JourneyItem
-                  label="COE Issued At"
-                  value={formatDate(application.journey?.coeIssuedAt)}
-                />
-              </div>
-            </div>
-
-            <div className="rounded-lg border bg-gray-50 p-4">
-              <h3 className="text-sm font-semibold uppercase tracking-wide text-gray-600">
-                Visa Workflow
-              </h3>
-
-              <div className="mt-4 grid gap-3 text-sm md:grid-cols-2">
-                <JourneyItem
-                  label="Visa Status"
-                  value={application.journey?.visaStatus || "-"}
-                />
-                <JourneyItem
-                  label="Visa File Number"
-                  value={application.journey?.visaFileNumber || "-"}
-                />
-                <JourneyItem
-                  label="Visa Lodged At"
-                  value={formatDate(application.journey?.visaLodgedAt)}
-                />
-                <JourneyItem
-                  label="Visa Granted At"
-                  value={formatDate(application.journey?.visaGrantedAt)}
-                />
-                <JourneyItem
-                  label="Visa Refused At"
-                  value={formatDate(application.journey?.visaRefusedAt)}
-                />
-              </div>
-
-              <div className="mt-4">
-                <p className="text-xs font-medium uppercase tracking-wide text-gray-500">
-                  Remarks
-                </p>
-                <p className="mt-1 text-sm text-gray-700">
-                  {application.journey?.remarks || "-"}
-                </p>
-              </div>
-            </div>
-
-            <JourneyForm
-              applicationId={application.id}
-              initialData={{
-                offerStatus: application.journey?.offerStatus || "",
-                offerType: application.journey?.offerType || "",
-                offerConditions: application.journey?.offerConditions || "",
-                offerReceivedAt: toDateInputValue(application.journey?.offerReceivedAt),
-                offerAcceptedAt: toDateInputValue(application.journey?.offerAcceptedAt),
-                coeStatus: application.journey?.coeStatus || "",
-                coeNumber: application.journey?.coeNumber || "",
-                coeIssuedAt: toDateInputValue(application.journey?.coeIssuedAt),
-                visaStatus: application.journey?.visaStatus || "",
-                visaFileNumber: application.journey?.visaFileNumber || "",
-                visaLodgedAt: toDateInputValue(application.journey?.visaLodgedAt),
-                visaGrantedAt: toDateInputValue(application.journey?.visaGrantedAt),
-                visaRefusedAt: toDateInputValue(application.journey?.visaRefusedAt),
-                remarks: application.journey?.remarks || "",
-              }}
-            />
-          </div>
         </div>
 
-        <div className="rounded-xl border bg-white p-6 shadow-sm">
-          <h2 className="text-lg font-semibold">Checklist Summary</h2>
+        {/* RIGHT SIDE */}
+        <div className="space-y-6">
 
-          {application.checklistItems.length === 0 ? (
-            <p className="mt-4 text-sm text-gray-500">No checklist items yet.</p>
-          ) : (
-            <div className="mt-4 space-y-3">
-              {application.checklistItems.map((item) => (
-                <div key={item.id} className="rounded-lg border p-3">
-                  <div className="font-medium">{item.title}</div>
-                  <div className="mt-1 text-xs text-gray-500">
-                    {item.status} {item.category ? `• ${item.category}` : ""}
+          {/* 🔥 CLIENT PANEL */}
+          <Card title="Client">
+            <p className="font-semibold text-gray-900">
+              {application.client.firstName} {application.client.lastName}
+            </p>
+            <p className="text-sm text-gray-500 mt-1">
+              {application.client.email || "No email"}
+            </p>
+          </Card>
+
+          {/* 🔥 CHECKLIST */}
+          <Card title="Checklist Progress">
+            {application.checklistItems.length === 0 ? (
+              <p className="text-sm text-gray-500">No checklist items</p>
+            ) : (
+              <div className="space-y-3">
+                {application.checklistItems.map((item) => (
+                  <div
+                    key={item.id}
+                    className="flex items-center justify-between rounded-lg border p-3"
+                  >
+                    <div>
+                      <p className="font-medium">{item.title}</p>
+                      <p className="text-xs text-gray-500">
+                        {item.category || "-"}
+                      </p>
+                    </div>
+
+                    <StatusBadge status={item.status} />
                   </div>
-                </div>
-              ))}
-            </div>
-          )}
+                ))}
+              </div>
+            )}
+          </Card>
+
         </div>
+
       </div>
     </div>
   );
 }
 
-function InfoCard({ label, value }: { label: string; value: string }) {
+/* 🔥 COMPONENTS */
+
+function Card({ title, children }: any) {
   return (
-    <div className="rounded-lg border bg-gray-50 p-4">
-      <p className="text-xs font-medium uppercase tracking-wide text-gray-500">
-        {label}
-      </p>
-      <p className="mt-1 text-sm font-semibold text-gray-900">{value}</p>
+    <div className="rounded-2xl border bg-white p-6 shadow-sm">
+      <h2 className="text-lg font-semibold mb-4">{title}</h2>
+      {children}
     </div>
   );
 }
 
-function JourneyItem({ label, value }: { label: string; value: string }) {
+function StatusBadge({ status }: any) {
+  const value = (status || "").toLowerCase();
+
+  let style = "bg-gray-100 text-gray-700";
+
+  if (value.includes("approved") || value.includes("granted"))
+    style = "bg-green-100 text-green-700";
+  else if (value.includes("pending"))
+    style = "bg-yellow-100 text-yellow-700";
+  else if (value.includes("rejected"))
+    style = "bg-red-100 text-red-700";
+
   return (
-    <div className="rounded-md border bg-white p-3">
-      <p className="text-xs font-medium uppercase tracking-wide text-gray-500">
-        {label}
-      </p>
-      <p className="mt-1 text-sm font-semibold text-gray-900">{value}</p>
+    <span className={`px-3 py-1 text-xs font-semibold rounded-full ${style}`}>
+      {status || "-"}
+    </span>
+  );
+}
+
+function MiniBadge({ label }: any) {
+  return (
+    <span className="bg-gray-100 px-3 py-1 text-xs rounded-full text-gray-700">
+      {label}
+    </span>
+  );
+}
+
+function JourneySection({ application }: any) {
+  return (
+    <div className="grid gap-4 md:grid-cols-2">
+
+      <JourneyItem label="Offer" value={application.journey?.offerStatus} />
+      <JourneyItem label="COE" value={application.journey?.coeStatus} />
+      <JourneyItem label="Visa" value={application.journey?.visaStatus} />
+      <JourneyItem label="Offer Type" value={application.journey?.offerType} />
+
     </div>
   );
 }
 
-function formatDate(value?: Date | null) {
-  if (!value) return "-";
-  return new Date(value).toLocaleDateString();
+function JourneyItem({ label, value }: any) {
+  return (
+    <div className="rounded-lg border p-4">
+      <p className="text-xs text-gray-500 uppercase">{label}</p>
+      <p className="mt-1 font-semibold text-gray-900">{value || "-"}</p>
+    </div>
+  );
 }
 
-function toDateInputValue(value?: Date | null) {
+function toDate(value?: Date | null) {
   if (!value) return "";
   return new Date(value).toISOString().split("T")[0];
 }
