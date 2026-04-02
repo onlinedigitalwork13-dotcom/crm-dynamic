@@ -39,14 +39,32 @@ type LookupResult =
     }
   | null;
 
+type UploadedDocument = {
+  id: string;
+  title: string;
+  fileName: string;
+  filePath: string;
+  fileType: string | null;
+  fileSize: number | null;
+  createdAt: string;
+};
+
+const MAX_FILE_SIZE_BYTES = 4.5 * 1024 * 1024;
+
 function toSafeString(value: unknown) {
   if (value == null) return "";
   return String(value);
 }
 
+function formatFileSize(size: number) {
+  if (size < 1024) return `${size} B`;
+  if (size < 1024 * 1024) return `${(size / 1024).toFixed(1)} KB`;
+  return `${(size / (1024 * 1024)).toFixed(2)} MB`;
+}
+
 function FieldLabel({ children }: { children: React.ReactNode }) {
   return (
-    <label className="mb-1 block text-sm font-medium text-gray-700">
+    <label className="mb-1.5 block text-sm font-medium text-gray-700">
       {children}
     </label>
   );
@@ -60,13 +78,185 @@ function DetailItem({
   value: string | null | undefined;
 }) {
   return (
-    <div className="rounded-xl border border-gray-200 bg-gray-50 p-3">
+    <div className="rounded-2xl border border-gray-200 bg-gray-50 p-4">
       <p className="text-xs font-medium uppercase tracking-wide text-gray-500">
         {label}
       </p>
-      <p className="mt-1 text-sm font-semibold text-gray-900">
+      <p className="mt-1.5 text-sm font-semibold text-gray-900">
         {value && value.trim() ? value : "-"}
       </p>
+    </div>
+  );
+}
+
+function DocumentUploadCard({
+  documents,
+  setDocuments,
+  uploadedDocuments,
+  uploading,
+  uploadError,
+}: {
+  documents: File[];
+  setDocuments: React.Dispatch<React.SetStateAction<File[]>>;
+  uploadedDocuments: UploadedDocument[];
+  uploading: boolean;
+  uploadError: string;
+}) {
+  function handleFileChange(fileList: FileList | null) {
+    if (!fileList) return;
+
+    const nextFiles = Array.from(fileList);
+
+    const tooLarge = nextFiles.find((file) => file.size > MAX_FILE_SIZE_BYTES);
+    if (tooLarge) {
+      alert(
+        `${tooLarge.name} is larger than 4.5 MB. Please upload a smaller file.`
+      );
+      return;
+    }
+
+    setDocuments((prev) => {
+      const existingKeys = new Set(
+        prev.map((file) => `${file.name}-${file.size}-${file.lastModified}`)
+      );
+
+      const deduped = nextFiles.filter((file) => {
+        const key = `${file.name}-${file.size}-${file.lastModified}`;
+        return !existingKeys.has(key);
+      });
+
+      return [...prev, ...deduped];
+    });
+  }
+
+  function removePendingFile(index: number) {
+    setDocuments((prev) => prev.filter((_, i) => i !== index));
+  }
+
+  return (
+    <div className="rounded-3xl border border-gray-200 bg-white p-6 shadow-sm">
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+        <div>
+          <p className="text-sm font-semibold uppercase tracking-[0.2em] text-violet-600">
+            Documents
+          </p>
+          <h3 className="mt-2 text-xl font-bold text-gray-900">
+            Upload supporting files
+          </h3>
+          <p className="mt-2 text-sm leading-6 text-gray-600">
+            Add passport copies, offer letters, ID, or other supporting documents
+            during check-in. Files are uploaded after the check-in is completed.
+          </p>
+        </div>
+
+        <div className="rounded-2xl bg-violet-50 px-4 py-3 text-sm font-medium text-violet-700">
+          Optional
+        </div>
+      </div>
+
+      <div className="mt-6 rounded-2xl border border-dashed border-gray-300 bg-gray-50 p-5">
+        <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
+          <div>
+            <p className="text-sm font-semibold text-gray-900">
+              Select one or more files
+            </p>
+            <p className="mt-1 text-sm text-gray-600">
+              Recommended for documents under 4.5 MB each.
+            </p>
+          </div>
+
+          <label className="inline-flex cursor-pointer items-center justify-center rounded-xl bg-slate-950 px-4 py-2.5 text-sm font-semibold text-white transition hover:bg-slate-800">
+            Choose Files
+            <input
+              type="file"
+              multiple
+              className="hidden"
+              onChange={(e) => {
+                handleFileChange(e.target.files);
+                e.currentTarget.value = "";
+              }}
+            />
+          </label>
+        </div>
+      </div>
+
+      {documents.length > 0 ? (
+        <div className="mt-5 space-y-3">
+          <p className="text-sm font-semibold text-gray-900">
+            Pending uploads
+          </p>
+
+          {documents.map((file, index) => (
+            <div
+              key={`${file.name}-${file.size}-${file.lastModified}-${index}`}
+              className="flex flex-col gap-3 rounded-2xl border border-gray-200 bg-white p-4 sm:flex-row sm:items-center sm:justify-between"
+            >
+              <div className="min-w-0">
+                <p className="truncate text-sm font-semibold text-gray-900">
+                  {file.name}
+                </p>
+                <p className="mt-1 text-xs text-gray-500">
+                  {file.type || "Unknown file type"} • {formatFileSize(file.size)}
+                </p>
+              </div>
+
+              <button
+                type="button"
+                onClick={() => removePendingFile(index)}
+                className="inline-flex items-center justify-center rounded-xl border border-gray-300 px-3 py-2 text-sm font-semibold text-gray-700 transition hover:bg-gray-50"
+              >
+                Remove
+              </button>
+            </div>
+          ))}
+        </div>
+      ) : null}
+
+      {uploading ? (
+        <div className="mt-5 rounded-2xl border border-blue-200 bg-blue-50 px-4 py-3 text-sm text-blue-700">
+          Uploading documents...
+        </div>
+      ) : null}
+
+      {uploadError ? (
+        <div className="mt-5 rounded-2xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
+          {uploadError}
+        </div>
+      ) : null}
+
+      {uploadedDocuments.length > 0 ? (
+        <div className="mt-5 space-y-3">
+          <p className="text-sm font-semibold text-gray-900">
+            Uploaded documents
+          </p>
+
+          {uploadedDocuments.map((document) => (
+            <a
+              key={document.id}
+              href={document.filePath}
+              target="_blank"
+              rel="noreferrer"
+              className="flex flex-col gap-2 rounded-2xl border border-green-200 bg-green-50 p-4 transition hover:bg-green-100 sm:flex-row sm:items-center sm:justify-between"
+            >
+              <div className="min-w-0">
+                <p className="truncate text-sm font-semibold text-green-900">
+                  {document.title}
+                </p>
+                <p className="mt-1 text-xs text-green-700">
+                  {document.fileName}
+                  {typeof document.fileSize === "number"
+                    ? ` • ${formatFileSize(document.fileSize)}`
+                    : ""}
+                </p>
+              </div>
+
+              <span className="text-sm font-semibold text-green-800">
+                View
+              </span>
+            </a>
+          ))}
+        </div>
+      ) : null}
     </div>
   );
 }
@@ -79,11 +269,17 @@ export default function CheckInPage() {
   const [result, setResult] = useState<LookupResult>(null);
   const [loading, setLoading] = useState(false);
   const [submitting, setSubmitting] = useState(false);
+  const [uploading, setUploading] = useState(false);
   const [error, setError] = useState("");
+  const [uploadError, setUploadError] = useState("");
   const [successMessage, setSuccessMessage] = useState("");
 
   const [visitReason, setVisitReason] = useState("");
   const [notes, setNotes] = useState("");
+  const [documents, setDocuments] = useState<File[]>([]);
+  const [uploadedDocuments, setUploadedDocuments] = useState<UploadedDocument[]>(
+    []
+  );
 
   const {
     values: dynamicValues,
@@ -102,10 +298,68 @@ export default function CheckInPage() {
     );
   }, [phone, email, passportNumber]);
 
+  const firstName = toSafeString(dynamicValues.firstName).trim();
+  const surname = toSafeString(dynamicValues.surname).trim();
+  const mobile = toSafeString(dynamicValues.mobile).trim();
+
+  async function uploadDocumentsForClient(clientId: string) {
+    if (!documents.length) return;
+
+    setUploading(true);
+    setUploadError("");
+
+    const uploaded: UploadedDocument[] = [];
+
+    try {
+      for (const file of documents) {
+        const formData = new FormData();
+        formData.append("title", file.name);
+        formData.append("file", file);
+
+        const response = await fetch(`/api/clients/${clientId}/documents`, {
+          method: "POST",
+          body: formData,
+        });
+
+        const rawText = await response.text();
+
+        let data: any = null;
+        try {
+          data = JSON.parse(rawText);
+        } catch {
+          throw new Error(
+            `Document upload returned non-JSON response. Status: ${response.status}`
+          );
+        }
+
+        if (!response.ok) {
+          throw new Error(data?.error || `Failed to upload ${file.name}`);
+        }
+
+        if (data?.document) {
+          uploaded.push(data.document as UploadedDocument);
+        }
+      }
+
+      setUploadedDocuments(uploaded);
+      setDocuments([]);
+    } catch (err) {
+      setUploadError(
+        err instanceof Error
+          ? err.message
+          : "Document upload failed after check-in"
+      );
+      throw err;
+    } finally {
+      setUploading(false);
+    }
+  }
+
   const handleLookup = async () => {
     try {
       setLoading(true);
       setError("");
+      setUploadError("");
       setSuccessMessage("");
       setResult(null);
 
@@ -168,6 +422,7 @@ export default function CheckInPage() {
     try {
       setSubmitting(true);
       setError("");
+      setUploadError("");
       setSuccessMessage("");
 
       const payload = {
@@ -243,7 +498,29 @@ export default function CheckInPage() {
         return;
       }
 
-      setSuccessMessage("Checked in successfully ✅");
+      const resolvedClientId =
+        data?.client?.id ||
+        data?.checkIn?.clientId ||
+        (result?.mode === "existing_client" ? result.client.id : null) ||
+        (result?.mode === "existing_intake_submission"
+          ? result.intakeSubmission.clientId
+          : null);
+
+      if (documents.length > 0) {
+        if (!resolvedClientId) {
+          setUploadError(
+            "Check-in completed, but documents could not be attached because no client ID was returned."
+          );
+        } else {
+          await uploadDocumentsForClient(resolvedClientId);
+        }
+      }
+
+      setSuccessMessage(
+        documents.length > 0
+          ? "Checked in successfully and documents uploaded ✅"
+          : "Checked in successfully ✅"
+      );
     } catch (err) {
       console.error("Submit error:", err);
       setError("Something went wrong while submitting check-in");
@@ -258,15 +535,17 @@ export default function CheckInPage() {
     setPassportNumber("");
     setVisitReason("");
     setNotes("");
+    setDocuments([]);
+    setUploadedDocuments([]);
     setResult(null);
     setError("");
+    setUploadError("");
     setSuccessMessage("");
     resetDynamicValues();
   };
 
-  const firstName = toSafeString(dynamicValues.firstName).trim();
-  const surname = toSafeString(dynamicValues.surname).trim();
-  const mobile = toSafeString(dynamicValues.mobile).trim();
+  const sharedActionDisabled =
+    submitting || uploading || (result?.mode === "new" && (!firstName || !surname || !mobile));
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-gray-50 via-white to-gray-100">
@@ -392,7 +671,8 @@ export default function CheckInPage() {
                     </h2>
                     <p className="mt-2 text-sm text-gray-600">
                       Existing CRM record matched successfully. Review the
-                      details below and complete the live check-in.
+                      details below, upload any supporting documents, and
+                      complete the live check-in.
                     </p>
                   </div>
 
@@ -433,14 +713,26 @@ export default function CheckInPage() {
                   </div>
                 </div>
 
+                <div className="mt-8">
+                  <DocumentUploadCard
+                    documents={documents}
+                    setDocuments={setDocuments}
+                    uploadedDocuments={uploadedDocuments}
+                    uploading={uploading}
+                    uploadError={uploadError}
+                  />
+                </div>
+
                 <div className="mt-8 flex flex-col gap-3 sm:flex-row">
                   <button
                     type="button"
                     onClick={handleSubmit}
-                    disabled={submitting}
+                    disabled={sharedActionDisabled}
                     className="inline-flex items-center justify-center rounded-xl bg-blue-600 px-5 py-3 text-sm font-semibold text-white transition hover:bg-blue-700 disabled:cursor-not-allowed disabled:opacity-50"
                   >
-                    {submitting ? "Submitting..." : "Complete Check-In"}
+                    {submitting || uploading
+                      ? "Processing..."
+                      : "Complete Check-In"}
                   </button>
 
                   <button
@@ -466,8 +758,9 @@ export default function CheckInPage() {
                       {result.intakeSubmission.lastName}
                     </h2>
                     <p className="mt-2 text-sm text-gray-600">
-                      An existing intake submission was found. Review details and
-                      complete the live check-in.
+                      An existing intake submission was found. Review details,
+                      upload any supporting documents, and complete the live
+                      check-in.
                     </p>
                   </div>
 
@@ -520,14 +813,26 @@ export default function CheckInPage() {
                   </div>
                 </div>
 
+                <div className="mt-8">
+                  <DocumentUploadCard
+                    documents={documents}
+                    setDocuments={setDocuments}
+                    uploadedDocuments={uploadedDocuments}
+                    uploading={uploading}
+                    uploadError={uploadError}
+                  />
+                </div>
+
                 <div className="mt-8 flex flex-col gap-3 sm:flex-row">
                   <button
                     type="button"
                     onClick={handleSubmit}
-                    disabled={submitting}
+                    disabled={sharedActionDisabled}
                     className="inline-flex items-center justify-center rounded-xl bg-blue-600 px-5 py-3 text-sm font-semibold text-white transition hover:bg-blue-700 disabled:cursor-not-allowed disabled:opacity-50"
                   >
-                    {submitting ? "Submitting..." : "Complete Check-In"}
+                    {submitting || uploading
+                      ? "Processing..."
+                      : "Complete Check-In"}
                   </button>
 
                   <button
@@ -551,8 +856,8 @@ export default function CheckInPage() {
                     No existing record found
                   </h2>
                   <p className="mt-2 text-sm text-gray-600">
-                    Complete the form below to create a new intake submission and
-                    continue the check-in process.
+                    Complete the form below, attach supporting documents if
+                    needed, and continue the check-in process.
                   </p>
                 </div>
 
@@ -587,14 +892,24 @@ export default function CheckInPage() {
                   </div>
                 </div>
 
+                <div className="mt-8">
+                  <DocumentUploadCard
+                    documents={documents}
+                    setDocuments={setDocuments}
+                    uploadedDocuments={uploadedDocuments}
+                    uploading={uploading}
+                    uploadError={uploadError}
+                  />
+                </div>
+
                 <div className="mt-8 flex flex-col gap-3 sm:flex-row">
                   <button
                     type="button"
                     onClick={handleSubmit}
-                    disabled={submitting || !firstName || !surname || !mobile}
+                    disabled={sharedActionDisabled}
                     className="inline-flex items-center justify-center rounded-xl bg-blue-600 px-5 py-3 text-sm font-semibold text-white transition hover:bg-blue-700 disabled:cursor-not-allowed disabled:opacity-50"
                   >
-                    {submitting ? "Submitting..." : "Submit Check-In"}
+                    {submitting || uploading ? "Processing..." : "Submit Check-In"}
                   </button>
 
                   <button
@@ -617,6 +932,34 @@ export default function CheckInPage() {
                   Check-in completed
                 </h2>
                 <p className="mt-3 text-sm text-green-800">{successMessage}</p>
+
+                {uploadedDocuments.length > 0 ? (
+                  <div className="mt-6 rounded-2xl border border-green-200 bg-white p-4">
+                    <p className="text-sm font-semibold text-green-900">
+                      Uploaded documents
+                    </p>
+                    <div className="mt-3 space-y-3">
+                      {uploadedDocuments.map((document) => (
+                        <a
+                          key={document.id}
+                          href={document.filePath}
+                          target="_blank"
+                          rel="noreferrer"
+                          className="flex items-center justify-between rounded-xl border border-green-200 bg-green-50 px-4 py-3 text-sm text-green-900 transition hover:bg-green-100"
+                        >
+                          <span className="truncate pr-4">{document.title}</span>
+                          <span className="shrink-0 font-semibold">View</span>
+                        </a>
+                      ))}
+                    </div>
+                  </div>
+                ) : null}
+
+                {uploadError ? (
+                  <div className="mt-6 rounded-2xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-800">
+                    {uploadError}
+                  </div>
+                ) : null}
 
                 <button
                   type="button"

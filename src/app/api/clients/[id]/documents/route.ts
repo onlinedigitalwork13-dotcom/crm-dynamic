@@ -1,27 +1,44 @@
 import { prisma } from "@/lib/prisma";
 import { logClientActivity } from "@/lib/activity-service";
 import { NextResponse } from "next/server";
-import { mkdir, writeFile, unlink } from "fs/promises";
-import path from "path";
+import { put } from "@vercel/blob";
 
 type RouteContext = {
   params: Promise<{ id: string }>;
 };
 
+const MAX_FILE_SIZE_BYTES = 4.5 * 1024 * 1024;
+
+function sanitizeFileName(fileName: string) {
+  return fileName.replace(/[^\w.\-]+/g, "-");
+}
+
 export async function GET(_req: Request, context: RouteContext) {
   const { id } = await context.params;
 
+  const documents = await prisma.clientDocument.findMany({
+    where: { clientId: id },
+    orderBy: { createdAt: "desc" },
+    select: {
+      id: true,
+      title: true,
+      fileName: true,
+      filePath: true,
+      fileType: true,
+      fileSize: true,
+      createdAt: true,
+    },
+  });
+
   return NextResponse.json({
-    ok: true,
-    route: "client documents route working",
+    success: true,
     clientId: id,
+    documents,
   });
 }
 
 export async function POST(req: Request, context: RouteContext) {
   const { id } = await context.params;
-
-  let absoluteFilePath = "";
 
   try {
     const formData = await req.formData();
@@ -42,26 +59,53 @@ export async function POST(req: Request, context: RouteContext) {
       );
     }
 
-    const bytes = await file.arrayBuffer();
-    const buffer = Buffer.from(bytes);
+    if (file.size > MAX_FILE_SIZE_BYTES) {
+      return NextResponse.json(
+        {
+          error:
+            "File is too large. Please upload files smaller than 4.5 MB.",
+        },
+        { status: 400 }
+      );
+    }
 
-    const uploadDir = path.join(process.cwd(), "public", "uploads", "clients");
-    await mkdir(uploadDir, { recursive: true });
+    const existingClient = await prisma.client.findUnique({
+      where: { id },
+      select: { id: true },
+    });
 
-    const safeFileName = `${Date.now()}-${file.name.replace(/\s+/g, "-")}`;
-    absoluteFilePath = path.join(uploadDir, safeFileName);
-    const publicFilePath = `/uploads/clients/${safeFileName}`;
+    if (!existingClient) {
+      return NextResponse.json(
+        { error: "Client not found" },
+        { status: 404 }
+      );
+    }
 
-    await writeFile(absoluteFilePath, buffer);
+    const safeFileName = sanitizeFileName(file.name);
+    const pathname = `clients/${id}/${Date.now()}-${safeFileName}`;
 
-    await prisma.clientDocument.create({
+    const blob = await put(pathname, file, {
+      access: "public",
+      addRandomSuffix: false,
+    });
+
+    const document = await prisma.clientDocument.create({
       data: {
         clientId: id,
         title,
         fileName: file.name,
-        filePath: publicFilePath,
+        filePath: blob.url,
         fileType: file.type || null,
         fileSize: file.size || null,
+      },
+      select: {
+        id: true,
+        title: true,
+        fileName: true,
+        filePath: true,
+        fileType: true,
+        fileSize: true,
+        createdAt: true,
       },
     });
 
@@ -75,17 +119,12 @@ export async function POST(req: Request, context: RouteContext) {
       console.error("Client activity log failed:", activityError);
     }
 
-    return NextResponse.redirect(new URL(`/clients/${id}`, req.url), 303);
+    return NextResponse.json({
+      success: true,
+      document,
+    });
   } catch (error) {
     console.error("Upload client document error:", error);
-
-    if (absoluteFilePath) {
-      try {
-        await unlink(absoluteFilePath);
-      } catch {
-        // ignore cleanup failure
-      }
-    }
 
     return NextResponse.json(
       {
