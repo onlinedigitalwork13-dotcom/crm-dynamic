@@ -394,15 +394,43 @@ model Provider {
   description String?
   isActive    Boolean @default(true)
 
-  courses      Course[]
-  applications ClientApplication[]
+  // Phase 1 advanced provider fields
+  legalName         String?
+  defaultCurrency   String?
+  supportEmail      String?
+  supportPhone      String?
+  admissionEmail    String?
+  financeEmail      String?
+  applicationUrl    String?
+  portalUrl         String?
+  logoUrl           String?
+  address           String?
+  notes             String?
+
+  // Sync readiness
+  syncStatus        String?
+  lastSyncAt        DateTime?
+  lastSyncMessage   String?
+  autoSyncEnabled   Boolean @default(false)
+  sourceType        String? // manual, csv, sheet, api
+
+  courses           Course[]
+  applications      ClientApplication[]
+  contacts          ProviderContact[]
+  campuses          ProviderCampus[]
+  syncSources       ProviderSyncSource[]
+  syncLogs          ProviderSyncLog[]
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
   @@unique([name])
+  @@index([isActive])
+  @@index([country])
+  @@index([city])
+  @@index([syncStatus])
+  @@index([lastSyncAt])
 }
-
 model Course {
   id           String  @id @default(cuid())
   providerId   String
@@ -415,14 +443,140 @@ model Course {
   description  String?
   isActive     Boolean @default(true)
 
-  provider     Provider            @relation(fields: [providerId], references: [id], onDelete: Cascade)
-  applications ClientApplication[]
+  // Phase 1 advanced course fields
+  externalCourseId     String?
+  code                 String?
+  category             String?
+  studyMode            String?
+  durationValue        Float?
+  durationUnit         String?
+  applicationFee       Float?
+  materialFee          Float?
+  currency             String?
+  intakeDetails        String?
+  entryRequirements    String?
+  englishRequirements  String?
+  notes                String?
+
+  // Sync readiness
+  sourceType           String? // manual, csv, sheet, api
+  sourceHash           String?
+  lastSyncedAt         DateTime?
+  syncStatus           String?
+
+  provider             Provider            @relation(fields: [providerId], references: [id], onDelete: Cascade)
+  applications         ClientApplication[]
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
   @@unique([providerId, name])
   @@index([providerId])
+  @@index([isActive])
+  @@index([level])
+  @@index([campus])
+  @@index([sourceType])
+  @@index([lastSyncedAt])
+  @@index([externalCourseId])
+}
+model ProviderContact {
+  id          String   @id @default(cuid())
+  providerId  String
+  fullName    String
+  role        String?
+  department  String?
+  email       String?
+  phone       String?
+  whatsapp    String?
+  location    String?
+  notes       String?
+  isPrimary   Boolean  @default(false)
+  isActive    Boolean  @default(true)
+
+  provider    Provider @relation(fields: [providerId], references: [id], onDelete: Cascade)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([providerId])
+  @@index([isPrimary])
+  @@index([isActive])
+  @@index([email])
+}
+model ProviderCampus {
+  id          String   @id @default(cuid())
+  providerId  String
+  name        String
+  city        String?
+  state       String?
+  country     String?
+  address     String?
+  notes       String?
+  isActive    Boolean  @default(true)
+
+  provider    Provider @relation(fields: [providerId], references: [id], onDelete: Cascade)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([providerId])
+  @@index([isActive])
+  @@index([city])
+  @@index([country])
+}
+model ProviderSyncSource {
+  id              String   @id @default(cuid())
+  providerId      String
+  sourceType      String   // manual, csv, sheet, api
+  name            String?
+  endpointUrl     String?
+  authType        String?
+  authConfig      Json?
+  mappingConfig   Json?
+  autoSyncEnabled Boolean  @default(false)
+  isActive        Boolean  @default(true)
+
+  lastSyncAt      DateTime?
+  lastSyncStatus  String?
+  lastSyncMessage String?
+
+  provider        Provider @relation(fields: [providerId], references: [id], onDelete: Cascade)
+  syncLogs        ProviderSyncLog[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([providerId])
+  @@index([sourceType])
+  @@index([isActive])
+  @@index([lastSyncAt])
+  @@index([lastSyncStatus])
+}
+model ProviderSyncLog {
+  id             String   @id @default(cuid())
+  providerId     String
+  syncSourceId   String?
+
+  status         String
+  startedAt      DateTime
+  finishedAt     DateTime?
+  createdCount   Int      @default(0)
+  updatedCount   Int      @default(0)
+  archivedCount  Int      @default(0)
+  skippedCount   Int      @default(0)
+  errorMessage   String?
+  rawSummary     Json?
+
+  provider       Provider            @relation(fields: [providerId], references: [id], onDelete: Cascade)
+  syncSource     ProviderSyncSource? @relation(fields: [syncSourceId], references: [id], onDelete: SetNull)
+
+  createdAt DateTime @default(now())
+
+  @@index([providerId])
+  @@index([syncSourceId])
+  @@index([status])
+  @@index([startedAt])
+  @@index([createdAt])
 }
 
 model Client {

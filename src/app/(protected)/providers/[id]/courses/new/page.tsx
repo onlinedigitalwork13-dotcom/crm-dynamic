@@ -1,208 +1,158 @@
 "use client";
 
-import { FormEvent, useState } from "react";
-import Link from "next/link";
-import { useParams, useRouter } from "next/navigation";
+import { useState } from "react";
+import { useRouter, useParams } from "next/navigation";
+
+function input() {
+  return "w-full rounded-2xl border border-slate-300 px-4 py-3 text-sm";
+}
+
+function textarea() {
+  return "w-full rounded-2xl border border-slate-300 px-4 py-3 text-sm";
+}
 
 export default function NewCoursePage() {
   const router = useRouter();
-  const params = useParams<{ id: string }>();
+  const params = useParams();
+  const providerId = params.id as string;
 
-  const providerId = params.id;
+  const [form, setForm] = useState({
+    name: "",
+    code: "",
+    level: "",
+    category: "",
+    studyMode: "",
+    duration: "",
+    durationValue: "",
+    durationUnit: "",
+    tuitionFee: "",
+    applicationFee: "",
+    materialFee: "",
+    currency: "AUD",
+    campus: "",
+    intakeMonths: "",
+    entryRequirements: "",
+    englishRequirements: "",
+    description: "",
+    isActive: true,
+  });
 
-  const [name, setName] = useState("");
-  const [level, setLevel] = useState("");
-  const [duration, setDuration] = useState("");
-  const [tuitionFee, setTuitionFee] = useState("");
-  const [intakeMonths, setIntakeMonths] = useState("");
-  const [campus, setCampus] = useState("");
-  const [description, setDescription] = useState("");
-  const [isActive, setIsActive] = useState(true);
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState("");
+  const [saving, setSaving] = useState(false);
 
-  async function handleSubmit(e: FormEvent<HTMLFormElement>) {
+  async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
+    setSaving(true);
 
-    if (!providerId) {
-      setError("Provider ID is missing.");
-      return;
-    }
+    const res = await fetch(`/api/providers/${providerId}/courses`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        ...form,
+        durationValue: Number(form.durationValue) || null,
+        tuitionFee: Number(form.tuitionFee) || null,
+        applicationFee: Number(form.applicationFee) || null,
+        materialFee: Number(form.materialFee) || null,
+      }),
+    });
 
-    setLoading(true);
-    setError("");
-
-    try {
-      const res = await fetch("/api/courses", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-          providerId,
-          name: name.trim(),
-          level: level.trim(),
-          duration: duration.trim(),
-          tuitionFee: tuitionFee.trim(),
-          intakeMonths: intakeMonths.trim(),
-          campus: campus.trim(),
-          description: description.trim(),
-          isActive,
-        }),
-      });
-
-      const data = await res.json().catch(() => null);
-
-      if (!res.ok) {
-        setError(data?.error || "Failed to create course");
-        setLoading(false);
-        return;
-      }
-
+    if (res.ok) {
       router.push(`/providers/${providerId}/courses`);
       router.refresh();
-    } catch (error) {
-      console.error("Create course error:", error);
-      setError("Something went wrong while creating the course");
-      setLoading(false);
+    } else {
+      alert("Failed to create course");
     }
+
+    setSaving(false);
   }
 
   return (
-    <div className="mx-auto max-w-3xl space-y-6">
-      <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
-        <div>
-          <p className="text-sm text-gray-500">Providers / Courses / New</p>
-          <h1 className="text-3xl font-bold">Add Course</h1>
+    <div className="space-y-6 max-w-5xl">
+      <h1 className="text-2xl font-bold">Create Course</h1>
+
+      <form onSubmit={handleSubmit} className="grid gap-6">
+
+        {/* BASIC */}
+        <div className="grid gap-4 md:grid-cols-2">
+          <input className={input()} placeholder="Course Name" value={form.name}
+            onChange={(e)=>setForm({...form,name:e.target.value})} required />
+
+          <input className={input()} placeholder="Course Code"
+            onChange={(e)=>setForm({...form,code:e.target.value})} />
         </div>
 
-        <Link
-          href={providerId ? `/providers/${providerId}/courses` : "/courses-config"}
-          className="rounded border px-4 py-2 text-sm font-medium hover:bg-gray-50"
-        >
-          Back
-        </Link>
-      </div>
+        {/* STRUCTURE */}
+        <div className="grid gap-4 md:grid-cols-3">
+          <input className={input()} placeholder="Level"
+            onChange={(e)=>setForm({...form,level:e.target.value})} />
 
-      <form
-        onSubmit={handleSubmit}
-        className="space-y-5 rounded-lg border bg-white p-6 shadow-sm"
-      >
-        {error && (
-          <div className="rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
-            {error}
-          </div>
-        )}
+          <input className={input()} placeholder="Category"
+            onChange={(e)=>setForm({...form,category:e.target.value})} />
 
-        <div>
-          <label className="mb-2 block text-sm font-medium">Course Name *</label>
-          <input
-            type="text"
-            value={name}
-            onChange={(e) => setName(e.target.value)}
-            placeholder="Master of Information Technology"
-            className="w-full rounded border px-3 py-2 outline-none focus:ring-2 focus:ring-black"
-            required
-          />
+          <input className={input()} placeholder="Study Mode"
+            onChange={(e)=>setForm({...form,studyMode:e.target.value})} />
         </div>
 
-        <div className="grid gap-5 md:grid-cols-2">
-          <div>
-            <label className="mb-2 block text-sm font-medium">Level</label>
-            <input
-              type="text"
-              value={level}
-              onChange={(e) => setLevel(e.target.value)}
-              placeholder="Masters / Bachelor / Diploma"
-              className="w-full rounded border px-3 py-2 outline-none focus:ring-2 focus:ring-black"
-            />
-          </div>
+        {/* DURATION */}
+        <div className="grid gap-4 md:grid-cols-3">
+          <input className={input()} placeholder="Duration (text)"
+            onChange={(e)=>setForm({...form,duration:e.target.value})} />
 
-          <div>
-            <label className="mb-2 block text-sm font-medium">Duration</label>
-            <input
-              type="text"
-              value={duration}
-              onChange={(e) => setDuration(e.target.value)}
-              placeholder="2 years"
-              className="w-full rounded border px-3 py-2 outline-none focus:ring-2 focus:ring-black"
-            />
-          </div>
+          <input className={input()} placeholder="Duration Value"
+            onChange={(e)=>setForm({...form,durationValue:e.target.value})} />
+
+          <input className={input()} placeholder="Duration Unit"
+            onChange={(e)=>setForm({...form,durationUnit:e.target.value})} />
         </div>
 
-        <div className="grid gap-5 md:grid-cols-2">
-          <div>
-            <label className="mb-2 block text-sm font-medium">Tuition Fee</label>
-            <input
-              type="number"
-              step="0.01"
-              min="0"
-              value={tuitionFee}
-              onChange={(e) => setTuitionFee(e.target.value)}
-              placeholder="32000"
-              className="w-full rounded border px-3 py-2 outline-none focus:ring-2 focus:ring-black"
-            />
-          </div>
+        {/* FEES */}
+        <div className="grid gap-4 md:grid-cols-4">
+          <input className={input()} placeholder="Tuition Fee"
+            onChange={(e)=>setForm({...form,tuitionFee:e.target.value})} />
 
-          <div>
-            <label className="mb-2 block text-sm font-medium">Campus</label>
-            <input
-              type="text"
-              value={campus}
-              onChange={(e) => setCampus(e.target.value)}
-              placeholder="Melbourne"
-              className="w-full rounded border px-3 py-2 outline-none focus:ring-2 focus:ring-black"
-            />
-          </div>
+          <input className={input()} placeholder="Application Fee"
+            onChange={(e)=>setForm({...form,applicationFee:e.target.value})} />
+
+          <input className={input()} placeholder="Material Fee"
+            onChange={(e)=>setForm({...form,materialFee:e.target.value})} />
+
+          <input className={input()} placeholder="Currency"
+            value={form.currency}
+            onChange={(e)=>setForm({...form,currency:e.target.value})} />
         </div>
 
-        <div>
-          <label className="mb-2 block text-sm font-medium">Intake Months</label>
-          <input
-            type="text"
-            value={intakeMonths}
-            onChange={(e) => setIntakeMonths(e.target.value)}
-            placeholder="February, July, November"
-            className="w-full rounded border px-3 py-2 outline-none focus:ring-2 focus:ring-black"
-          />
+        {/* LOCATION */}
+        <div className="grid gap-4 md:grid-cols-2">
+          <input className={input()} placeholder="Campus"
+            onChange={(e)=>setForm({...form,campus:e.target.value})} />
+
+          <input className={input()} placeholder="Intakes"
+            onChange={(e)=>setForm({...form,intakeMonths:e.target.value})} />
         </div>
 
-        <div>
-          <label className="mb-2 block text-sm font-medium">Description</label>
-          <textarea
-            value={description}
-            onChange={(e) => setDescription(e.target.value)}
-            placeholder="Brief course description"
-            rows={5}
-            className="w-full rounded border px-3 py-2 outline-none focus:ring-2 focus:ring-black"
-          />
-        </div>
+        {/* REQUIREMENTS */}
+        <textarea className={textarea()} placeholder="Entry Requirements"
+          onChange={(e)=>setForm({...form,entryRequirements:e.target.value})} />
 
-        <label className="flex items-center gap-3 text-sm font-medium">
-          <input
-            type="checkbox"
-            checked={isActive}
-            onChange={(e) => setIsActive(e.target.checked)}
-          />
+        <textarea className={textarea()} placeholder="English Requirements"
+          onChange={(e)=>setForm({...form,englishRequirements:e.target.value})} />
+
+        {/* DESCRIPTION */}
+        <textarea className={textarea()} placeholder="Description"
+          onChange={(e)=>setForm({...form,description:e.target.value})} />
+
+        {/* ACTIVE */}
+        <label className="flex gap-2 items-center">
+          <input type="checkbox" checked={form.isActive}
+            onChange={(e)=>setForm({...form,isActive:e.target.checked})}/>
           Active Course
         </label>
 
-        <div className="flex gap-3">
-          <button
-            type="submit"
-            disabled={loading || !providerId}
-            className="rounded bg-black px-4 py-2 text-sm font-medium text-white hover:opacity-90 disabled:opacity-50"
-          >
-            {loading ? "Saving..." : "Create Course"}
-          </button>
+        <button className="bg-black text-white px-6 py-3 rounded-xl">
+          {saving ? "Creating..." : "Create Course"}
+        </button>
 
-          <Link
-            href={providerId ? `/providers/${providerId}/courses` : "/courses-config"}
-            className="rounded border px-4 py-2 text-sm font-medium hover:bg-gray-50"
-          >
-            Cancel
-          </Link>
-        </div>
       </form>
     </div>
   );

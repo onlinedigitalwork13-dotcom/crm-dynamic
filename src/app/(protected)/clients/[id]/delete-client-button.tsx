@@ -1,18 +1,24 @@
 "use client";
 
+import { useState } from "react";
+
 type Props = {
   clientId: string;
 };
 
 export default function DeleteClientButton({ clientId }: Props) {
+  const [loading, setLoading] = useState(false);
+
   async function handleDelete() {
     const confirmed = window.confirm(
       "Are you sure you want to delete this client? This action cannot be undone."
     );
 
-    if (!confirmed) return;
+    if (!confirmed || loading) return;
 
     try {
+      setLoading(true);
+
       const res = await fetch(`/api/clients/${clientId}`, {
         method: "DELETE",
       });
@@ -28,6 +34,8 @@ export default function DeleteClientButton({ clientId }: Props) {
     } catch (error) {
       console.error(error);
       alert("Something went wrong while deleting the client");
+    } finally {
+      setLoading(false);
     }
   }
 
@@ -35,9 +43,10 @@ export default function DeleteClientButton({ clientId }: Props) {
     <button
       type="button"
       onClick={handleDelete}
-      className="rounded border border-red-200 px-4 py-2 text-sm font-medium text-red-600 hover:bg-red-50"
+      disabled={loading}
+      className="inline-flex items-center justify-center rounded-2xl border border-red-200 bg-white px-4 py-2.5 text-sm font-semibold text-red-600 transition hover:bg-red-50 disabled:cursor-not-allowed disabled:opacity-60"
     >
-      Delete Client
+      {loading ? "Deleting..." : "Delete Client"}
     </button>
   );
 }

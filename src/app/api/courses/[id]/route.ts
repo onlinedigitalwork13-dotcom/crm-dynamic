@@ -8,17 +8,24 @@ type RouteContext = {
   }>;
 };
 
-function parseTuitionFee(value: unknown): number | null | undefined {
-  if (value === undefined) {
-    return undefined;
-  }
+function normalizeString(value: unknown): string | undefined {
+  if (value === undefined || value === null) return undefined;
+  if (typeof value !== "string") return undefined;
 
-  if (value === null || value === "") {
-    return null;
-  }
+  const trimmed = value.trim();
+  return trimmed.length > 0 ? trimmed : undefined;
+}
+
+function normalizeNumber(value: unknown): number | undefined {
+  if (value === undefined || value === null || value === "") return undefined;
 
   const parsed = Number(value);
-  return Number.isNaN(parsed) ? null : parsed;
+  return Number.isNaN(parsed) ? undefined : parsed;
+}
+
+function normalizeBoolean(value: unknown): boolean | undefined {
+  if (value === undefined) return undefined;
+  return Boolean(value);
 }
 
 export async function GET(_: NextRequest, { params }: RouteContext) {
@@ -88,21 +95,62 @@ export async function PUT(request: NextRequest, { params }: RouteContext) {
     }
 
     const updated = await updateCourse(id, {
-      ...(body.name !== undefined && { name: String(body.name) }),
-      ...(body.level !== undefined && { level: body.level }),
-      ...(body.duration !== undefined && { duration: body.duration }),
+      ...(body.name !== undefined && { name: String(body.name).trim() }),
+      ...(body.code !== undefined && { code: normalizeString(body.code) }),
+      ...(body.level !== undefined && { level: normalizeString(body.level) }),
+      ...(body.category !== undefined && {
+        category: normalizeString(body.category),
+      }),
+      ...(body.studyMode !== undefined && {
+        studyMode: normalizeString(body.studyMode),
+      }),
+      ...(body.duration !== undefined && {
+        duration: normalizeString(body.duration),
+      }),
+      ...(body.durationValue !== undefined && {
+        durationValue: normalizeNumber(body.durationValue),
+      }),
+      ...(body.durationUnit !== undefined && {
+        durationUnit: normalizeString(body.durationUnit),
+      }),
       ...(body.tuitionFee !== undefined && {
-        tuitionFee: parseTuitionFee(body.tuitionFee),
+        tuitionFee: normalizeNumber(body.tuitionFee),
+      }),
+      ...(body.applicationFee !== undefined && {
+        applicationFee: normalizeNumber(body.applicationFee),
+      }),
+      ...(body.materialFee !== undefined && {
+        materialFee: normalizeNumber(body.materialFee),
+      }),
+      ...(body.currency !== undefined && {
+        currency: normalizeString(body.currency),
       }),
       ...(body.intakeMonths !== undefined && {
-        intakeMonths: body.intakeMonths,
+        intakeMonths: normalizeString(body.intakeMonths),
       }),
-      ...(body.campus !== undefined && { campus: body.campus }),
+      ...(body.campus !== undefined && {
+        campus: normalizeString(body.campus),
+      }),
+      ...(body.entryRequirements !== undefined && {
+        entryRequirements: normalizeString(body.entryRequirements),
+      }),
+      ...(body.englishRequirements !== undefined && {
+        englishRequirements: normalizeString(body.englishRequirements),
+      }),
       ...(body.description !== undefined && {
-        description: body.description,
+        description: normalizeString(body.description),
+      }),
+      ...(body.notes !== undefined && {
+        notes: normalizeString(body.notes),
+      }),
+      ...(body.sourceType !== undefined && {
+        sourceType: normalizeString(body.sourceType),
+      }),
+      ...(body.syncStatus !== undefined && {
+        syncStatus: normalizeString(body.syncStatus),
       }),
       ...(body.isActive !== undefined && {
-        isActive: Boolean(body.isActive),
+        isActive: normalizeBoolean(body.isActive),
       }),
     });
 

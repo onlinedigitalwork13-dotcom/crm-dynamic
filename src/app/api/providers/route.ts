@@ -1,6 +1,28 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 
+function normalizeString(value: unknown) {
+  if (typeof value !== "string") return null;
+  const trimmed = value.trim();
+  return trimmed.length > 0 ? trimmed : null;
+}
+
+function normalizeBoolean(value: unknown, fallback = false) {
+  if (typeof value === "boolean") return value;
+  return fallback;
+}
+
+function normalizeDate(value: unknown) {
+  if (typeof value !== "string") return null;
+  const trimmed = value.trim();
+  if (!trimmed) return null;
+
+  const parsed = new Date(trimmed);
+  if (Number.isNaN(parsed.getTime())) return "INVALID_DATE";
+
+  return parsed;
+}
+
 export async function GET(_: NextRequest) {
   try {
     const providers = await prisma.provider.findMany({
@@ -12,6 +34,10 @@ export async function GET(_: NextRequest) {
           select: {
             courses: true,
             applications: true,
+            contacts: true,
+            campuses: true,
+            syncSources: true,
+            syncLogs: true,
           },
         },
       },
@@ -32,8 +58,8 @@ export async function POST(request: NextRequest) {
   try {
     const body = await request.json();
 
-    const name = String(body.name || "").trim();
-    const code = body.code?.trim() || null;
+    const name = normalizeString(body.name);
+    const code = normalizeString(body.code);
 
     if (!name) {
       return NextResponse.json(
@@ -66,17 +92,44 @@ export async function POST(request: NextRequest) {
       }
     }
 
+    const lastSyncAt = normalizeDate(body.lastSyncAt);
+
+    if (lastSyncAt === "INVALID_DATE") {
+      return NextResponse.json(
+        { error: "Invalid lastSyncAt date format" },
+        { status: 400 }
+      );
+    }
+
     const provider = await prisma.provider.create({
       data: {
         name,
         code,
-        country: body.country?.trim() || null,
-        city: body.city?.trim() || null,
-        email: body.email?.trim() || null,
-        phone: body.phone?.trim() || null,
-        website: body.website?.trim() || null,
-        description: body.description?.trim() || null,
-        isActive: body.isActive ?? true,
+        country: normalizeString(body.country),
+        city: normalizeString(body.city),
+        email: normalizeString(body.email),
+        phone: normalizeString(body.phone),
+        website: normalizeString(body.website),
+        description: normalizeString(body.description),
+        isActive: normalizeBoolean(body.isActive, true),
+
+        legalName: normalizeString(body.legalName),
+        defaultCurrency: normalizeString(body.defaultCurrency),
+        supportEmail: normalizeString(body.supportEmail),
+        supportPhone: normalizeString(body.supportPhone),
+        admissionEmail: normalizeString(body.admissionEmail),
+        financeEmail: normalizeString(body.financeEmail),
+        applicationUrl: normalizeString(body.applicationUrl),
+        portalUrl: normalizeString(body.portalUrl),
+        logoUrl: normalizeString(body.logoUrl),
+        address: normalizeString(body.address),
+        notes: normalizeString(body.notes),
+
+        syncStatus: normalizeString(body.syncStatus),
+        lastSyncAt,
+        lastSyncMessage: normalizeString(body.lastSyncMessage),
+        autoSyncEnabled: normalizeBoolean(body.autoSyncEnabled, false),
+        sourceType: normalizeString(body.sourceType),
       },
     });
 
