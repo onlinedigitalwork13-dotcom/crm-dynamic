@@ -1,0 +1,213 @@
+import { prisma } from "@/lib/prisma";
+import {
+  CourseImportCommitResult,
+  CourseImportPreviewRow,
+} from "@/lib/imports/types";
+
+type ImportCourseRowsParams = {
+  createdById?: string;
+  sourceType: "csv" | "website" | "api";
+  sourceValue?: string;
+  rows: CourseImportPreviewRow[];
+};
+
+function toNullableString(value: unknown): string | null {
+  if (value === null || value === undefined) return null;
+  const str = String(value).trim();
+  return str ? str : null;
+}
+
+function toNullableNumber(value: unknown): number | null {
+  if (value === null || value === undefined || value === "") return null;
+
+  if (typeof value === "number") {
+    return Number.isNaN(value) ? null : value;
+  }
+
+  const parsed = Number(value);
+  return Number.isNaN(parsed) ? null : parsed;
+}
+
+export async function importCourseRows(
+  params: ImportCourseRowsParams
+): Promise<CourseImportCommitResult> {
+  const { createdById, sourceType, sourceValue, rows } = params;
+
+  const totalRows = rows.length;
+  const invalidRows = rows.filter((row) => !row.isValid).length;
+
+  const importJob = await prisma.importJob.create({
+    data: {
+      type: "course_import",
+      sourceType,
+      sourceValue,
+      status: "processing",
+      totalRows,
+      validRows: rows.filter((row) => row.isValid).length,
+      invalidRows,
+      importedRows: 0,
+      skippedRows: 0,
+      createdById,
+    },
+  });
+
+  let importedRows = 0;
+  let skippedRows = 0;
+
+  for (const row of rows) {
+    const errors = [...row.errors];
+
+    let wasImported = false;
+    let isDuplicate = row.isDuplicate;
+
+    if (!row.willImport || !row.matchedProviderId) {
+      skippedRows += 1;
+
+      await prisma.importJobRow.create({
+        data: {
+          importJobId: importJob.id,
+          rawRowIndex: row.rawRowIndex,
+          providerName: toNullableString(row.data.providerName),
+          courseName: toNullableString(row.data.courseName),
+          payloadJson: row.data,
+          isValid: row.isValid,
+          isDuplicate,
+          wasImported: false,
+          errors,
+        },
+      });
+
+      continue;
+    }
+
+    try {
+      const existingCourse = await prisma.course.findFirst({
+        where: row.data.courseCode
+          ? {
+              providerId: row.matchedProviderId,
+              OR: [
+                { code: row.data.courseCode },
+                { name: row.data.courseName },
+              ],
+            }
+          : {
+              providerId: row.matchedProviderId,
+              name: {
+                equals: row.data.courseName,
+                mode: "insensitive",
+              },
+            },
+        select: {
+          id: true,
+        },
+      });
+
+      if (existingCourse) {
+        isDuplicate = true;
+        skippedRows += 1;
+
+        if (!errors.includes("Duplicate detected during import")) {
+          errors.push("Duplicate detected during import");
+        }
+
+        await prisma.importJobRow.create({
+          data: {
+            importJobId: importJob.id,
+            rawRowIndex: row.rawRowIndex,
+            providerName: toNullableString(row.data.providerName),
+            courseName: toNullableString(row.data.courseName),
+            payloadJson: row.data,
+            isValid: row.isValid,
+            isDuplicate: true,
+            wasImported: false,
+            errors,
+          },
+        });
+
+        continue;
+      }
+
+      await prisma.course.create({
+        data: {
+          providerId: row.matchedProviderId,
+          name: row.data.courseName,
+          code: toNullableString(row.data.courseCode),
+          level: toNullableString(row.data.level),
+          duration: toNullableString(row.data.duration),
+          tuitionFee: toNullableNumber(row.data.tuitionFee),
+          intakeMonths: toNullableString(row.data.intakeMonths),
+          campus: toNullableString(row.data.campus),
+          description: toNullableString(row.data.description),
+          category: toNullableString(row.data.category),
+          studyMode: toNullableString(row.data.studyMode),
+          durationValue: toNullableNumber(row.data.durationValue),
+          durationUnit: toNullableString(row.data.durationUnit),
+          applicationFee: toNullableNumber(row.data.applicationFee),
+          materialFee: toNullableNumber(row.data.materialFee),
+          currency: toNullableString(row.data.currency),
+          entryRequirements: toNullableString(row.data.entryRequirements),
+          englishRequirements: toNullableString(row.data.englishRequirements),
+          notes: toNullableString(row.data.notes),
+          sourceType,
+          syncStatus: "imported",
+          isActive: true,
+        },
+      });
+
+      importedRows += 1;
+      wasImported = true;
+
+      await prisma.importJobRow.create({
+        data: {
+          importJobId: importJob.id,
+          rawRowIndex: row.rawRowIndex,
+          providerName: toNullableString(row.data.providerName),
+          courseName: toNullableString(row.data.courseName),
+          payloadJson: row.data,
+          isValid: row.isValid,
+          isDuplicate: false,
+          wasImported,
+          errors,
+        },
+      });
+    } catch (error) {
+      skippedRows += 1;
+
+      const errorMessage =
+        error instanceof Error ? error.message : "Unknown import error";
+
+      errors.push(errorMessage);
+
+      await prisma.importJobRow.create({
+        data: {
+          importJobId: importJob.id,
+          rawRowIndex: row.rawRowIndex,
+          providerName: toNullableString(row.data.providerName),
+          courseName: toNullableString(row.data.courseName),
+          payloadJson: row.data,
+          isValid: row.isValid,
+          isDuplicate,
+          wasImported: false,
+          errors,
+        },
+      });
+    }
+  }
+
+  await prisma.importJob.update({
+    where: { id: importJob.id },
+    data: {
+      status: "completed",
+      importedRows,
+      skippedRows,
+    },
+  });
+
+  return {
+    importJobId: importJob.id,
+    totalRows,
+    importedRows,
+    skippedRows,
+    invalidRows,
+  };
+}

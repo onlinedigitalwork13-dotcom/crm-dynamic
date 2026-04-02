@@ -152,6 +152,7 @@ model User {
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
+  importJobs ImportJob[]
 }
 
 model AuditLog {
@@ -1085,4 +1086,55 @@ model CommunicationTemplate {
   @@index([channel])
   @@index([isActive])
   @@index([createdAt])
+}
+model ImportJob {
+  id           String   @id @default(cuid())
+  type         String
+  sourceType   String
+  sourceValue  String?
+  status       String
+
+  totalRows    Int      @default(0)
+  validRows    Int      @default(0)
+  invalidRows  Int      @default(0)
+  importedRows Int      @default(0)
+  skippedRows  Int      @default(0)
+
+  createdById  String?
+  createdBy    User?    @relation(fields: [createdById], references: [id], onDelete: SetNull)
+
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  rows ImportJobRow[]
+
+  @@index([type])
+  @@index([sourceType])
+  @@index([status])
+  @@index([createdById])
+  @@index([createdAt])
+}
+
+model ImportJobRow {
+  id           String    @id @default(cuid())
+  importJobId  String
+  importJob    ImportJob @relation(fields: [importJobId], references: [id], onDelete: Cascade)
+
+  rawRowIndex  Int?
+  providerName String?
+  courseName   String?
+  payloadJson  Json?
+
+  isValid      Boolean   @default(false)
+  isDuplicate  Boolean   @default(false)
+  wasImported  Boolean   @default(false)
+
+  errors       String[]
+
+  createdAt    DateTime  @default(now())
+
+  @@index([importJobId])
+  @@index([rawRowIndex])
+  @@index([isValid])
+  @@index([isDuplicate])
 }
