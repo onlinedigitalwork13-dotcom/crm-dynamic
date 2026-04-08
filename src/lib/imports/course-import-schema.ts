@@ -6,11 +6,13 @@ import {
 
 /**
  * Raw input schema (before normalization)
- * This is flexible because CSV / website data can be messy
+ * Flexible because CSV / website data can be inconsistent
  */
 export const rawCourseImportRowSchema = z.object({
-  providerName: z.any(),
-  courseName: z.any(),
+  providerName: z.any().optional(),
+  providerCode: z.any().optional(),
+
+  courseName: z.any().optional(),
   courseCode: z.any().optional(),
   level: z.any().optional(),
   duration: z.any().optional(),
@@ -35,61 +37,62 @@ export const rawCourseImportRowSchema = z.object({
  */
 export const normalizedCourseImportSchema = z.object({
   providerName: z.string().trim().min(1, "Provider name is required"),
+  providerCode: z.string().trim().optional(),
 
   courseName: z.string().trim().min(1, "Course name is required"),
 
-  courseCode: z.string().optional(),
-  level: z.string().optional(),
-  duration: z.string().optional(),
+  courseCode: z.string().trim().optional(),
+  level: z.string().trim().optional(),
+  duration: z.string().trim().optional(),
 
   tuitionFee: z
-    .string()
+    .union([z.string(), z.number()])
     .optional()
     .transform((val) => {
-      if (!val) return undefined;
-      const num = parseFloat(val);
+      if (val === undefined || val === null || val === "") return undefined;
+      const num = typeof val === "number" ? val : parseFloat(String(val));
       return Number.isNaN(num) ? undefined : num;
     }),
 
-  intakeMonths: z.string().optional(),
-  campus: z.string().optional(),
-  description: z.string().optional(),
-  category: z.string().optional(),
-  studyMode: z.string().optional(),
+  intakeMonths: z.string().trim().optional(),
+  campus: z.string().trim().optional(),
+  description: z.string().trim().optional(),
+  category: z.string().trim().optional(),
+  studyMode: z.string().trim().optional(),
 
   durationValue: z
-    .string()
+    .union([z.string(), z.number()])
     .optional()
     .transform((val) => {
-      if (!val) return undefined;
-      const num = parseFloat(val);
+      if (val === undefined || val === null || val === "") return undefined;
+      const num = typeof val === "number" ? val : parseFloat(String(val));
       return Number.isNaN(num) ? undefined : num;
     }),
 
-  durationUnit: z.string().optional(),
+  durationUnit: z.string().trim().optional(),
 
   applicationFee: z
-    .string()
+    .union([z.string(), z.number()])
     .optional()
     .transform((val) => {
-      if (!val) return undefined;
-      const num = parseFloat(val);
+      if (val === undefined || val === null || val === "") return undefined;
+      const num = typeof val === "number" ? val : parseFloat(String(val));
       return Number.isNaN(num) ? undefined : num;
     }),
 
   materialFee: z
-    .string()
+    .union([z.string(), z.number()])
     .optional()
     .transform((val) => {
-      if (!val) return undefined;
-      const num = parseFloat(val);
+      if (val === undefined || val === null || val === "") return undefined;
+      const num = typeof val === "number" ? val : parseFloat(String(val));
       return Number.isNaN(num) ? undefined : num;
     }),
 
-  currency: z.string().optional(),
-  entryRequirements: z.string().optional(),
-  englishRequirements: z.string().optional(),
-  notes: z.string().optional(),
+  currency: z.string().trim().optional(),
+  entryRequirements: z.string().trim().optional(),
+  englishRequirements: z.string().trim().optional(),
+  notes: z.string().trim().optional(),
 
   sourceType: z.enum(["csv", "website", "api"]),
   sourceValue: z.string().optional(),
@@ -108,6 +111,24 @@ export function normalizeString(value: unknown): string | undefined {
   return str;
 }
 
+function normalizeUpperString(value: unknown): string | undefined {
+  const str = normalizeString(value);
+  return str ? str.toUpperCase() : undefined;
+}
+
+function pickFirst(
+  row: Record<string, unknown>,
+  keys: string[]
+): unknown {
+  for (const key of keys) {
+    if (key in row && row[key] != null && String(row[key]).trim() !== "") {
+      return row[key];
+    }
+  }
+
+  return undefined;
+}
+
 /**
  * Normalize raw row → clean structure
  */
@@ -118,25 +139,55 @@ export function normalizeCourseRow(
   index?: number
 ): RawNormalizedCourseImportRow {
   return {
-    providerName: normalizeString(row.providerName) ?? "",
-    courseName: normalizeString(row.courseName) ?? "",
-    courseCode: normalizeString(row.courseCode),
-    level: normalizeString(row.level),
-    duration: normalizeString(row.duration),
-    tuitionFee: normalizeString(row.tuitionFee),
-    intakeMonths: normalizeString(row.intakeMonths),
-    campus: normalizeString(row.campus),
-    description: normalizeString(row.description),
-    category: normalizeString(row.category),
-    studyMode: normalizeString(row.studyMode),
-    durationValue: normalizeString(row.durationValue),
-    durationUnit: normalizeString(row.durationUnit),
-    applicationFee: normalizeString(row.applicationFee),
-    materialFee: normalizeString(row.materialFee),
-    currency: normalizeString(row.currency),
-    entryRequirements: normalizeString(row.entryRequirements),
-    englishRequirements: normalizeString(row.englishRequirements),
-    notes: normalizeString(row.notes),
+    providerName:
+      normalizeString(
+        pickFirst(row, [
+          "providerName",
+          "provider",
+          "institutionName",
+          "university",
+        ])
+      ) ?? "",
+
+    providerCode: normalizeUpperString(
+      pickFirst(row, ["providerCode", "provider_code", "institutionCode"])
+    ),
+
+    courseName:
+      normalizeString(
+        pickFirst(row, ["courseName", "name", "course", "programName"])
+      ) ?? "",
+
+    courseCode: normalizeString(
+      pickFirst(row, ["courseCode", "code", "programCode"])
+    ),
+
+    level: normalizeString(pickFirst(row, ["level"])),
+    duration: normalizeString(pickFirst(row, ["duration"])),
+    tuitionFee: normalizeString(
+      pickFirst(row, ["tuitionFee", "tuition", "fees"])
+    ),
+    intakeMonths: normalizeString(
+      pickFirst(row, ["intakeMonths", "intakes", "intake"])
+    ),
+    campus: normalizeString(pickFirst(row, ["campus"])),
+    description: normalizeString(pickFirst(row, ["description"])),
+    category: normalizeString(pickFirst(row, ["category"])),
+    studyMode: normalizeString(
+      pickFirst(row, ["studyMode", "mode", "deliveryMode"])
+    ),
+    durationValue: normalizeString(pickFirst(row, ["durationValue"])),
+    durationUnit: normalizeString(pickFirst(row, ["durationUnit"])),
+    applicationFee: normalizeString(pickFirst(row, ["applicationFee"])),
+    materialFee: normalizeString(pickFirst(row, ["materialFee"])),
+    currency: normalizeUpperString(pickFirst(row, ["currency"])),
+    entryRequirements: normalizeString(
+      pickFirst(row, ["entryRequirements"])
+    ),
+    englishRequirements: normalizeString(
+      pickFirst(row, ["englishRequirements"])
+    ),
+    notes: normalizeString(pickFirst(row, ["notes"])),
 
     sourceType,
     sourceValue,

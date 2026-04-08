@@ -2,6 +2,8 @@ export type CourseImportSourceType = "csv" | "website" | "api";
 
 export type CourseImportRowBase = {
   providerName: string;
+  providerCode?: string;
+
   courseName: string;
   courseCode?: string;
   level?: string;
@@ -16,6 +18,7 @@ export type CourseImportRowBase = {
   entryRequirements?: string;
   englishRequirements?: string;
   notes?: string;
+
   sourceType: CourseImportSourceType;
   sourceValue?: string;
   rawRowIndex?: number;

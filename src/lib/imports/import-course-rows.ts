@@ -9,6 +9,7 @@ type ImportCourseRowsParams = {
   sourceType: "csv" | "website" | "api";
   sourceValue?: string;
   rows: CourseImportPreviewRow[];
+  forcedProviderId?: string;
 };
 
 function toNullableString(value: unknown): string | null {
@@ -31,7 +32,7 @@ function toNullableNumber(value: unknown): number | null {
 export async function importCourseRows(
   params: ImportCourseRowsParams
 ): Promise<CourseImportCommitResult> {
-  const { createdById, sourceType, sourceValue, rows } = params;
+  const { createdById, sourceType, sourceValue, rows, forcedProviderId } = params;
 
   const totalRows = rows.length;
   const invalidRows = rows.filter((row) => !row.isValid).length;
@@ -56,11 +57,12 @@ export async function importCourseRows(
 
   for (const row of rows) {
     const errors = [...row.errors];
-
     let wasImported = false;
     let isDuplicate = row.isDuplicate;
 
-    if (!row.willImport || !row.matchedProviderId) {
+    const providerId = forcedProviderId ?? row.matchedProviderId;
+
+    if (!row.willImport || !providerId) {
       skippedRows += 1;
 
       await prisma.importJobRow.create({
@@ -84,14 +86,24 @@ export async function importCourseRows(
       const existingCourse = await prisma.course.findFirst({
         where: row.data.courseCode
           ? {
-              providerId: row.matchedProviderId,
+              providerId,
               OR: [
-                { code: row.data.courseCode },
-                { name: row.data.courseName },
+                {
+                  code: {
+                    equals: row.data.courseCode,
+                    mode: "insensitive",
+                  },
+                },
+                {
+                  name: {
+                    equals: row.data.courseName,
+                    mode: "insensitive",
+                  },
+                },
               ],
             }
           : {
-              providerId: row.matchedProviderId,
+              providerId,
               name: {
                 equals: row.data.courseName,
                 mode: "insensitive",
@@ -129,7 +141,7 @@ export async function importCourseRows(
 
       await prisma.course.create({
         data: {
-          providerId: row.matchedProviderId,
+          providerId,
           name: row.data.courseName,
           code: toNullableString(row.data.courseCode),
           level: toNullableString(row.data.level),

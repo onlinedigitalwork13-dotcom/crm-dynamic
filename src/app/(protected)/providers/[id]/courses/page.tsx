@@ -201,8 +201,8 @@ export default async function ProviderCoursesPage({
               </div>
 
               <p className="mt-3 max-w-3xl text-sm text-slate-300">
-                Premium catalog workspace for course visibility, quick filtering,
-                and future sync-ready provider operations.
+                Premium catalog workspace for course visibility, filtering,
+                provider-linked imports, and future sync-ready operations.
               </p>
 
               <div className="mt-5 flex flex-wrap gap-2">
@@ -218,12 +218,19 @@ export default async function ProviderCoursesPage({
               </div>
             </div>
 
-            <div className="flex flex-wrap gap-3 xl:max-w-[420px] xl:justify-end">
+            <div className="flex flex-wrap gap-3 xl:max-w-[520px] xl:justify-end">
               <Link
                 href={`/providers/${provider.id}`}
                 className="inline-flex items-center justify-center rounded-2xl bg-white px-4 py-2.5 text-sm font-medium text-slate-900 transition hover:bg-slate-100"
               >
                 Back to Provider
+              </Link>
+
+              <Link
+                href={`/providers/${provider.id}/courses/import`}
+                className="inline-flex items-center justify-center rounded-2xl bg-slate-800 px-4 py-2.5 text-sm font-medium text-white transition hover:bg-slate-700"
+              >
+                Import Courses
               </Link>
 
               <Link
@@ -532,6 +539,13 @@ export default async function ProviderCoursesPage({
               </Link>
 
               <Link
+                href={`/providers/${provider.id}/courses/import`}
+                className="inline-flex items-center justify-center rounded-2xl border border-slate-300 bg-white px-4 py-3 text-sm font-medium text-slate-700 transition hover:bg-slate-50"
+              >
+                Import Courses
+              </Link>
+
+              <Link
                 href={`/providers/${provider.id}`}
                 className="inline-flex items-center justify-center rounded-2xl border border-slate-300 bg-white px-4 py-3 text-sm font-medium text-slate-700 transition hover:bg-slate-50"
               >
@@ -563,7 +577,7 @@ export default async function ProviderCoursesPage({
                   Current Mode
                 </p>
                 <p className="mt-1 text-sm font-medium text-slate-800">
-                  Manual course catalog management
+                  Manual and provider-linked catalog management
                 </p>
               </div>
 
@@ -578,8 +592,8 @@ export default async function ProviderCoursesPage({
               </div>
 
               <div className="rounded-2xl border border-dashed border-slate-300 bg-white p-4 text-sm text-slate-500">
-                This page is now structured so we can add real catalog automation
-                later without rebuilding the UX from scratch.
+                This page is now structured so provider-specific imports can feed
+                directly into the catalog without rebuilding the UX.
               </div>
             </div>
           </section>

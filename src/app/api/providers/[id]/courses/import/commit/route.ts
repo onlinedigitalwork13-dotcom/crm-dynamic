@@ -2,6 +2,10 @@ import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
 import { importCourseRows } from "@/lib/imports/import-course-rows";
 
+type Context = {
+  params: Promise<{ id: string }>;
+};
+
 const commitRowSchema = z.object({
   rowId: z.string(),
   rawRowIndex: z.number().optional(),
@@ -51,8 +55,9 @@ const commitRequestSchema = z.object({
   rows: z.array(commitRowSchema).min(1, "At least one row is required"),
 });
 
-export async function POST(request: NextRequest) {
+export async function POST(request: NextRequest, context: Context) {
   try {
+    const { id } = await context.params;
     const body = await request.json();
 
     const parsed = commitRequestSchema.safeParse(body);
@@ -60,7 +65,7 @@ export async function POST(request: NextRequest) {
     if (!parsed.success) {
       return NextResponse.json(
         {
-          error: "Invalid course import commit request",
+          error: "Invalid provider course import commit request",
           details: parsed.error.flatten(),
         },
         { status: 400 }
@@ -72,18 +77,19 @@ export async function POST(request: NextRequest) {
       sourceType: parsed.data.sourceType,
       sourceValue: parsed.data.sourceValue,
       rows: parsed.data.rows,
+      forcedProviderId: id,
     });
 
     return NextResponse.json(result, { status: 200 });
   } catch (error) {
-    console.error("Course import commit error:", error);
+    console.error("Provider course import commit error:", error);
 
     return NextResponse.json(
       {
         error:
           error instanceof Error
             ? error.message
-            : "Failed to commit course import",
+            : "Failed to commit provider course import",
       },
       { status: 500 }
     );

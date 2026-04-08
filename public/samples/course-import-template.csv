@@ -1,0 +1,3 @@
+providerName,providerCode,courseName,courseCode,level,duration,durationValue,durationUnit,tuitionFee,applicationFee,materialFee,currency,intakeMonths,campus,studyMode,category,entryRequirements,englishRequirements,description,notes
+La Trobe University,LTU,Bachelor of Information Technology,BIT01,Bachelor,3 Years,3,Years,30000,100,500,AUD,February;July,Melbourne,Full-time,IT,Year 12 completion,IELTS 6.0,Undergraduate IT program,Imported sample row
+Deakin University,DEAKIN,Master of Business Administration,MBA01,Master,2 Years,2,Years,35000,150,400,AUD,March;August,Burwood,Full-time,Business,Bachelor degree,IELTS 6.5,Business administration program,Imported sample row

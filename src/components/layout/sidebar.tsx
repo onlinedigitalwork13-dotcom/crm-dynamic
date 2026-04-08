@@ -11,6 +11,7 @@ type SidebarProps = {
 };
 
 type NavItemType = {
+  id: string;
   href: string;
   label: string;
   icon: string;
@@ -79,38 +80,44 @@ export default function Sidebar({
   const sections = useMemo<NavSectionType[]>(() => {
     const main: NavSectionType = {
       items: [
-        { href: "/dashboard", label: "Dashboard", icon: "⌂" },
+        { id: "dashboard", href: "/dashboard", label: "Dashboard", icon: "⌂" },
         {
+          id: "leads",
           href: "/intake-submissions",
           label: "Leads",
           icon: "◉",
           matchStartsWith: true,
         },
         {
+          id: "clients",
           href: "/clients",
           label: "Clients",
           icon: "◌",
           matchStartsWith: true,
         },
         {
+          id: "my-following",
           href: "/my-following",
           label: "My Following",
           icon: "◎",
           matchStartsWith: true,
         },
         {
+          id: "applications",
           href: "/applications",
           label: "Applications",
           icon: "▣",
           matchStartsWith: true,
         },
         {
+          id: "tasks",
           href: "/tasks",
           label: "Tasks",
           icon: "✓",
           matchStartsWith: true,
         },
         {
+          id: "notifications",
           href: "/notifications",
           label: "Notifications",
           icon: "◈",
@@ -124,24 +131,28 @@ export default function Sidebar({
       title: "Operations",
       items: [
         {
+          id: "providers",
           href: "/providers",
           label: "Providers",
           icon: "▤",
           matchStartsWith: true,
         },
         {
+          id: "courses",
           href: "/courses-config",
           label: "Courses",
           icon: "≣",
           matchStartsWith: true,
         },
         {
+          id: "subagents",
           href: "/subagents",
           label: "Subagents",
           icon: "◍",
           matchStartsWith: true,
         },
         {
+          id: "intake-forms",
           href: "/intake-forms",
           label: "Intake Forms",
           icon: "✎",
@@ -154,6 +165,7 @@ export default function Sidebar({
       title: "Communication",
       items: [
         {
+          id: "email-center",
           href: "/email-center",
           label: "Email Center",
           icon: "✦",
@@ -167,24 +179,28 @@ export default function Sidebar({
       title: "Settings",
       items: [
         {
+          id: "general-settings",
           href: "/settings",
           label: "General Settings",
           icon: "⚙",
           matchStartsWith: true,
         },
         {
+          id: "lead-sources",
           href: "/sources",
           label: "Lead Sources",
           icon: "⌁",
           matchStartsWith: true,
         },
         {
+          id: "workflows",
           href: "/workflows",
           label: "Workflows",
           icon: "⇄",
           matchStartsWith: true,
         },
         {
+          id: "checklist-templates",
           href: "/settings/checklist-templates",
           label: "Checklist Templates",
           icon: "☰",
@@ -198,12 +214,14 @@ export default function Sidebar({
           title: "Admin",
           items: [
             {
+              id: "audit-logs",
               href: "/audit-logs",
               label: "Audit Logs",
               icon: "◆",
               matchStartsWith: true,
             },
             {
+              id: "reports",
               href: "/reports",
               label: "Reports",
               icon: "◫",
@@ -279,7 +297,7 @@ export default function Sidebar({
 
                   return (
                     <Link
-                      key={item.href}
+                      key={item.id}
                       href={item.href}
                       onClick={onNavigate}
                       title={collapsed ? item.label : undefined}

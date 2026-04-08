@@ -21,33 +21,67 @@ function normalizeName(value: string) {
   return value.trim().toLowerCase().replace(/\s+/g, " ");
 }
 
-async function resolveProvider(providerName: string): Promise<ProviderMatchResult> {
-  const normalized = normalizeName(providerName);
+function normalizeCode(value?: string | null) {
+  return value ? value.trim().toUpperCase() : "";
+}
 
-  const providers = await prisma.provider.findMany({
+type ProviderLookup = {
+  id: string;
+  name: string;
+  code: string | null;
+  isActive: boolean;
+};
+
+async function loadProviderLookups(): Promise<ProviderLookup[]> {
+  return prisma.provider.findMany({
     where: {
       isActive: true,
     },
     select: {
       id: true,
       name: true,
+      code: true,
+      isActive: true,
     },
   });
+}
 
-  const exactMatch = providers.find(
-    (provider) => normalizeName(provider.name) === normalized
+function resolveProviderFromCache(
+  providers: ProviderLookup[],
+  providerName: string,
+  providerCode?: string
+): ProviderMatchResult {
+  const normalizedProviderName = normalizeName(providerName);
+  const normalizedProviderCode = normalizeCode(providerCode);
+
+  if (normalizedProviderCode) {
+    const codeMatch = providers.find(
+      (provider) => normalizeCode(provider.code) === normalizedProviderCode
+    );
+
+    if (codeMatch) {
+      return {
+        matched: true,
+        providerId: codeMatch.id,
+        providerName: codeMatch.name,
+      };
+    }
+  }
+
+  const exactNameMatch = providers.find(
+    (provider) => normalizeName(provider.name) === normalizedProviderName
   );
 
-  if (!exactMatch) {
+  if (exactNameMatch) {
     return {
-      matched: false,
+      matched: true,
+      providerId: exactNameMatch.id,
+      providerName: exactNameMatch.name,
     };
   }
 
   return {
-    matched: true,
-    providerId: exactMatch.id,
-    providerName: exactMatch.name,
+    matched: false,
   };
 }
 
@@ -62,12 +96,16 @@ async function detectDuplicate(
   }
 
   const normalizedCourseName = normalizeName(row.courseName);
+  const normalizedCourseCode = normalizeCode(row.courseCode);
 
-  if (row.courseCode) {
+  if (normalizedCourseCode) {
     const existingByCode = await prisma.course.findFirst({
       where: {
         providerId,
-        code: row.courseCode,
+        code: {
+          equals: row.courseCode,
+          mode: "insensitive",
+        },
       },
       select: {
         id: true,
@@ -96,10 +134,9 @@ async function detectDuplicate(
     },
   });
 
-  if (existingByName || normalizedCourseName) {
-    const sameName = existingByName
-      ? normalizeName(existingByName.name) === normalizedCourseName
-      : false;
+  if (existingByName) {
+    const sameName =
+      normalizeName(existingByName.name) === normalizedCourseName;
 
     if (sameName) {
       return {
@@ -118,9 +155,11 @@ export async function previewCourseImport(params: {
   sourceType: CourseImportSourceType;
   sourceValue?: string;
   rows: Record<string, unknown>[];
+  forcedProviderId?: string;
 }): Promise<CourseImportPreviewResult> {
-  const { sourceType, sourceValue, rows } = params;
+  const { sourceType, sourceValue, rows, forcedProviderId } = params;
 
+  const providers = await loadProviderLookups();
   const previewRows: CourseImportPreviewRow[] = [];
 
   for (let index = 0; index < rows.length; index += 1) {
@@ -144,10 +183,28 @@ export async function previewCourseImport(params: {
         errors.push(issue.message);
       }
     } else {
-      providerMatch = await resolveProvider(parsed.data.providerName);
+      if (forcedProviderId) {
+        const forcedProvider = providers.find((provider) => provider.id === forcedProviderId);
 
-      if (!providerMatch.matched) {
-        errors.push("Provider not found");
+        if (forcedProvider) {
+          providerMatch = {
+            matched: true,
+            providerId: forcedProvider.id,
+            providerName: forcedProvider.name,
+          };
+        } else {
+          errors.push("Selected provider not found");
+        }
+      } else {
+        providerMatch = resolveProviderFromCache(
+          providers,
+          parsed.data.providerName,
+          parsed.data.providerCode
+        );
+
+        if (!providerMatch.matched) {
+          errors.push("Provider not found");
+        }
       }
 
       duplicateResult = await detectDuplicate(
@@ -179,9 +236,7 @@ export async function previewCourseImport(params: {
     invalidRows: previewRows.filter((row) => !row.isValid).length,
     duplicateRows: previewRows.filter((row) => row.isDuplicate).length,
     importableRows: previewRows.filter((row) => row.willImport).length,
-    unmatchedProviders: previewRows.filter(
-      (row) => !row.matchedProviderId
-    ).length,
+    unmatchedProviders: previewRows.filter((row) => !row.matchedProviderId).length,
   };
 
   return {

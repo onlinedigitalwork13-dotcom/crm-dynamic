@@ -2,6 +2,10 @@ import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
 import { previewCourseImport } from "@/lib/imports/preview-course-import";
 
+type Context = {
+  params: Promise<{ id: string }>;
+};
+
 const previewRequestSchema = z.object({
   sourceType: z.enum(["csv", "website", "api"]),
   sourceValue: z.string().optional(),
@@ -10,8 +14,9 @@ const previewRequestSchema = z.object({
     .min(1, "At least one row is required"),
 });
 
-export async function POST(request: NextRequest) {
+export async function POST(request: NextRequest, context: Context) {
   try {
+    const { id } = await context.params;
     const body = await request.json();
 
     const parsed = previewRequestSchema.safeParse(body);
@@ -19,7 +24,7 @@ export async function POST(request: NextRequest) {
     if (!parsed.success) {
       return NextResponse.json(
         {
-          error: "Invalid course import preview request",
+          error: "Invalid provider course import preview request",
           details: parsed.error.flatten(),
         },
         { status: 400 }
@@ -30,18 +35,19 @@ export async function POST(request: NextRequest) {
       sourceType: parsed.data.sourceType,
       sourceValue: parsed.data.sourceValue,
       rows: parsed.data.rows,
+      forcedProviderId: id,
     });
 
     return NextResponse.json(result, { status: 200 });
   } catch (error) {
-    console.error("Course import preview error:", error);
+    console.error("Provider course import preview error:", error);
 
     return NextResponse.json(
       {
         error:
           error instanceof Error
             ? error.message
-            : "Failed to preview course import",
+            : "Failed to preview provider course import",
       },
       { status: 500 }
     );
