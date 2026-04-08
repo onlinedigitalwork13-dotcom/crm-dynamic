@@ -18,7 +18,7 @@ import {
   XCircle,
 } from "lucide-react";
 
-type SourceType = "csv" | "website";
+type SourceType = "csv" | "website" | "api";
 
 type ProviderImportRowData = {
   name: string;
@@ -479,43 +479,49 @@ export default function ProviderImportPage() {
   }
 
   async function handleWebsitePreview() {
-    if (!(websiteUrl || "").trim()) {
-      setError("Please enter a website URL.");
+  const rawUrl = (websiteUrl || "").trim();
+
+  if (!rawUrl) {
+    setError("Please enter a website URL.");
+    return;
+  }
+
+  const normalizedWebsiteUrl = /^https?:\/\//i.test(rawUrl)
+    ? rawUrl
+    : `https://${rawUrl}`;
+
+  setError("");
+  setSuccessMessage("");
+  setCommitResult(null);
+  setIsPreviewLoading(true);
+  setPreview(null);
+
+  try {
+    const response = await fetch("/api/providers/import/website", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        url: normalizedWebsiteUrl,
+      }),
+    });
+
+    const data = await response.json();
+
+    if (!response.ok) {
+      setError(data?.error || "Failed to preview website import.");
       return;
     }
 
-    setError("");
-    setSuccessMessage("");
-    setCommitResult(null);
-    setIsPreviewLoading(true);
-    setPreview(null);
-
-    try {
-      const response = await fetch("/api/providers/import/website", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-          url: (websiteUrl || "").trim(),
-        }),
-      });
-
-      const data = await response.json();
-
-      if (!response.ok) {
-        setError(data?.error || "Failed to preview website import.");
-        return;
-      }
-
-      setPreview(data as ProviderPreviewResult);
-    } catch (err) {
-      console.error(err);
-      setError("Something went wrong while previewing the website import.");
-    } finally {
-      setIsPreviewLoading(false);
-    }
+    setPreview(data as ProviderPreviewResult);
+  } catch (err) {
+    console.error(err);
+    setError("Something went wrong while previewing the website import.");
+  } finally {
+    setIsPreviewLoading(false);
   }
+}
 
   async function handleImport() {
     if (!preview) {
@@ -684,6 +690,13 @@ export default function ProviderImportPage() {
                 icon={<Globe2 className="h-5 w-5" />}
                 onClick={() => handleSourceChange("website")}
               />
+              <SourceModeCard
+  active={sourceType === "api"}
+  title="API Endpoint"
+  description="Fetch provider data from external API and preview before import."
+  icon={<Globe2 className="h-5 w-5" />}
+  onClick={() => handleSourceChange("api")}
+/>
             </div>
 
             {sourceType === "csv" ? (

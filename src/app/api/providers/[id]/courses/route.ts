@@ -26,7 +26,10 @@ function booleanOrDefault(value: unknown, fallback = true): boolean {
   return fallback;
 }
 
-export async function POST(request: NextRequest, context: RouteContext) {
+export async function POST(
+  request: NextRequest,
+  context: RouteContext
+) {
   try {
     const { id: providerId } = await context.params;
     const body = await request.json();

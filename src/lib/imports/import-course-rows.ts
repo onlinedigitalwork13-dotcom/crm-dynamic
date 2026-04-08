@@ -53,6 +53,7 @@ export async function importCourseRows(
   });
 
   let importedRows = 0;
+  let updatedRows = 0;
   let skippedRows = 0;
 
   for (const row of rows) {
@@ -109,18 +110,36 @@ export async function importCourseRows(
                 mode: "insensitive",
               },
             },
-        select: {
-          id: true,
-        },
       });
 
+      // 🟢 UPDATE EXISTING (NEW BEHAVIOR)
       if (existingCourse) {
-        isDuplicate = true;
-        skippedRows += 1;
+        await prisma.course.update({
+          where: { id: existingCourse.id },
+          data: {
+            level: toNullableString(row.data.level),
+            duration: toNullableString(row.data.duration),
+            tuitionFee: toNullableNumber(row.data.tuitionFee),
+            intakeMonths: toNullableString(row.data.intakeMonths),
+            campus: toNullableString(row.data.campus),
+            description: toNullableString(row.data.description),
+            category: toNullableString(row.data.category),
+            studyMode: toNullableString(row.data.studyMode),
+            durationValue: toNullableNumber(row.data.durationValue),
+            durationUnit: toNullableString(row.data.durationUnit),
+            applicationFee: toNullableNumber(row.data.applicationFee),
+            materialFee: toNullableNumber(row.data.materialFee),
+            currency: toNullableString(row.data.currency),
+            entryRequirements: toNullableString(row.data.entryRequirements),
+            englishRequirements: toNullableString(row.data.englishRequirements),
+            notes: toNullableString(row.data.notes),
+            sourceType,
+            syncStatus: "updated",
+          },
+        });
 
-        if (!errors.includes("Duplicate detected during import")) {
-          errors.push("Duplicate detected during import");
-        }
+        updatedRows += 1;
+        wasImported = true;
 
         await prisma.importJobRow.create({
           data: {
@@ -130,15 +149,16 @@ export async function importCourseRows(
             courseName: toNullableString(row.data.courseName),
             payloadJson: row.data,
             isValid: row.isValid,
-            isDuplicate: true,
-            wasImported: false,
-            errors,
+            isDuplicate: false,
+            wasImported: true,
+            errors: [...errors, "Updated existing course"],
           },
         });
 
         continue;
       }
 
+      // 🟢 CREATE NEW
       await prisma.course.create({
         data: {
           providerId,

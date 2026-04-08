@@ -1,51 +1,55 @@
 "use client";
 
 import Link from "next/link";
-import { useMemo, useState } from "react";
+import { useMemo, useState, type ChangeEvent, type ReactNode } from "react";
 import { useParams, useRouter } from "next/navigation";
 import {
   AlertCircle,
   ArrowLeft,
   CheckCircle2,
+  Download,
   FileSpreadsheet,
   Globe,
   Loader2,
   RefreshCw,
   ShieldCheck,
+  Sparkles,
   Upload,
   XCircle,
 } from "lucide-react";
 
 type SourceType = "csv" | "website" | "api";
 
+type CourseImportRowData = {
+  providerName?: string;
+  providerCode?: string;
+  courseName?: string;
+  courseCode?: string;
+  level?: string;
+  duration?: string;
+  tuitionFee?: string | number;
+  intakeMonths?: string;
+  campus?: string;
+  description?: string;
+  category?: string;
+  studyMode?: string;
+  durationValue?: string | number;
+  durationUnit?: string;
+  applicationFee?: string | number;
+  materialFee?: string | number;
+  currency?: string;
+  entryRequirements?: string;
+  englishRequirements?: string;
+  notes?: string;
+  sourceType: SourceType;
+  sourceValue?: string;
+  rawRowIndex?: number;
+};
+
 type PreviewRow = {
   rowId: string;
   rawRowIndex?: number;
-  data: {
-    providerName?: string;
-    providerCode?: string;
-    courseName?: string;
-    courseCode?: string;
-    level?: string;
-    duration?: string;
-    tuitionFee?: string | number;
-    intakeMonths?: string;
-    campus?: string;
-    description?: string;
-    category?: string;
-    studyMode?: string;
-    durationValue?: string | number;
-    durationUnit?: string;
-    applicationFee?: string | number;
-    materialFee?: string | number;
-    currency?: string;
-    entryRequirements?: string;
-    englishRequirements?: string;
-    notes?: string;
-    sourceType: SourceType;
-    sourceValue?: string;
-    rawRowIndex?: number;
-  };
+  data: CourseImportRowData;
   isValid: boolean;
   errors: string[];
   matchedProviderId?: string;
@@ -79,13 +83,88 @@ type CommitResponse = {
   invalidRows: number;
 };
 
-type CsvRow = Record<string, unknown>;
+type CsvRow = Record<string, string>;
+
+const SAMPLE_CSV_HEADERS = [
+  "providerName",
+  "courseName",
+  "courseCode",
+  "level",
+  "duration",
+  "tuitionFee",
+  "intakeMonths",
+  "campus",
+  "description",
+  "category",
+  "studyMode",
+  "durationValue",
+  "durationUnit",
+  "applicationFee",
+  "materialFee",
+  "currency",
+  "entryRequirements",
+  "englishRequirements",
+  "notes",
+];
+
+const SAMPLE_CSV_ROWS = [
+  [
+    "Example Provider",
+    "Bachelor of Information Technology",
+    "BIT-001",
+    "Bachelor",
+    "3 Years",
+    "24500",
+    "February, July",
+    "Sydney",
+    "Industry-focused undergraduate IT degree",
+    "Information Technology",
+    "On Campus",
+    "3",
+    "Years",
+    "150",
+    "300",
+    "AUD",
+    "Year 12 or equivalent",
+    "IELTS 6.0 overall",
+    "Scholarship: 20% international scholarship",
+  ],
+  [
+    "Example Provider",
+    "Master of Professional Accounting",
+    "MPA-001",
+    "Master",
+    "2 Years",
+    "28500",
+    "March, August",
+    "Melbourne",
+    "Postgraduate accounting program for international students",
+    "Accounting",
+    "On Campus",
+    "2",
+    "Years",
+    "150",
+    "250",
+    "AUD",
+    "Bachelor degree",
+    "IELTS 6.5 overall",
+    "",
+  ],
+];
+
+function cn(...classes: Array<string | false | null | undefined>) {
+  return classes.filter(Boolean).join(" ");
+}
 
 function normalizeHeader(value: string) {
   return value.trim().toLowerCase().replace(/\s+/g, "").replace(/_/g, "");
 }
 
-function parseCsvLine(line: string) {
+function cleanCell(value: unknown) {
+  return String(value ?? "").trim();
+}
+
+function parseCsvLine(line: string): string[] {
   const result: string[] = [];
   let current = "";
   let insideQuotes = false;
@@ -117,7 +196,31 @@ function parseCsvLine(line: string) {
   return result;
 }
 
-function mapCsvRow(headers: string[], values: string[]): CsvRow {
+function parseCsv(text: string): CsvRow[] {
+  const lines = text
+    .replace(/\r\n/g, "\n")
+    .replace(/\r/g, "\n")
+    .split("\n")
+    .map((line) => line.trim())
+    .filter(Boolean);
+
+  if (lines.length < 2) return [];
+
+  const headers = parseCsvLine(lines[0]).map((header) => header.trim());
+
+  return lines.slice(1).map((line) => {
+    const values = parseCsvLine(line);
+    const row: CsvRow = {};
+
+    headers.forEach((header, index) => {
+      row[header] = values[index] ?? "";
+    });
+
+    return row;
+  });
+}
+
+function mapCsvRow(headers: string[], values: string[]): CourseImportRowData {
   const raw: Record<string, string> = {};
 
   headers.forEach((header, index) => {
@@ -167,24 +270,55 @@ function mapCsvRow(headers: string[], values: string[]): CsvRow {
       "english_requirements",
     ]),
     notes: getValue(["notes"]),
+    sourceType: "csv",
+    sourceValue: undefined,
   };
 }
 
-function parseCsv(text: string): CsvRow[] {
-  const lines = text
-    .replace(/\r\n/g, "\n")
-    .replace(/\r/g, "\n")
-    .split("\n")
-    .filter((line) => line.trim().length > 0);
+function normalizeCsvRows(rows: CsvRow[], fileName: string): CourseImportRowData[] {
+  if (!rows.length) return [];
 
-  if (lines.length < 2) return [];
+  const headers = Object.keys(rows[0] ?? {});
 
-  const headers = parseCsvLine(lines[0]);
+  return rows.map((row, index) => {
+    const values = headers.map((header) => row[header] ?? "");
+    const mapped = mapCsvRow(headers, values);
 
-  return lines.slice(1).map((line) => {
-    const values = parseCsvLine(line);
-    return mapCsvRow(headers, values);
+    return {
+      ...mapped,
+      sourceType: "csv",
+      sourceValue: fileName || "courses.csv",
+      rawRowIndex: index + 2,
+    };
   });
+}
+
+function downloadSampleCsv() {
+  const csvLines = [
+    SAMPLE_CSV_HEADERS.join(","),
+    ...SAMPLE_CSV_ROWS.map((row) =>
+      row.map((value) => `"${String(value).replace(/"/g, '""')}"`).join(",")
+    ),
+  ];
+
+  const blob = new Blob([csvLines.join("\n")], {
+    type: "text/csv;charset=utf-8;",
+  });
+
+  const url = URL.createObjectURL(blob);
+  const link = document.createElement("a");
+  link.href = url;
+  link.setAttribute("download", "course-import-sample.csv");
+  document.body.appendChild(link);
+  link.click();
+  document.body.removeChild(link);
+  URL.revokeObjectURL(url);
+}
+
+function normalizeWebsiteUrl(input: string) {
+  const trimmed = input.trim();
+  if (!trimmed) return "";
+  return /^https?:\/\//i.test(trimmed) ? trimmed : `https://${trimmed}`;
 }
 
 function formatMoney(value?: string | number, currency?: string) {
@@ -194,87 +328,240 @@ function formatMoney(value?: string | number, currency?: string) {
   return `${currency || "AUD"} ${numeric.toLocaleString()}`;
 }
 
+function getStatusLabel(row: PreviewRow) {
+  if (row.isDuplicate) return "Duplicate";
+  if (!row.isValid) return "Invalid";
+  if (row.willImport) return "Ready";
+  return "Review";
+}
+
+function StatCard({
+  label,
+  value,
+  tone = "default",
+}: {
+  label: string;
+  value: number | string;
+  tone?: "default" | "success" | "danger" | "warning";
+}) {
+  const classes =
+    tone === "success"
+      ? "border-emerald-200 bg-emerald-50/70"
+      : tone === "danger"
+      ? "border-rose-200 bg-rose-50/70"
+      : tone === "warning"
+      ? "border-amber-200 bg-amber-50/70"
+      : "border-slate-200 bg-white";
+
+  return (
+    <div className={cn("rounded-2xl border p-5 shadow-sm", classes)}>
+      <p className="text-xs font-medium uppercase tracking-[0.18em] text-slate-500">
+        {label}
+      </p>
+      <p className="mt-3 text-2xl font-semibold text-slate-900">{value}</p>
+    </div>
+  );
+}
+
+function SourceModeCard({
+  active,
+  title,
+  description,
+  icon,
+  onClick,
+}: {
+  active: boolean;
+  title: string;
+  description: string;
+  icon: ReactNode;
+  onClick: () => void;
+}) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      className={cn(
+        "w-full rounded-2xl border p-4 text-left transition",
+        active
+          ? "border-slate-900 bg-slate-900 text-white shadow-sm"
+          : "border-slate-200 bg-white text-slate-900 hover:border-slate-300 hover:bg-slate-50"
+      )}
+    >
+      <div className="flex items-start gap-4">
+        <div
+          className={cn(
+            "flex h-11 w-11 shrink-0 items-center justify-center rounded-xl",
+            active ? "bg-white/10 text-white" : "bg-slate-100 text-slate-700"
+          )}
+        >
+          {icon}
+        </div>
+
+        <div>
+          <p className="text-sm font-semibold">{title}</p>
+          <p
+            className={cn(
+              "mt-1 text-sm leading-6",
+              active ? "text-slate-300" : "text-slate-600"
+            )}
+          >
+            {description}
+          </p>
+        </div>
+      </div>
+    </button>
+  );
+}
+
 export default function ProviderCourseImportPage() {
   const params = useParams();
   const router = useRouter();
   const providerId = params.id as string;
 
   const [sourceType, setSourceType] = useState<SourceType>("csv");
-  const [sourceValue, setSourceValue] = useState("");
-  const [fileName, setFileName] = useState("");
-  const [rawRows, setRawRows] = useState<CsvRow[]>([]);
+  const [fileName, setFileName] = useState<string>("");
+  const [rows, setRows] = useState<CourseImportRowData[]>([]);
   const [preview, setPreview] = useState<PreviewResponse | null>(null);
-  const [previewLoading, setPreviewLoading] = useState(false);
-  const [commitLoading, setCommitLoading] = useState(false);
-  const [errorMessage, setErrorMessage] = useState("");
-  const [successMessage, setSuccessMessage] = useState("");
 
-  const summary = preview?.summary;
+  const [websiteUrl, setWebsiteUrl] = useState<string>("");
+  const [apiUrl, setApiUrl] = useState<string>("");
+
+  const [isParsing, setIsParsing] = useState(false);
+  const [isPreviewLoading, setIsPreviewLoading] = useState(false);
+  const [isCommitLoading, setIsCommitLoading] = useState(false);
+
+  const [errorMessage, setErrorMessage] = useState<string>("");
+  const [successMessage, setSuccessMessage] = useState<string>("");
+
+  const [fileInputKey, setFileInputKey] = useState(0);
+
   const previewRows = preview?.rows ?? [];
+  const summary = preview?.summary;
+
+  const totalRows =
+    summary?.totalRows ?? (sourceType === "csv" ? rows.length : 0);
+  const readyCount = summary?.importableRows ?? 0;
+  const invalidCount = summary?.invalidRows ?? 0;
+  const duplicateCount = summary?.duplicateRows ?? 0;
 
   const topRawHeaders = useMemo(() => {
-    const first = rawRows[0];
+    const first = rows[0];
     return first ? Object.keys(first) : [];
-  }, [rawRows]);
+  }, [rows]);
 
-  async function handleFileChange(file: File | null) {
+  function resetState() {
+    setRows([]);
+    setPreview(null);
+    setErrorMessage("");
+    setSuccessMessage("");
+  }
+
+  function handleSourceChange(next: SourceType) {
+    setSourceType(next);
+    setFileName("");
+    setWebsiteUrl("");
+    setApiUrl("");
+    setFileInputKey((prev) => prev + 1);
+    resetState();
+  }
+
+  async function handleFileChange(event: ChangeEvent<HTMLInputElement>) {
+    const file = event.target.files?.[0];
+
     setErrorMessage("");
     setSuccessMessage("");
     setPreview(null);
+    setRows([]);
 
     if (!file) {
       setFileName("");
-      setRawRows([]);
       return;
     }
 
+    if (!file.name.toLowerCase().endsWith(".csv")) {
+      setErrorMessage("Please upload a CSV file.");
+      setFileName("");
+      setFileInputKey((prev) => prev + 1);
+      return;
+    }
+
+    setFileName(file.name);
+    setIsParsing(true);
+
     try {
       const text = await file.text();
-      const rows = parseCsv(text);
+      const parsedRows = parseCsv(text);
 
-      if (!rows.length) {
-        setFileName(file.name);
-        setRawRows([]);
-        setErrorMessage(
-          "No importable rows were found in the CSV. Please check the header row and file content."
-        );
+      if (!parsedRows.length) {
+        setErrorMessage("No valid rows found in the CSV.");
+        setFileInputKey((prev) => prev + 1);
         return;
       }
 
-      setFileName(file.name);
-      setRawRows(rows);
+      const normalizedRows = normalizeCsvRows(parsedRows, file.name);
+      setRows(normalizedRows);
     } catch (error) {
-      setFileName(file.name);
-      setRawRows([]);
-      setErrorMessage(
-        error instanceof Error ? error.message : "Failed to read CSV file."
-      );
+      console.error(error);
+      setErrorMessage("Failed to read the CSV file.");
+      setFileInputKey((prev) => prev + 1);
+    } finally {
+      setIsParsing(false);
     }
   }
 
   async function handlePreviewImport() {
-    if (!rawRows.length) {
-      setErrorMessage("Please upload a CSV file before previewing.");
-      return;
-    }
-
-    setPreviewLoading(true);
     setErrorMessage("");
     setSuccessMessage("");
     setPreview(null);
+    setIsPreviewLoading(true);
 
     try {
-      const res = await fetch(`/api/providers/${providerId}/courses/import/preview`, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-          sourceType,
-          sourceValue: sourceValue.trim() || undefined,
-          rows: rawRows,
-        }),
-      });
+      let payload: Record<string, unknown>;
+
+      if (sourceType === "csv") {
+        if (!rows.length) {
+          throw new Error("Please upload a CSV file before previewing.");
+        }
+
+        payload = {
+          sourceType: "csv",
+          sourceValue: fileName || "courses.csv",
+          rows,
+        };
+      } else if (sourceType === "website") {
+        const normalizedUrl = normalizeWebsiteUrl(websiteUrl);
+
+        if (!normalizedUrl) {
+          throw new Error("Please enter a website URL.");
+        }
+
+        payload = {
+          sourceType: "website",
+          sourceValue: normalizedUrl,
+        };
+      } else {
+        const normalizedUrl = normalizeWebsiteUrl(apiUrl);
+
+        if (!normalizedUrl) {
+          throw new Error("Please enter an API endpoint URL.");
+        }
+
+        payload = {
+          sourceType: "api",
+          sourceValue: normalizedUrl,
+        };
+      }
+
+      const res = await fetch(
+        `/api/providers/${providerId}/courses/import/preview`,
+        {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify(payload),
+        }
+      );
 
       const data = await res.json();
 
@@ -282,13 +569,13 @@ export default function ProviderCourseImportPage() {
         throw new Error(data?.error || "Failed to preview import.");
       }
 
-      setPreview(data);
+      setPreview(data as PreviewResponse);
     } catch (error) {
       setErrorMessage(
         error instanceof Error ? error.message : "Failed to preview import."
       );
     } finally {
-      setPreviewLoading(false);
+      setIsPreviewLoading(false);
     }
   }
 
@@ -298,22 +585,25 @@ export default function ProviderCourseImportPage() {
       return;
     }
 
-    setCommitLoading(true);
+    setIsCommitLoading(true);
     setErrorMessage("");
     setSuccessMessage("");
 
     try {
-      const res = await fetch(`/api/providers/${providerId}/courses/import/commit`, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-          sourceType: preview.sourceType,
-          sourceValue: preview.sourceValue,
-          rows: preview.rows,
-        }),
-      });
+      const res = await fetch(
+        `/api/providers/${providerId}/courses/import/commit`,
+        {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({
+            sourceType: preview.sourceType,
+            sourceValue: preview.sourceValue,
+            rows: preview.rows,
+          }),
+        }
+      );
 
       const data: CommitResponse | { error?: string } = await res.json();
 
@@ -338,460 +628,475 @@ export default function ProviderCourseImportPage() {
         error instanceof Error ? error.message : "Failed to commit import."
       );
     } finally {
-      setCommitLoading(false);
+      setIsCommitLoading(false);
     }
   }
 
-  const readyCount = summary?.importableRows ?? 0;
-  const invalidCount = summary?.invalidRows ?? 0;
-  const duplicateCount = summary?.duplicateRows ?? 0;
-  const totalRows = summary?.totalRows ?? rawRows.length;
-
   return (
-    <div className="space-y-6">
-      <section className="overflow-hidden rounded-[32px] border border-slate-200 bg-white shadow-sm">
-        <div className="border-b border-slate-100 bg-[radial-gradient(circle_at_top_right,rgba(148,163,184,0.18),transparent_30%),linear-gradient(135deg,#020617_0%,#0f172a_48%,#1e293b_100%)] px-6 py-8 text-white lg:px-8">
+    <div className="space-y-8">
+      <section className="relative overflow-hidden rounded-[32px] border border-slate-200 bg-gradient-to-br from-slate-950 via-slate-900 to-slate-800 shadow-[0_14px_40px_rgba(15,23,42,0.12)]">
+        <div className="absolute inset-0 bg-[radial-gradient(circle_at_top_right,rgba(255,255,255,0.14),transparent_28%),radial-gradient(circle_at_bottom_left,rgba(59,130,246,0.16),transparent_24%)]" />
+        <div className="relative px-6 py-7 sm:px-8 sm:py-8 lg:px-10 lg:py-10">
           <div className="flex flex-col gap-8 xl:flex-row xl:items-start xl:justify-between">
-            <div className="min-w-0">
-              <div className="flex flex-wrap items-center gap-3">
-                <Link
-                  href={`/providers/${providerId}/courses`}
-                  className="inline-flex items-center gap-2 rounded-full bg-white/10 px-4 py-2 text-xs font-semibold uppercase tracking-[0.18em] text-white ring-1 ring-white/10 transition hover:bg-white/15"
-                >
-                  <ArrowLeft className="h-3.5 w-3.5" />
-                  Back to Courses
-                </Link>
+            <div className="max-w-3xl">
+              <Link
+                href={`/providers/${providerId}/courses`}
+                className="inline-flex items-center gap-2 rounded-full border border-white/10 bg-white/10 px-3 py-1.5 text-xs font-semibold uppercase tracking-[0.18em] text-slate-200 backdrop-blur-sm transition hover:bg-white/15"
+              >
+                <ArrowLeft className="h-3.5 w-3.5" />
+                Back to Courses
+              </Link>
 
-                <span className="inline-flex items-center gap-2 rounded-full bg-white/10 px-4 py-2 text-xs font-semibold uppercase tracking-[0.18em] text-white ring-1 ring-white/10">
-                  <FileSpreadsheet className="h-3.5 w-3.5" />
-                  Provider Course Import Hub
-                </span>
+              <div className="mt-5 inline-flex items-center gap-2 rounded-full border border-white/10 bg-white/10 px-3 py-1.5 text-[11px] font-semibold uppercase tracking-[0.22em] text-slate-200">
+                <Sparkles className="h-3.5 w-3.5" />
+                Provider Course Import Hub
               </div>
 
-              <h1 className="mt-6 text-3xl font-semibold tracking-tight sm:text-5xl">
+              <h1 className="mt-5 text-3xl font-semibold tracking-tight text-white sm:text-4xl xl:text-[2.6rem]">
                 Import Courses into Provider
               </h1>
 
-              <p className="mt-4 max-w-3xl text-base leading-7 text-slate-300">
-                Upload course records from CSV now and preview validation,
-                duplicates, and import readiness in a controlled provider-linked
-                workflow before committing clean rows into your live CRM.
+              <p className="mt-4 max-w-2xl text-sm leading-6 text-slate-300 sm:text-base">
+                Import provider-linked course records from CSV, website, or API.
+                Preview validation, duplicates, and import readiness before
+                committing clean rows into your live CRM.
               </p>
 
               <div className="mt-6 flex flex-wrap gap-3">
-                <span className="inline-flex items-center gap-2 rounded-2xl bg-white/10 px-4 py-2.5 text-sm font-medium text-white ring-1 ring-white/10">
+                <div className="inline-flex items-center gap-2 rounded-2xl border border-white/10 bg-white/10 px-4 py-2.5 text-sm text-slate-100">
                   <ShieldCheck className="h-4 w-4" />
                   Preview before commit
-                </span>
-
-                <span className="inline-flex items-center gap-2 rounded-2xl bg-white/10 px-4 py-2.5 text-sm font-medium text-white ring-1 ring-white/10">
+                </div>
+                <div className="inline-flex items-center gap-2 rounded-2xl border border-white/10 bg-white/10 px-4 py-2.5 text-sm text-slate-100">
                   <CheckCircle2 className="h-4 w-4" />
                   Provider-linked import
-                </span>
-
-                <span className="inline-flex items-center gap-2 rounded-2xl bg-white/10 px-4 py-2.5 text-sm font-medium text-white ring-1 ring-white/10">
+                </div>
+                <div className="inline-flex items-center gap-2 rounded-2xl border border-white/10 bg-white/10 px-4 py-2.5 text-sm text-slate-100">
                   <RefreshCw className="h-4 w-4" />
                   Duplicate-aware pipeline
-                </span>
+                </div>
               </div>
             </div>
 
-            <div className="grid w-full gap-4 xl:max-w-[580px] xl:grid-cols-2">
-              <div className="rounded-3xl border border-white/10 bg-white/95 p-5 text-slate-950">
-                <p className="text-[11px] font-medium uppercase tracking-[0.18em] text-slate-400">
-                  Parsed Rows
-                </p>
-                <p className="mt-3 text-4xl font-semibold tracking-tight">
-                  {totalRows}
-                </p>
-              </div>
-
-              <div className="rounded-3xl border border-emerald-200 bg-emerald-50/90 p-5 text-slate-950">
-                <p className="text-[11px] font-medium uppercase tracking-[0.18em] text-emerald-700/70">
-                  Ready to Import
-                </p>
-                <p className="mt-3 text-4xl font-semibold tracking-tight text-emerald-700">
-                  {readyCount}
-                </p>
-              </div>
-
-              <div className="rounded-3xl border border-red-200 bg-red-50/90 p-5 text-slate-950">
-                <p className="text-[11px] font-medium uppercase tracking-[0.18em] text-red-700/70">
-                  Invalid Rows
-                </p>
-                <p className="mt-3 text-4xl font-semibold tracking-tight text-red-700">
-                  {invalidCount}
-                </p>
-              </div>
-
-              <div className="rounded-3xl border border-amber-200 bg-amber-50/90 p-5 text-slate-950">
-                <p className="text-[11px] font-medium uppercase tracking-[0.18em] text-amber-700/70">
-                  Duplicates
-                </p>
-                <p className="mt-3 text-4xl font-semibold tracking-tight text-amber-700">
-                  {duplicateCount}
-                </p>
-              </div>
+            <div className="grid w-full max-w-xl gap-3 sm:grid-cols-2">
+              <StatCard label="Parsed Rows" value={totalRows} />
+              <StatCard label="Ready to Import" value={readyCount} tone="success" />
+              <StatCard label="Invalid Rows" value={invalidCount} tone="danger" />
+              <StatCard label="Duplicates" value={duplicateCount} tone="warning" />
             </div>
           </div>
         </div>
       </section>
 
-      <div className="grid gap-6 xl:grid-cols-[420px_minmax(0,1fr)]">
-        <section className="rounded-[28px] border border-slate-200 bg-white shadow-sm">
-          <div className="grid gap-4 p-6">
-            <div className="rounded-[24px] border border-slate-200 bg-[#0b1534] p-5 text-white shadow-sm">
-              <div className="flex items-start gap-4">
-                <div className="flex h-14 w-14 items-center justify-center rounded-2xl bg-white/10">
-                  <Upload className="h-6 w-6" />
-                </div>
-
-                <div>
-                  <h2 className="text-lg font-semibold">CSV Upload</h2>
-                  <p className="mt-2 text-sm leading-6 text-slate-300">
-                    Upload a course spreadsheet and generate a safe preview before
-                    database commit.
-                  </p>
-                </div>
-              </div>
+      <div className="grid gap-6 xl:grid-cols-12">
+        <section className="xl:col-span-4">
+          <div className="rounded-[28px] border border-slate-200 bg-white p-5 shadow-sm sm:p-6">
+            <div className="space-y-3">
+              <SourceModeCard
+                active={sourceType === "csv"}
+                title="CSV Upload"
+                description="Upload a course spreadsheet and generate a safe preview before database commit."
+                icon={<Upload className="h-5 w-5" />}
+                onClick={() => handleSourceChange("csv")}
+              />
+              <SourceModeCard
+                active={sourceType === "website"}
+                title="Website URL"
+                description="Preview course details from an institution website before allowing any import action."
+                icon={<Globe className="h-5 w-5" />}
+                onClick={() => handleSourceChange("website")}
+              />
+              <SourceModeCard
+                active={sourceType === "api"}
+                title="API Endpoint"
+                description="Fetch course data from external API and preview before import."
+                icon={<FileSpreadsheet className="h-5 w-5" />}
+                onClick={() => handleSourceChange("api")}
+              />
             </div>
 
-            <div className="rounded-[24px] border border-slate-200 bg-slate-50 p-5">
-              <div className="flex items-start gap-4">
-                <div className="flex h-14 w-14 items-center justify-center rounded-2xl bg-slate-200 text-slate-700">
-                  <Globe className="h-6 w-6" />
-                </div>
-
-                <div>
-                  <h2 className="text-lg font-semibold text-slate-900">
-                    Website URL
-                  </h2>
-                  <p className="mt-2 text-sm leading-6 text-slate-500">
-                    Website-based course ingestion can be added later using the same
-                    preview and validation pipeline.
-                  </p>
-                </div>
-              </div>
-            </div>
-
-            <div className="pt-2">
-              <h3 className="text-3xl font-semibold tracking-tight text-slate-950">
-                Upload Course CSV
-              </h3>
-              <p className="mt-4 text-sm leading-7 text-slate-500">
-                Use a structured CSV export to import provider-linked courses in
-                bulk. Preview will validate rows and detect duplicates before any
-                commit action.
-              </p>
-            </div>
-
-            <div className="grid gap-4">
-              <div>
-                <label className="mb-2 block text-sm font-medium text-slate-700">
-                  Source Type
-                </label>
-                <select
-                  value={sourceType}
-                  onChange={(e) => setSourceType(e.target.value as SourceType)}
-                  className="w-full rounded-2xl border border-slate-300 bg-white px-4 py-3 text-sm outline-none transition focus:border-slate-500"
-                >
-                  <option value="csv">CSV</option>
-                  <option value="website">Website</option>
-                  <option value="api">API</option>
-                </select>
-              </div>
-
-              <div>
-                <label className="mb-2 block text-sm font-medium text-slate-700">
-                  Source Value
-                </label>
-                <input
-                  value={sourceValue}
-                  onChange={(e) => setSourceValue(e.target.value)}
-                  placeholder="Optional source reference"
-                  className="w-full rounded-2xl border border-slate-300 bg-white px-4 py-3 text-sm outline-none transition focus:border-slate-500"
-                />
-              </div>
-
-              <div className="flex flex-wrap gap-3">
-                <a
-                  href="/samples/course-import-template.csv"
-                  download
-                  className="inline-flex items-center justify-center rounded-2xl border border-slate-300 bg-white px-4 py-3 text-sm font-medium text-slate-700 transition hover:bg-slate-50"
-                >
-                  Download Sample CSV
-                </a>
-              </div>
-
-              <label className="flex min-h-[220px] cursor-pointer flex-col items-center justify-center rounded-[28px] border border-dashed border-slate-300 bg-slate-50 px-6 py-8 text-center transition hover:border-slate-400 hover:bg-slate-100">
-                <div className="flex h-16 w-16 items-center justify-center rounded-3xl bg-slate-950 text-white shadow-sm">
-                  <Upload className="h-7 w-7" />
-                </div>
-
-                <h4 className="mt-6 text-2xl font-semibold tracking-tight text-slate-950">
-                  Choose course CSV file
-                </h4>
-
-                <p className="mt-3 max-w-md text-sm leading-6 text-slate-500">
-                  Upload a clean .csv file for preview. The system will parse rows,
-                  validate structure, detect duplicates, and prepare safe import
-                  results.
+            {sourceType === "csv" ? (
+              <div className="mt-6">
+                <h2 className="text-lg font-semibold text-slate-900">
+                  Upload Course CSV
+                </h2>
+                <p className="mt-2 text-sm leading-6 text-slate-600">
+                  Use a structured CSV export to import provider-linked courses in
+                  bulk. Preview will validate rows and duplicate detection first.
                 </p>
 
-                <div className="mt-5 rounded-full border border-slate-200 bg-white px-4 py-2 text-sm font-medium text-slate-600">
-                  {fileName || "No file selected"}
+                <div className="mt-6">
+                  <label
+                    htmlFor="course-csv-upload"
+                    className="flex cursor-pointer flex-col items-center justify-center rounded-[24px] border border-dashed border-slate-300 bg-slate-50 px-6 py-10 text-center transition hover:bg-slate-100"
+                  >
+                    <div className="flex h-14 w-14 items-center justify-center rounded-2xl bg-slate-900 text-white shadow-sm">
+                      {isParsing ? (
+                        <Loader2 className="h-6 w-6 animate-spin" />
+                      ) : (
+                        <Upload className="h-6 w-6" />
+                      )}
+                    </div>
+
+                    <p className="mt-4 text-sm font-semibold text-slate-900">
+                      {isParsing ? "Reading CSV..." : "Choose course CSV file"}
+                    </p>
+                    <p className="mt-1 text-sm text-slate-500">
+                      Upload a clean .csv file for preview
+                    </p>
+                  </label>
+
+                  <input
+                    key={fileInputKey}
+                    id="course-csv-upload"
+                    type="file"
+                    accept=".csv,text/csv"
+                    onChange={handleFileChange}
+                    className="hidden"
+                  />
                 </div>
 
-                <input
-                  type="file"
-                  accept=".csv,text/csv"
-                  className="hidden"
-                  onChange={(e) => handleFileChange(e.target.files?.[0] ?? null)}
-                />
-              </label>
+                <div className="mt-3">
+                  <button
+                    type="button"
+                    onClick={downloadSampleCsv}
+                    disabled={isPreviewLoading || isCommitLoading}
+                    className="inline-flex w-full items-center justify-center gap-2 rounded-2xl border border-blue-200 bg-blue-50 px-4 py-3 text-sm font-semibold text-blue-700 transition disabled:cursor-not-allowed disabled:opacity-50"
+                  >
+                    <Download className="h-4 w-4" />
+                    Download Sample CSV
+                  </button>
+                </div>
 
-              {rawRows.length > 0 ? (
-                <div className="rounded-2xl border border-slate-200 bg-slate-50 p-4">
-                  <p className="text-sm font-medium text-slate-900">
-                    File ready for preview
+                <div className="mt-5 space-y-3">
+                  <div className="rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3">
+                    <p className="text-xs uppercase tracking-wide text-slate-500">
+                      Selected file
+                    </p>
+                    <p className="mt-1 text-sm font-semibold text-slate-900">
+                      {fileName || "None"}
+                    </p>
+                  </div>
+
+                  <div className="rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3">
+                    <p className="text-xs uppercase tracking-wide text-slate-500">
+                      Parsed rows
+                    </p>
+                    <p className="mt-1 text-sm font-semibold text-slate-900">
+                      {rows.length}
+                    </p>
+                  </div>
+
+                  <div className="rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3">
+                    <p className="text-xs uppercase tracking-wide text-slate-500">
+                      Recommended columns
+                    </p>
+                    <p className="mt-1 text-sm leading-6 text-slate-700">
+                      providerName, courseName, courseCode, level, duration,
+                      tuitionFee, intakeMonths, campus, studyMode, entryRequirements
+                    </p>
+                  </div>
+                </div>
+              </div>
+            ) : sourceType === "website" ? (
+              <div className="mt-6">
+                <h2 className="text-lg font-semibold text-slate-900">
+                  Website Import Preview
+                </h2>
+                <p className="mt-2 text-sm leading-6 text-slate-600">
+                  Paste an institution course page URL and preview extracted course
+                  data before anything is committed to production.
+                </p>
+
+                <div className="mt-6">
+                  <label className="mb-2 block text-sm font-medium text-slate-700">
+                    Course Website URL
+                  </label>
+                  <input
+                    type="url"
+                    value={websiteUrl}
+                    onChange={(e) => setWebsiteUrl(e.target.value)}
+                    placeholder="https://www.example.edu.au/courses"
+                    className="w-full rounded-2xl border border-slate-300 px-4 py-3 text-sm text-slate-900 outline-none transition placeholder:text-slate-400 focus:border-slate-400"
+                  />
+                </div>
+
+                <div className="mt-4 rounded-2xl border border-slate-200 bg-slate-50 p-4">
+                  <p className="text-sm font-semibold text-slate-900">
+                    Safe import mode
                   </p>
-                  <p className="mt-1 text-sm text-slate-500">
-                    {rawRows.length} parsed row(s) detected from {fileName}.
+                  <p className="mt-2 text-sm leading-6 text-slate-600">
+                    Website mode always previews first. This protects live course
+                    records and keeps the pipeline production-safe.
                   </p>
                 </div>
-              ) : null}
+              </div>
+            ) : (
+              <div className="mt-6">
+                <h2 className="text-lg font-semibold text-slate-900">
+                  API Import Preview
+                </h2>
+                <p className="mt-2 text-sm leading-6 text-slate-600">
+                  Enter an API endpoint and preview normalized course rows before
+                  importing to this provider.
+                </p>
 
-              {errorMessage ? (
-                <div className="rounded-2xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
-                  {errorMessage}
+                <div className="mt-6">
+                  <label className="mb-2 block text-sm font-medium text-slate-700">
+                    API Endpoint URL
+                  </label>
+                  <input
+                    type="url"
+                    value={apiUrl}
+                    onChange={(e) => setApiUrl(e.target.value)}
+                    placeholder="https://api.example.edu.au/courses"
+                    className="w-full rounded-2xl border border-slate-300 px-4 py-3 text-sm text-slate-900 outline-none transition placeholder:text-slate-400 focus:border-slate-400"
+                  />
                 </div>
-              ) : null}
 
-              {successMessage ? (
-                <div className="rounded-2xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm text-emerald-700">
-                  {successMessage}
+                <div className="mt-4 rounded-2xl border border-slate-200 bg-slate-50 p-4">
+                  <p className="text-sm font-semibold text-slate-900">
+                    Safe import mode
+                  </p>
+                  <p className="mt-2 text-sm leading-6 text-slate-600">
+                    API mode previews normalized rows before commit so only clean,
+                    provider-linked course rows move forward.
+                  </p>
                 </div>
-              ) : null}
+              </div>
+            )}
+
+            {errorMessage ? (
+              <div className="mt-5 rounded-2xl border border-rose-200 bg-rose-50 px-4 py-3 text-sm text-rose-700">
+                <div className="flex items-start gap-2">
+                  <AlertCircle className="mt-0.5 h-4 w-4 shrink-0" />
+                  <span>{errorMessage}</span>
+                </div>
+              </div>
+            ) : null}
+
+            {successMessage ? (
+              <div className="mt-5 rounded-2xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm text-emerald-700">
+                <div className="flex items-start gap-2">
+                  <CheckCircle2 className="mt-0.5 h-4 w-4 shrink-0" />
+                  <span>{successMessage}</span>
+                </div>
+              </div>
+            ) : null}
+
+            <div className="mt-6 grid gap-3">
+              <button
+                type="button"
+                onClick={handlePreviewImport}
+                disabled={
+                  isParsing ||
+                  isPreviewLoading ||
+                  isCommitLoading ||
+                  (sourceType === "csv"
+                    ? rows.length === 0
+                    : sourceType === "website"
+                    ? !websiteUrl.trim()
+                    : !apiUrl.trim())
+                }
+                className="inline-flex w-full items-center justify-center gap-2 rounded-2xl bg-slate-900 px-4 py-3 text-sm font-semibold text-white transition hover:bg-slate-800 disabled:cursor-not-allowed disabled:opacity-50"
+              >
+                {isPreviewLoading ? (
+                  <>
+                    <Loader2 className="h-4 w-4 animate-spin" />
+                    Generating Preview...
+                  </>
+                ) : (
+                  <>
+                    <Sparkles className="h-4 w-4" />
+                    Preview Import
+                  </>
+                )}
+              </button>
+
+              <button
+                type="button"
+                onClick={handleCommitImport}
+                disabled={
+                  !preview ||
+                  readyCount === 0 ||
+                  isPreviewLoading ||
+                  isCommitLoading
+                }
+                className="inline-flex w-full items-center justify-center gap-2 rounded-2xl border border-slate-300 bg-white px-4 py-3 text-sm font-semibold text-slate-900 transition hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-50"
+              >
+                {isCommitLoading ? (
+                  <>
+                    <Loader2 className="h-4 w-4 animate-spin" />
+                    Importing...
+                  </>
+                ) : (
+                  <>
+                    <ShieldCheck className="h-4 w-4" />
+                    Commit Import
+                  </>
+                )}
+              </button>
+
+              <button
+                type="button"
+                onClick={() => router.push(`/providers/${providerId}/courses`)}
+                disabled={isPreviewLoading || isCommitLoading}
+                className="inline-flex w-full items-center justify-center gap-2 rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm font-semibold text-slate-700 transition hover:bg-slate-100 disabled:cursor-not-allowed disabled:opacity-50"
+              >
+                <ArrowLeft className="h-4 w-4" />
+                Back to Courses
+              </button>
             </div>
           </div>
         </section>
 
-        <div className="space-y-6">
-          <section className="grid gap-4 md:grid-cols-4">
-            <div className="rounded-3xl border border-slate-200 bg-white p-5 shadow-sm">
-              <p className="text-[11px] font-medium uppercase tracking-[0.18em] text-slate-400">
-                Total Rows
-              </p>
-              <p className="mt-3 text-4xl font-semibold tracking-tight text-slate-950">
-                {totalRows}
-              </p>
-            </div>
+        <section className="xl:col-span-8 space-y-6">
+          <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
+            <StatCard label="Total Rows" value={totalRows} />
+            <StatCard label="Importable" value={readyCount} tone="success" />
+            <StatCard label="Invalid" value={invalidCount} tone="danger" />
+            <StatCard label="Duplicates" value={duplicateCount} tone="warning" />
+          </div>
 
-            <div className="rounded-3xl border border-emerald-200 bg-emerald-50 p-5 shadow-sm">
-              <p className="text-[11px] font-medium uppercase tracking-[0.18em] text-emerald-700/70">
-                Importable
+          <div className="rounded-[28px] border border-slate-200 bg-white shadow-sm">
+            <div className="border-b border-slate-200 px-6 py-5">
+              <h2 className="text-lg font-semibold text-slate-900">
+                Preview Results
+              </h2>
+              <p className="mt-1 text-sm leading-6 text-slate-600">
+                Review validation, duplicate detection, and row-level course
+                details before import.
               </p>
-              <p className="mt-3 text-4xl font-semibold tracking-tight text-emerald-700">
-                {readyCount}
-              </p>
-            </div>
-
-            <div className="rounded-3xl border border-red-200 bg-red-50 p-5 shadow-sm">
-              <p className="text-[11px] font-medium uppercase tracking-[0.18em] text-red-700/70">
-                Invalid
-              </p>
-              <p className="mt-3 text-4xl font-semibold tracking-tight text-red-700">
-                {invalidCount}
-              </p>
-            </div>
-
-            <div className="rounded-3xl border border-amber-200 bg-amber-50 p-5 shadow-sm">
-              <p className="text-[11px] font-medium uppercase tracking-[0.18em] text-amber-700/70">
-                Duplicates
-              </p>
-              <p className="mt-3 text-4xl font-semibold tracking-tight text-amber-700">
-                {duplicateCount}
-              </p>
-            </div>
-          </section>
-
-          <section className="rounded-[28px] border border-slate-200 bg-white shadow-sm">
-            <div className="flex flex-col gap-4 border-b border-slate-100 px-6 py-5 lg:flex-row lg:items-center lg:justify-between">
-              <div>
-                <h2 className="text-2xl font-semibold tracking-tight text-slate-950">
-                  Import Controls
-                </h2>
-                <p className="mt-2 text-sm text-slate-500">
-                  Preview validation first, then commit only the clean course rows.
-                </p>
-              </div>
-
-              <div className="flex flex-wrap gap-3">
-                <button
-                  type="button"
-                  onClick={handlePreviewImport}
-                  disabled={previewLoading || rawRows.length === 0}
-                  className="inline-flex items-center justify-center gap-2 rounded-2xl bg-slate-950 px-5 py-3 text-sm font-medium text-white transition hover:bg-slate-800 disabled:cursor-not-allowed disabled:bg-slate-300"
-                >
-                  {previewLoading ? (
-                    <>
-                      <Loader2 className="h-4 w-4 animate-spin" />
-                      Previewing...
-                    </>
-                  ) : (
-                    <>
-                      <RefreshCw className="h-4 w-4" />
-                      Preview Import
-                    </>
-                  )}
-                </button>
-
-                <button
-                  type="button"
-                  onClick={handleCommitImport}
-                  disabled={commitLoading || !preview || readyCount === 0}
-                  className="inline-flex items-center justify-center gap-2 rounded-2xl border border-slate-300 bg-white px-5 py-3 text-sm font-medium text-slate-700 transition hover:bg-slate-50 disabled:cursor-not-allowed disabled:bg-slate-100 disabled:text-slate-400"
-                >
-                  {commitLoading ? (
-                    <>
-                      <Loader2 className="h-4 w-4 animate-spin" />
-                      Importing...
-                    </>
-                  ) : (
-                    <>
-                      <ShieldCheck className="h-4 w-4" />
-                      Commit Import
-                    </>
-                  )}
-                </button>
-
-                <button
-                  type="button"
-                  onClick={() => router.back()}
-                  className="inline-flex items-center justify-center gap-2 rounded-2xl border border-slate-300 bg-white px-5 py-3 text-sm font-medium text-slate-700 transition hover:bg-slate-50"
-                >
-                  <ArrowLeft className="h-4 w-4" />
-                  Back
-                </button>
-              </div>
             </div>
 
             <div className="overflow-x-auto">
-              <div className="min-w-[980px]">
-                <div className="grid grid-cols-[90px_220px_160px_130px_130px_140px_130px_1fr] border-b border-slate-200 bg-slate-50 px-6 py-4 text-xs font-semibold uppercase tracking-[0.16em] text-slate-500">
-                  <div>Row</div>
-                  <div>Course</div>
-                  <div>Provider</div>
-                  <div>Code</div>
-                  <div>Fee</div>
-                  <div>Campus</div>
-                  <div>Status</div>
-                  <div>Notes</div>
-                </div>
+              <table className="min-w-full divide-y divide-slate-200 text-sm">
+                <thead className="bg-slate-50">
+                  <tr>
+                    <th className="px-4 py-3 text-left font-medium text-slate-500">
+                      Row
+                    </th>
+                    <th className="px-4 py-3 text-left font-medium text-slate-500">
+                      Course
+                    </th>
+                    <th className="px-4 py-3 text-left font-medium text-slate-500">
+                      Provider
+                    </th>
+                    <th className="px-4 py-3 text-left font-medium text-slate-500">
+                      Code
+                    </th>
+                    <th className="px-4 py-3 text-left font-medium text-slate-500">
+                      Fee
+                    </th>
+                    <th className="px-4 py-3 text-left font-medium text-slate-500">
+                      Campus
+                    </th>
+                    <th className="px-4 py-3 text-left font-medium text-slate-500">
+                      Status
+                    </th>
+                    <th className="px-4 py-3 text-left font-medium text-slate-500">
+                      Notes
+                    </th>
+                  </tr>
+                </thead>
 
-                {previewRows.length === 0 ? (
-                  <div className="px-6 py-16 text-center text-sm text-slate-500">
-                    No preview yet. Upload a course CSV and click Preview Import to
-                    validate rows before commit.
-                  </div>
-                ) : (
-                  <div className="divide-y divide-slate-100">
-                    {previewRows.map((row) => {
+                <tbody className="divide-y divide-slate-200 bg-white">
+                  {!previewRows.length ? (
+                    <tr>
+                      <td
+                        colSpan={8}
+                        className="px-4 py-12 text-center text-slate-500"
+                      >
+                        No preview yet. Upload a course CSV, paste a website URL,
+                        or enter an API endpoint to begin.
+                      </td>
+                    </tr>
+                  ) : (
+                    previewRows.map((row) => {
                       const issues = [
                         ...row.errors,
                         row.isDuplicate ? row.duplicateReason ?? "Duplicate row" : null,
                       ].filter(Boolean) as string[];
 
                       return (
-                        <div
-                          key={row.rowId}
-                          className="grid grid-cols-[90px_220px_160px_130px_130px_140px_130px_1fr] px-6 py-4 text-sm"
-                        >
-                          <div className="font-medium text-slate-900">
-                            #{row.rawRowIndex ?? "-"}
-                          </div>
+                        <tr key={row.rowId} className="align-top">
+                          <td className="px-4 py-4 text-slate-900">
+                            {row.rawRowIndex ?? "-"}
+                          </td>
 
-                          <div>
-                            <div className="font-semibold text-slate-900">
-                              {row.data.courseName || "Untitled course"}
+                          <td className="px-4 py-4 text-slate-900">
+                            <div className="font-semibold">
+                              {row.data.courseName || "-"}
                             </div>
                             <div className="mt-1 text-xs text-slate-500">
                               {row.data.level || "No level"}
                             </div>
-                          </div>
+                          </td>
 
-                          <div>
-                            <div className="font-medium text-slate-900">
-                              {row.matchedProviderName ||
-                                row.data.providerName ||
-                                "Not matched"}
-                            </div>
-                            <div className="mt-1 text-xs text-slate-500">
-                              {row.matchedProviderId || "No provider id"}
-                            </div>
-                          </div>
+                          <td className="px-4 py-4 text-slate-600">
+                            {row.matchedProviderName ||
+                              row.data.providerName ||
+                              "Provider linked"}
+                          </td>
 
-                          <div className="text-slate-700">
-                            {row.data.courseCode || "—"}
-                          </div>
+                          <td className="px-4 py-4 text-slate-600">
+                            {row.data.courseCode || "-"}
+                          </td>
 
-                          <div className="text-slate-700">
+                          <td className="px-4 py-4 text-slate-600">
                             {formatMoney(row.data.tuitionFee, row.data.currency)}
-                          </div>
+                          </td>
 
-                          <div className="text-slate-700">
-                            {row.data.campus || "—"}
-                          </div>
+                          <td className="px-4 py-4 text-slate-600">
+                            {row.data.campus || "-"}
+                          </td>
 
-                          <div>
-                            {row.willImport ? (
-                              <span className="inline-flex items-center gap-2 rounded-full bg-emerald-100 px-3 py-1 text-xs font-semibold text-emerald-700">
-                                <CheckCircle2 className="h-4 w-4" />
-                                Ready
-                              </span>
-                            ) : row.isDuplicate ? (
-                              <span className="inline-flex items-center gap-2 rounded-full bg-amber-100 px-3 py-1 text-xs font-semibold text-amber-700">
-                                <AlertCircle className="h-4 w-4" />
-                                Duplicate
-                              </span>
-                            ) : (
-                              <span className="inline-flex items-center gap-2 rounded-full bg-red-100 px-3 py-1 text-xs font-semibold text-red-700">
-                                <XCircle className="h-4 w-4" />
-                                Invalid
-                              </span>
-                            )}
-                          </div>
+                          <td className="px-4 py-4">
+                            <span
+                              className={cn(
+                                "inline-flex rounded-full px-2.5 py-1 text-xs font-semibold",
+                                row.willImport
+                                  ? "bg-emerald-100 text-emerald-700"
+                                  : row.isDuplicate
+                                  ? "bg-amber-100 text-amber-700"
+                                  : "bg-rose-100 text-rose-700"
+                              )}
+                            >
+                              {getStatusLabel(row)}
+                            </span>
+                          </td>
 
-                          <div>
-                            {issues.length > 0 ? (
-                              <ul className="space-y-1 text-xs text-slate-600">
+                          <td className="px-4 py-4 text-slate-600">
+                            {issues.length ? (
+                              <ul className="space-y-1 text-xs">
                                 {issues.map((issue, index) => (
                                   <li key={`${row.rowId}-${index}`}>• {issue}</li>
                                 ))}
                               </ul>
                             ) : (
-                              <span className="text-xs text-slate-400">
-                                Clean row
+                              <span className="text-xs text-emerald-700">
+                                Ready for import
                               </span>
                             )}
-                          </div>
-                        </div>
+                          </td>
+                        </tr>
                       );
-                    })}
-                  </div>
-                )}
-              </div>
+                    })
+                  )}
+                </tbody>
+              </table>
             </div>
-          </section>
+          </div>
 
-          {topRawHeaders.length > 0 ? (
-            <section className="rounded-[28px] border border-slate-200 bg-white shadow-sm">
-              <div className="border-b border-slate-100 px-6 py-5">
-                <h2 className="text-xl font-semibold tracking-tight text-slate-950">
+          {sourceType === "csv" && topRawHeaders.length > 0 ? (
+            <div className="rounded-[28px] border border-slate-200 bg-white shadow-sm">
+              <div className="border-b border-slate-200 px-6 py-5">
+                <h2 className="text-lg font-semibold text-slate-900">
                   Parsed CSV Snapshot
                 </h2>
-                <p className="mt-2 text-sm text-slate-500">
-                  First rows parsed from your uploaded CSV before preview validation.
+                <p className="mt-1 text-sm leading-6 text-slate-600">
+                  First rows parsed from your uploaded CSV before preview
+                  validation.
                 </p>
               </div>
 
@@ -810,14 +1115,16 @@ export default function ProviderCourseImportPage() {
                     </tr>
                   </thead>
                   <tbody>
-                    {rawRows.slice(0, 6).map((row, rowIndex) => (
+                    {rows.slice(0, 6).map((row, rowIndex) => (
                       <tr key={rowIndex} className="rounded-2xl bg-slate-50">
                         {topRawHeaders.map((header) => (
                           <td
                             key={header}
                             className="whitespace-nowrap px-4 py-3 text-sm text-slate-700"
                           >
-                            {String(row[header] ?? "")}
+                            {String(
+                              (row as Record<string, unknown>)[header] ?? ""
+                            )}
                           </td>
                         ))}
                       </tr>
@@ -825,13 +1132,13 @@ export default function ProviderCourseImportPage() {
                   </tbody>
                 </table>
 
-                {rawRows.length > 6 ? (
+                {rows.length > 6 ? (
                   <p className="mt-4 text-sm text-slate-500">
                     Showing first 6 parsed rows only.
                   </p>
                 ) : null}
               </div>
-            </section>
+            </div>
           ) : null}
 
           <section className="grid gap-5 xl:grid-cols-3">
@@ -841,11 +1148,11 @@ export default function ProviderCourseImportPage() {
                   <Upload className="h-5 w-5 text-slate-700" />
                 </div>
                 <h3 className="text-lg font-semibold text-slate-950">
-                  Step 1: Upload Course CSV
+                  Step 1: Upload or Fetch Courses
                 </h3>
               </div>
               <p className="mt-4 text-sm leading-7 text-slate-500">
-                Start with a clean course dataset so validation can parse fields,
+                Start from CSV, website, or API so validation can parse fields,
                 normalize values, and prepare a reliable preview.
               </p>
             </div>
@@ -875,12 +1182,12 @@ export default function ProviderCourseImportPage() {
                 </h3>
               </div>
               <p className="mt-4 text-sm leading-7 text-slate-500">
-                Commit only clean rows into the provider workspace and redirect
-                back to the course catalog automatically.
+                Commit only clean rows into the provider workspace and stay in the
+                provider course flow.
               </p>
             </div>
           </section>
-        </div>
+        </section>
       </div>
     </div>
   );

@@ -2,8 +2,10 @@ import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
 import { importCourseRows } from "@/lib/imports/import-course-rows";
 
-type Context = {
-  params: Promise<{ id: string }>;
+type RouteContext = {
+  params: Promise<{
+    id: string;
+  }>;
 };
 
 const commitRowSchema = z.object({
@@ -55,9 +57,12 @@ const commitRequestSchema = z.object({
   rows: z.array(commitRowSchema).min(1, "At least one row is required"),
 });
 
-export async function POST(request: NextRequest, context: Context) {
+export async function POST(
+  request: NextRequest,
+  context: RouteContext
+) {
   try {
-    const { id } = await context.params;
+    const { id: providerId } = await context.params;
     const body = await request.json();
 
     const parsed = commitRequestSchema.safeParse(body);
@@ -72,12 +77,34 @@ export async function POST(request: NextRequest, context: Context) {
       );
     }
 
+    if (!providerId) {
+      return NextResponse.json(
+        {
+          error: "Provider ID is required",
+        },
+        { status: 400 }
+      );
+    }
+
+    const importableRows = parsed.data.rows.filter(
+      (row) => row.isValid && row.willImport && !row.isDuplicate
+    );
+
+    if (importableRows.length === 0) {
+      return NextResponse.json(
+        {
+          error: "There are no valid importable rows to commit",
+        },
+        { status: 400 }
+      );
+    }
+
     const result = await importCourseRows({
       createdById: undefined,
       sourceType: parsed.data.sourceType,
       sourceValue: parsed.data.sourceValue,
-      rows: parsed.data.rows,
-      forcedProviderId: id,
+      rows: importableRows,
+      forcedProviderId: providerId,
     });
 
     return NextResponse.json(result, { status: 200 });
