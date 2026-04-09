@@ -1,6 +1,10 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
-import { deleteCourse, getCourseById, updateCourse } from "@/lib/course-service";
+import {
+  deleteCourse,
+  getCourseById,
+  updateCourse,
+} from "@/lib/course-service";
 
 type RouteContext = {
   params: Promise<{
@@ -44,6 +48,7 @@ export async function GET(_: NextRequest, { params }: RouteContext) {
     return NextResponse.json(course, { status: 200 });
   } catch (error) {
     console.error("Error fetching course:", error);
+
     return NextResponse.json(
       { error: "Failed to fetch course" },
       { status: 500 }
@@ -58,6 +63,11 @@ export async function PUT(request: NextRequest, { params }: RouteContext) {
 
     const existingCourse = await prisma.course.findUnique({
       where: { id },
+      select: {
+        id: true,
+        providerId: true,
+        name: true,
+      },
     });
 
     if (!existingCourse) {
@@ -85,11 +95,17 @@ export async function PUT(request: NextRequest, { params }: RouteContext) {
           id,
         },
       },
+      select: {
+        id: true,
+      },
     });
 
     if (duplicateCourse) {
       return NextResponse.json(
-        { error: "Another course with this name already exists for this provider" },
+        {
+          error:
+            "Another course with this name already exists for this provider",
+        },
         { status: 409 }
       );
     }
@@ -157,6 +173,7 @@ export async function PUT(request: NextRequest, { params }: RouteContext) {
     return NextResponse.json(updated, { status: 200 });
   } catch (error) {
     console.error("Error updating course:", error);
+
     return NextResponse.json(
       { error: "Failed to update course" },
       { status: 500 }
@@ -170,6 +187,15 @@ export async function DELETE(_: NextRequest, { params }: RouteContext) {
 
     const existingCourse = await prisma.course.findUnique({
       where: { id },
+      select: {
+        id: true,
+        providerId: true,
+        _count: {
+          select: {
+            applications: true,
+          },
+        },
+      },
     });
 
     if (!existingCourse) {
@@ -179,14 +205,25 @@ export async function DELETE(_: NextRequest, { params }: RouteContext) {
       );
     }
 
+    if (existingCourse._count.applications > 0) {
+      return NextResponse.json(
+        {
+          error:
+            "Cannot delete course because it is linked to applications. Archive it instead.",
+        },
+        { status: 400 }
+      );
+    }
+
     await deleteCourse(id);
 
     return NextResponse.json(
-      { message: "Course deleted successfully" },
+      { success: true, message: "Course deleted successfully" },
       { status: 200 }
     );
   } catch (error) {
     console.error("Error deleting course:", error);
+
     return NextResponse.json(
       { error: "Failed to delete course" },
       { status: 500 }

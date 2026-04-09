@@ -5,19 +5,20 @@ type RouteContext = {
   params: Promise<{ id: string }>;
 };
 
-function normalizeString(value: unknown) {
+function normalizeString(value: unknown): string | null {
   if (typeof value !== "string") return null;
   const trimmed = value.trim();
   return trimmed.length > 0 ? trimmed : null;
 }
 
-function normalizeBoolean(value: unknown, fallback = false) {
+function normalizeBoolean(value: unknown, fallback = false): boolean {
   if (typeof value === "boolean") return value;
   return fallback;
 }
 
-function normalizeDate(value: unknown) {
+function normalizeDate(value: unknown): Date | null | "INVALID_DATE" {
   if (typeof value !== "string") return null;
+
   const trimmed = value.trim();
   if (!trimmed) return null;
 
@@ -72,6 +73,9 @@ export async function PATCH(request: NextRequest, { params }: RouteContext) {
 
     const existingProvider = await prisma.provider.findUnique({
       where: { id },
+      select: {
+        id: true,
+      },
     });
 
     if (!existingProvider) {
@@ -96,6 +100,7 @@ export async function PATCH(request: NextRequest, { params }: RouteContext) {
         name,
         NOT: { id },
       },
+      select: { id: true },
     });
 
     if (duplicateName) {
@@ -111,6 +116,7 @@ export async function PATCH(request: NextRequest, { params }: RouteContext) {
           code,
           NOT: { id },
         },
+        select: { id: true },
       });
 
       if (duplicateCode) {
@@ -180,9 +186,11 @@ export async function DELETE(_: NextRequest, { params }: RouteContext) {
 
     const provider = await prisma.provider.findUnique({
       where: { id },
-      include: {
+      select: {
+        id: true,
         _count: {
           select: {
+            courses: true,
             applications: true,
           },
         },
@@ -196,9 +204,12 @@ export async function DELETE(_: NextRequest, { params }: RouteContext) {
       );
     }
 
-    if (provider._count.applications > 0) {
+    if (provider._count.courses > 0 || provider._count.applications > 0) {
       return NextResponse.json(
-        { error: "Cannot delete provider because it is linked to applications" },
+        {
+          error:
+            "Cannot delete provider with linked courses or applications. Archive it instead.",
+        },
         { status: 400 }
       );
     }
