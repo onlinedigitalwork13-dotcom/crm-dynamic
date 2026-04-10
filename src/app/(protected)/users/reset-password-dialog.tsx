@@ -46,9 +46,7 @@ export default function ResetPasswordDialog({
         headers: {
           "Content-Type": "application/json",
         },
-        body: JSON.stringify({
-          password,
-        }),
+        body: JSON.stringify({ password }),
       });
 
       let data: { error?: string; message?: string } | null = null;
@@ -72,7 +70,7 @@ export default function ResetPasswordDialog({
 
       setTimeout(() => {
         onClose();
-      }, 800);
+      }, 900);
     } catch (err) {
       console.error(err);
       setError("Something went wrong while resetting the password");
@@ -82,67 +80,76 @@ export default function ResetPasswordDialog({
   }
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 px-4">
-      <div className="w-full max-w-md rounded-xl bg-white p-6 shadow-xl">
-        <div className="mb-4">
-          <h2 className="text-lg font-semibold text-gray-900">Reset Password</h2>
-          <p className="mt-1 text-sm text-gray-600">
-            Set a new password for <span className="font-medium">{userName}</span>.
+    <div className="fixed inset-0 z-50 flex items-center justify-center px-4">
+      {/* BACKDROP */}
+      <div
+        onClick={onClose}
+        className="absolute inset-0 bg-black/50 backdrop-blur-sm"
+      />
+
+      {/* MODAL */}
+      <div className="relative w-full max-w-md rounded-[28px] border border-white/20 bg-white/90 p-6 shadow-[0_30px_80px_rgba(15,23,42,0.25)] backdrop-blur-xl">
+        {/* HEADER */}
+        <div className="mb-5">
+          <h2 className="text-xl font-semibold text-slate-900">
+            Reset Password
+          </h2>
+          <p className="mt-1 text-sm text-slate-600">
+            Set a new password for{" "}
+            <span className="font-semibold text-slate-900">{userName}</span>
           </p>
         </div>
 
+        {/* FORM */}
         <form onSubmit={handleSubmit} className="space-y-4">
-          {error ? (
-            <div className="rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
+          {/* ERROR */}
+          {error && (
+            <div className="rounded-2xl border border-red-200 bg-red-50 px-4 py-3 text-sm font-medium text-red-700 shadow-sm">
               {error}
             </div>
-          ) : null}
+          )}
 
-          {success ? (
-            <div className="rounded-lg border border-green-200 bg-green-50 px-4 py-3 text-sm text-green-700">
+          {/* SUCCESS */}
+          {success && (
+            <div className="rounded-2xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm font-medium text-emerald-700 shadow-sm">
               {success}
             </div>
-          ) : null}
+          )}
 
+          {/* PASSWORD */}
           <div>
-            <label
-              htmlFor="newPassword"
-              className="mb-2 block text-sm font-medium text-gray-700"
-            >
+            <label className="mb-2 block text-sm font-semibold text-slate-700">
               New Password
             </label>
             <input
-              id="newPassword"
               type="password"
               value={password}
               onChange={(e) => setPassword(e.target.value)}
-              className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm outline-none focus:border-black"
               placeholder="Minimum 8 characters"
+              className="w-full rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm text-slate-900 outline-none transition duration-200 placeholder:text-slate-400 focus:border-slate-400 focus:ring-4 focus:ring-slate-100"
             />
           </div>
 
+          {/* CONFIRM PASSWORD */}
           <div>
-            <label
-              htmlFor="confirmPassword"
-              className="mb-2 block text-sm font-medium text-gray-700"
-            >
+            <label className="mb-2 block text-sm font-semibold text-slate-700">
               Confirm Password
             </label>
             <input
-              id="confirmPassword"
               type="password"
               value={confirmPassword}
               onChange={(e) => setConfirmPassword(e.target.value)}
-              className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm outline-none focus:border-black"
               placeholder="Re-enter password"
+              className="w-full rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm text-slate-900 outline-none transition duration-200 placeholder:text-slate-400 focus:border-slate-400 focus:ring-4 focus:ring-slate-100"
             />
           </div>
 
-          <div className="flex items-center justify-end gap-3 pt-2">
+          {/* ACTIONS */}
+          <div className="flex items-center justify-end gap-3 pt-4">
             <button
               type="button"
               onClick={onClose}
-              className="rounded-lg border border-gray-300 px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50"
+              className="inline-flex items-center justify-center rounded-2xl border border-slate-200 bg-white px-4 py-2.5 text-sm font-semibold text-slate-700 transition hover:bg-slate-50"
             >
               Cancel
             </button>
@@ -150,7 +157,7 @@ export default function ResetPasswordDialog({
             <button
               type="submit"
               disabled={isSubmitting}
-              className="rounded-lg bg-black px-4 py-2 text-sm font-medium text-white hover:bg-gray-800 disabled:cursor-not-allowed disabled:opacity-60"
+              className="inline-flex items-center justify-center rounded-2xl bg-slate-950 px-5 py-2.5 text-sm font-semibold text-white transition duration-200 hover:translate-y-[-1px] hover:bg-slate-800 disabled:cursor-not-allowed disabled:opacity-60"
             >
               {isSubmitting ? "Resetting..." : "Reset Password"}
             </button>

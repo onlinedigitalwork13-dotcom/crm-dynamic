@@ -18,6 +18,23 @@ type BranchFormProps = {
   };
 };
 
+type ApiResponse = {
+  success?: boolean;
+  message?: string;
+  error?: string;
+  branch?: {
+    id: string;
+    name: string;
+    code: string;
+    address: string | null;
+    city: string | null;
+    country: string | null;
+    phone: string | null;
+    email: string | null;
+    isActive: boolean;
+  };
+};
+
 export default function BranchForm({ mode, branch }: BranchFormProps) {
   const router = useRouter();
 
@@ -39,33 +56,48 @@ export default function BranchForm({ mode, branch }: BranchFormProps) {
 
     try {
       const payload = {
-        name,
-        code,
-        address,
-        city,
-        country,
-        phone,
-        email,
+        name: name.trim(),
+        code: code.trim(),
+        address: address.trim() || null,
+        city: city.trim() || null,
+        country: country.trim() || null,
+        phone: phone.trim() || null,
+        email: email.trim() || null,
         isActive,
       };
 
-      const response = await fetch(
-        mode === "create" ? "/api/branches" : `/api/branches/${branch?.id}`,
-        {
-          method: mode === "create" ? "POST" : "PATCH",
-          headers: {
-            "Content-Type": "application/json",
-          },
-          body: JSON.stringify(payload),
-        }
-      );
+      const endpoint =
+        mode === "create" ? "/api/branches" : `/api/branches/${branch?.id}`;
 
-      const data = (await response.json()) as {
-        error?: string;
-      };
+      const method = mode === "create" ? "POST" : "PATCH";
+
+      const response = await fetch(endpoint, {
+        method,
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify(payload),
+      });
+
+      const contentType = response.headers.get("content-type") || "";
+      let data: ApiResponse | null = null;
+
+      if (contentType.includes("application/json")) {
+        data = (await response.json()) as ApiResponse;
+      } else {
+        const text = await response.text();
+
+        if (text.includes("<!DOCTYPE") || text.includes("<html")) {
+          throw new Error(
+            "Server returned HTML instead of JSON. Please check the API route or authentication."
+          );
+        }
+
+        throw new Error(text || "Unexpected server response.");
+      }
 
       if (!response.ok) {
-        throw new Error(data.error || "Something went wrong.");
+        throw new Error(data?.error || data?.message || "Something went wrong.");
       }
 
       router.push("/branches");
@@ -79,100 +111,101 @@ export default function BranchForm({ mode, branch }: BranchFormProps) {
 
   return (
     <form onSubmit={handleSubmit} className="space-y-6">
-      <div className="rounded-3xl border border-slate-200 bg-white p-6 shadow-sm">
+      <div className="overflow-hidden rounded-[28px] border border-slate-200/80 bg-white/95 p-6 shadow-[0_10px_40px_rgba(15,23,42,0.06)] backdrop-blur xl:p-8">
         <div className="grid gap-5 md:grid-cols-2">
           <div>
-            <label className="mb-2 block text-sm font-medium text-slate-700">
+            <label className="mb-2 block text-sm font-semibold text-slate-700">
               Branch Name
             </label>
             <input
               value={name}
               onChange={(e) => setName(e.target.value)}
               placeholder="Sydney Office"
-              className="w-full rounded-2xl border border-slate-300 px-4 py-3 text-sm text-slate-900 outline-none transition focus:border-slate-400 focus:ring-2 focus:ring-slate-200"
+              className="w-full rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm text-slate-900 outline-none transition duration-200 placeholder:text-slate-400 focus:border-slate-400 focus:ring-4 focus:ring-slate-100"
               required
             />
           </div>
 
           <div>
-            <label className="mb-2 block text-sm font-medium text-slate-700">
+            <label className="mb-2 block text-sm font-semibold text-slate-700">
               Branch Code
             </label>
             <input
               value={code}
               onChange={(e) => setCode(e.target.value)}
               placeholder="SYD001"
-              className="w-full rounded-2xl border border-slate-300 px-4 py-3 text-sm text-slate-900 outline-none transition focus:border-slate-400 focus:ring-2 focus:ring-slate-200"
+              className="w-full rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm text-slate-900 outline-none transition duration-200 placeholder:text-slate-400 focus:border-slate-400 focus:ring-4 focus:ring-slate-100"
+              required
             />
           </div>
 
           <div>
-            <label className="mb-2 block text-sm font-medium text-slate-700">
+            <label className="mb-2 block text-sm font-semibold text-slate-700">
               City
             </label>
             <input
               value={city}
               onChange={(e) => setCity(e.target.value)}
               placeholder="Sydney"
-              className="w-full rounded-2xl border border-slate-300 px-4 py-3 text-sm text-slate-900 outline-none transition focus:border-slate-400 focus:ring-2 focus:ring-slate-200"
+              className="w-full rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm text-slate-900 outline-none transition duration-200 placeholder:text-slate-400 focus:border-slate-400 focus:ring-4 focus:ring-slate-100"
             />
           </div>
 
           <div>
-            <label className="mb-2 block text-sm font-medium text-slate-700">
+            <label className="mb-2 block text-sm font-semibold text-slate-700">
               Country
             </label>
             <input
               value={country}
               onChange={(e) => setCountry(e.target.value)}
               placeholder="Australia"
-              className="w-full rounded-2xl border border-slate-300 px-4 py-3 text-sm text-slate-900 outline-none transition focus:border-slate-400 focus:ring-2 focus:ring-slate-200"
+              className="w-full rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm text-slate-900 outline-none transition duration-200 placeholder:text-slate-400 focus:border-slate-400 focus:ring-4 focus:ring-slate-100"
             />
           </div>
 
           <div>
-            <label className="mb-2 block text-sm font-medium text-slate-700">
+            <label className="mb-2 block text-sm font-semibold text-slate-700">
               Phone
             </label>
             <input
               value={phone}
               onChange={(e) => setPhone(e.target.value)}
               placeholder="Optional"
-              className="w-full rounded-2xl border border-slate-300 px-4 py-3 text-sm text-slate-900 outline-none transition focus:border-slate-400 focus:ring-2 focus:ring-slate-200"
+              className="w-full rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm text-slate-900 outline-none transition duration-200 placeholder:text-slate-400 focus:border-slate-400 focus:ring-4 focus:ring-slate-100"
             />
           </div>
 
           <div>
-            <label className="mb-2 block text-sm font-medium text-slate-700">
+            <label className="mb-2 block text-sm font-semibold text-slate-700">
               Email
             </label>
             <input
               value={email}
               onChange={(e) => setEmail(e.target.value)}
               placeholder="office@example.com"
-              className="w-full rounded-2xl border border-slate-300 px-4 py-3 text-sm text-slate-900 outline-none transition focus:border-slate-400 focus:ring-2 focus:ring-slate-200"
+              className="w-full rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm text-slate-900 outline-none transition duration-200 placeholder:text-slate-400 focus:border-slate-400 focus:ring-4 focus:ring-slate-100"
             />
           </div>
 
           <div className="md:col-span-2">
-            <label className="mb-2 block text-sm font-medium text-slate-700">
+            <label className="mb-2 block text-sm font-semibold text-slate-700">
               Address
             </label>
             <input
               value={address}
               onChange={(e) => setAddress(e.target.value)}
               placeholder="Street address"
-              className="w-full rounded-2xl border border-slate-300 px-4 py-3 text-sm text-slate-900 outline-none transition focus:border-slate-400 focus:ring-2 focus:ring-slate-200"
+              className="w-full rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm text-slate-900 outline-none transition duration-200 placeholder:text-slate-400 focus:border-slate-400 focus:ring-4 focus:ring-slate-100"
             />
           </div>
 
           <div className="md:col-span-2">
-            <label className="inline-flex items-center gap-3 rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm font-medium text-slate-700">
+            <label className="inline-flex items-center gap-3 rounded-2xl border border-slate-200 bg-slate-50/80 px-4 py-3 text-sm font-semibold text-slate-700">
               <input
                 type="checkbox"
                 checked={isActive}
                 onChange={(e) => setIsActive(e.target.checked)}
-                className="h-4 w-4 rounded border-slate-300 text-slate-900"
+                className="h-4 w-4 rounded border-slate-300"
               />
               Branch is active
             </label>
@@ -180,7 +213,7 @@ export default function BranchForm({ mode, branch }: BranchFormProps) {
         </div>
 
         {error ? (
-          <div className="mt-5 rounded-2xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
+          <div className="mt-5 rounded-2xl border border-red-200 bg-red-50 px-4 py-3 text-sm font-medium text-red-700 shadow-sm">
             {error}
           </div>
         ) : null}
@@ -189,7 +222,7 @@ export default function BranchForm({ mode, branch }: BranchFormProps) {
           <button
             type="submit"
             disabled={submitting}
-            className="rounded-2xl bg-slate-950 px-5 py-3 text-sm font-semibold text-white transition hover:bg-slate-800 disabled:cursor-not-allowed disabled:opacity-70"
+            className="inline-flex items-center justify-center rounded-2xl bg-slate-950 px-5 py-3 text-sm font-semibold text-white transition duration-200 hover:translate-y-[-1px] hover:bg-slate-800 disabled:cursor-not-allowed disabled:opacity-70"
           >
             {submitting
               ? mode === "create"
@@ -203,7 +236,7 @@ export default function BranchForm({ mode, branch }: BranchFormProps) {
           <button
             type="button"
             onClick={() => router.push("/branches")}
-            className="rounded-2xl border border-slate-200 bg-white px-5 py-3 text-sm font-semibold text-slate-700 transition hover:bg-slate-50"
+            className="inline-flex items-center justify-center rounded-2xl border border-slate-200 bg-white px-5 py-3 text-sm font-semibold text-slate-700 transition duration-200 hover:bg-slate-50"
           >
             Cancel
           </button>

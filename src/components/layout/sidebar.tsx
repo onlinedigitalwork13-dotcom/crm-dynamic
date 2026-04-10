@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useMemo, useEffect, useState } from "react";
+import { useMemo, useEffect, useRef, useState } from "react";
 import { usePathname } from "next/navigation";
 
 type SidebarProps = {
@@ -45,17 +45,48 @@ export default function Sidebar({
   const pathname = usePathname();
   const [unreadCount, setUnreadCount] = useState(0);
 
+  const pollingRef = useRef(false);
+  const abortRef = useRef<AbortController | null>(null);
+
   const role = normalizeRole(roleName);
   const isSuperAdmin = role === "super_admin";
   const isAdmin = role === "admin" || isSuperAdmin;
 
   async function loadUnreadCount() {
+    if (pollingRef.current) return;
+
+    if (typeof document !== "undefined" && document.visibilityState === "hidden") {
+      return;
+    }
+
+    pollingRef.current = true;
+
+    if (abortRef.current) {
+      abortRef.current.abort();
+    }
+
+    const controller = new AbortController();
+    abortRef.current = controller;
+
     try {
       const response = await fetch("/api/notifications?limit=1", {
+        method: "GET",
         cache: "no-store",
+        signal: controller.signal,
+        headers: {
+          Accept: "application/json",
+        },
       });
 
-      if (!response.ok) return;
+      if (!response.ok) {
+        return;
+      }
+
+      const contentType = response.headers.get("content-type") || "";
+
+      if (!contentType.includes("application/json")) {
+        return;
+      }
 
       const data = (await response.json()) as {
         unreadCount?: number;
@@ -63,18 +94,41 @@ export default function Sidebar({
 
       setUnreadCount(data.unreadCount ?? 0);
     } catch (error) {
-      console.error("Sidebar notification fetch failed:", error);
+      if (error instanceof DOMException && error.name === "AbortError") {
+        return;
+      }
+
+      if (process.env.NODE_ENV === "development") {
+        console.warn("Sidebar unread count fetch skipped:", error);
+      }
+    } finally {
+      pollingRef.current = false;
     }
   }
 
   useEffect(() => {
     void loadUnreadCount();
 
-    const interval = setInterval(() => {
+    const interval = window.setInterval(() => {
       void loadUnreadCount();
     }, 20000);
 
-    return () => clearInterval(interval);
+    const handleVisibilityChange = () => {
+      if (document.visibilityState === "visible") {
+        void loadUnreadCount();
+      }
+    };
+
+    document.addEventListener("visibilitychange", handleVisibilityChange);
+
+    return () => {
+      window.clearInterval(interval);
+      document.removeEventListener("visibilitychange", handleVisibilityChange);
+
+      if (abortRef.current) {
+        abortRef.current.abort();
+      }
+    };
   }, []);
 
   const sections = useMemo<NavSectionType[]>(() => {

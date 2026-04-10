@@ -18,7 +18,7 @@ export default async function EditUserPage({ params }: PageProps) {
     notFound();
   }
 
-  const [user, roles, branches] = await Promise.all([
+  const [user, roles, branches, transferableUsers] = await Promise.all([
     prisma.user.findUnique({
       where: { id },
       select: {
@@ -47,6 +47,32 @@ export default async function EditUserPage({ params }: PageProps) {
         code: true,
       },
     }),
+    prisma.user.findMany({
+      where: {
+        id: { not: id },
+        isActive: true,
+      },
+      orderBy: [{ firstName: "asc" }, { lastName: "asc" }],
+      select: {
+        id: true,
+        firstName: true,
+        lastName: true,
+        email: true,
+        branchId: true,
+        role: {
+          select: {
+            name: true,
+          },
+        },
+        branch: {
+          select: {
+            id: true,
+            name: true,
+            code: true,
+          },
+        },
+      },
+    }),
   ]);
 
   if (!user) {
@@ -64,7 +90,12 @@ export default async function EditUserPage({ params }: PageProps) {
       </div>
 
       <div className="rounded-xl border bg-white p-6 shadow-sm">
-        <EditUserForm user={user} roles={roles} branches={branches} />
+        <EditUserForm
+          user={user}
+          roles={roles}
+          branches={branches}
+          transferableUsers={transferableUsers}
+        />
       </div>
     </div>
   );

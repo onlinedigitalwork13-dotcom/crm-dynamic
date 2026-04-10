@@ -156,3 +156,37 @@ export async function updateBranch(
     },
   });
 }
+
+export async function deleteBranch(id: string) {
+  const existing = await prisma.branch.findUnique({
+    where: { id },
+    include: {
+      _count: {
+        select: {
+          users: true,
+          clients: true,
+        },
+      },
+    },
+  });
+
+  if (!existing) {
+    throw new Error("Branch not found.");
+  }
+
+  if (existing._count.users > 0) {
+    throw new Error(
+      "This branch cannot be deleted because users are still assigned to it."
+    );
+  }
+
+  if (existing._count.clients > 0) {
+    throw new Error(
+      "This branch cannot be deleted because clients are linked to it."
+    );
+  }
+
+  return prisma.branch.delete({
+    where: { id },
+  });
+}
