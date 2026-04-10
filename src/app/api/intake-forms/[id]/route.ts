@@ -7,6 +7,64 @@ type RouteContext = {
   params: Promise<{ id: string }>;
 };
 
+type IntakeFormSettings = {
+  referralType: "standard" | "agent";
+  agentId: string | null;
+  source: string;
+};
+
+function normalizeOptionalString(value: unknown) {
+  if (typeof value !== "string") return null;
+  const trimmed = value.trim();
+  return trimmed.length > 0 ? trimmed : null;
+}
+
+function normalizeSettings(value: unknown): IntakeFormSettings {
+  if (!value || typeof value !== "object" || Array.isArray(value)) {
+    return {
+      referralType: "standard",
+      agentId: null,
+      source: "intake_form",
+    };
+  }
+
+  const obj = value as Record<string, unknown>;
+
+  const referralType =
+    obj.referralType === "agent" ? "agent" : "standard";
+
+  const agentId =
+    typeof obj.agentId === "string" && obj.agentId.trim().length > 0
+      ? obj.agentId.trim()
+      : null;
+
+  const source =
+    typeof obj.source === "string" && obj.source.trim().length > 0
+      ? obj.source.trim()
+      : referralType === "agent"
+      ? "agent"
+      : "intake_form";
+
+  return {
+    referralType,
+    agentId,
+    source,
+  };
+}
+
+function buildPublicUrl(token: string) {
+  const base =
+    process.env.NEXT_PUBLIC_APP_URL?.trim().replace(/\/+$/, "") || "";
+  return base ? `${base}/forms/${token}` : `/forms/${token}`;
+}
+
+function normalizeStatus(value: unknown) {
+  if (value === "active") return "active";
+  if (value === "inactive") return "inactive";
+  if (value === "archived") return "archived";
+  return "draft";
+}
+
 export async function PATCH(req: NextRequest, context: RouteContext) {
   try {
     await requireAuth();
@@ -22,6 +80,7 @@ export async function PATCH(req: NextRequest, context: RouteContext) {
       formSchema,
       isActive,
       status,
+      settings,
     } = body ?? {};
 
     const existing = await prisma.intakeFormRequest.findUnique({
@@ -29,6 +88,7 @@ export async function PATCH(req: NextRequest, context: RouteContext) {
       select: {
         id: true,
         token: true,
+        sharedAt: true,
       },
     });
 
@@ -39,20 +99,65 @@ export async function PATCH(req: NextRequest, context: RouteContext) {
       );
     }
 
-    const publicPath = `/forms/${existing.token}`;
+    const normalizedTitle = normalizeOptionalString(title) ?? "";
+    const normalizedDescription = normalizeOptionalString(description);
+    const normalizedSubmitButtonText =
+      normalizeOptionalString(submitButtonText) ?? "Submit";
+    const normalizedSuccessMessage =
+      normalizeOptionalString(successMessage) ??
+      "Form submitted successfully.";
+    const normalizedStatus = normalizeStatus(status);
+    const normalizedSettings = normalizeSettings(settings);
+
+    if (!normalizedTitle) {
+      return NextResponse.json(
+        { error: "Title is required." },
+        { status: 400 }
+      );
+    }
+
+    if (
+      normalizedSettings.referralType === "agent" &&
+      normalizedSettings.agentId
+    ) {
+      const agent = await prisma.subagent.findUnique({
+        where: { id: normalizedSettings.agentId },
+        select: {
+          id: true,
+          isActive: true,
+        },
+      });
+
+      if (!agent || !agent.isActive) {
+        return NextResponse.json(
+          { error: "Selected agent is invalid or inactive." },
+          { status: 400 }
+        );
+      }
+    }
+
+    const publicUrl = buildPublicUrl(existing.token);
+    const shouldBeActive = typeof isActive === "boolean" ? isActive : undefined;
 
     const updated = await prisma.intakeFormRequest.update({
       where: { id },
       data: {
-        title: title ?? "",
-        description: description ?? null,
-        submitButtonText: submitButtonText ?? "Submit",
-        successMessage: successMessage ?? "Form submitted successfully.",
-        publicUrl: publicPath,
-        qrCodeValue: publicPath,
-        isActive: typeof isActive === "boolean" ? isActive : undefined,
-        status: status ?? undefined,
-        formSchema: formSchema as Prisma.InputJsonValue,
+        title: normalizedTitle,
+        description: normalizedDescription,
+        submitButtonText: normalizedSubmitButtonText,
+        successMessage: normalizedSuccessMessage,
+        publicUrl,
+        qrCodeValue: publicUrl,
+        isActive: shouldBeActive,
+        status: normalizedStatus,
+        formSchema: Array.isArray(formSchema)
+          ? (formSchema as Prisma.InputJsonValue)
+          : [],
+        settings: normalizedSettings as Prisma.InputJsonValue,
+        sharedAt:
+          normalizedStatus === "active"
+            ? existing.sharedAt ?? new Date()
+            : null,
       },
       select: {
         id: true,
@@ -63,6 +168,7 @@ export async function PATCH(req: NextRequest, context: RouteContext) {
         updatedAt: true,
         isActive: true,
         status: true,
+        settings: true,
       },
     });
 

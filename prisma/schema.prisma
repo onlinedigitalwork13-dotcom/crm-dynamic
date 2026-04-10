@@ -369,19 +369,26 @@ model WorkflowStage {
 }
 
 model Subagent {
-  id       String  @id @default(cuid())
-  name     String
-  contact  String?
-  email    String?
-  phone    String?
-  country  String?
-  isActive Boolean @default(true)
+  id           String  @id @default(cuid())
+  name         String
+  contact      String?
+  email        String?
+  phone        String?
+  country      String?
+  referralCode String  @unique
+  isActive     Boolean @default(true)
 
   clients Client[]
+  leads   Lead[]
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
+
+  @@index([isActive])
+  @@index([name])
+  @@index([country])
 }
+
 
 model Provider {
   id          String  @id @default(cuid())
@@ -988,18 +995,22 @@ model Lead {
   clientCheckInId String?
   clientCheckIn   ClientCheckIn? @relation(fields: [clientCheckInId], references: [id], onDelete: SetNull)
 
+  agentId String?
+  agent   Subagent? @relation(fields: [agentId], references: [id], onDelete: SetNull)
+
   firstName      String?
   lastName       String?
   email          String?
   phone          String?
   passportNumber String?
+  country        String?
 
   source String?
 
   status LeadStatus @default(new_lead)
 
   assignedToId String?
-  assignedTo   User?   @relation("LeadAssignedTo", fields: [assignedToId], references: [id], onDelete: SetNull)
+  assignedTo   User? @relation("LeadAssignedTo", fields: [assignedToId], references: [id], onDelete: SetNull)
 
   assignedAt DateTime?
 
@@ -1015,10 +1026,13 @@ model Lead {
 
   @@index([branchId])
   @@index([assignedToId])
+  @@index([agentId])
   @@index([status])
   @@index([email])
   @@index([phone])
   @@index([passportNumber])
+  @@index([country])
+  @@index([source])
 }
 
 model LeadFollower {

@@ -48,6 +48,18 @@ export default async function LeadsPage() {
           code: true,
         },
       },
+      agent: {
+        select: {
+          id: true,
+          name: true,
+          referralCode: true,
+          country: true,
+          contact: true,
+          email: true,
+          phone: true,
+          isActive: true,
+        },
+      },
       assignedTo: {
         select: {
           id: true,

@@ -24,6 +24,17 @@ type UserItem = {
   } | null;
 };
 
+type AgentItem = {
+  id: string;
+  name: string;
+  referralCode: string;
+  country: string | null;
+  contact: string | null;
+  email: string | null;
+  phone: string | null;
+  isActive: boolean;
+};
+
 type LeadItem = {
   id: string;
   branchId: string | null;
@@ -35,6 +46,7 @@ type LeadItem = {
   email: string | null;
   phone: string | null;
   passportNumber: string | null;
+  country?: string | null;
   source: string | null;
   status: LeadStatus;
   assignedToId: string | null;
@@ -48,6 +60,7 @@ type LeadItem = {
     name: string;
     code: string | null;
   } | null;
+  agent?: AgentItem | null;
   assignedTo: UserItem | null;
   client: {
     id: string;
@@ -55,6 +68,8 @@ type LeadItem = {
     lastName: string | null;
     email: string | null;
     phone: string;
+    assignedToId?: string | null;
+    createdById?: string | null;
   } | null;
   intakeSubmission: {
     id: string;
@@ -63,6 +78,7 @@ type LeadItem = {
     email: string | null;
     phone: string | null;
     status: string;
+    assignedToId?: string | null;
   } | null;
   clientCheckIn: {
     id: string;
@@ -139,6 +155,22 @@ function getLeadStatusBadgeClass(status: LeadStatus) {
   }
 }
 
+function getSourceBadgeClass(source?: string | null) {
+  if (source === "agent") {
+    return "bg-violet-100 text-violet-700 ring-1 ring-violet-200";
+  }
+
+  if (source === "intake_form") {
+    return "bg-cyan-100 text-cyan-700 ring-1 ring-cyan-200";
+  }
+
+  if (source === "check_in" || source === "walk_in") {
+    return "bg-amber-100 text-amber-700 ring-1 ring-amber-200";
+  }
+
+  return "bg-slate-100 text-slate-700 ring-1 ring-slate-200";
+}
+
 function formatSource(source?: string | null) {
   if (!source) return "Unknown";
   return source.replaceAll("_", " ");
@@ -185,6 +217,7 @@ export default function LeadsClient({
   const [selectedFollowerUserId, setSelectedFollowerUserId] = useState("");
   const [message, setMessage] = useState<string | null>(null);
   const [draftAssignedUserId, setDraftAssignedUserId] = useState("");
+  const [draftNotes, setDraftNotes] = useState("");
 
   const selectedLead = useMemo(
     () => items.find((item) => item.id === selectedLeadId) ?? null,
@@ -193,8 +226,9 @@ export default function LeadsClient({
 
   useEffect(() => {
     setDraftAssignedUserId(selectedLead?.assignedToId || "");
+    setDraftNotes(selectedLead?.notes || "");
     setSelectedFollowerUserId("");
-  }, [selectedLeadId, selectedLead?.assignedToId]);
+  }, [selectedLeadId, selectedLead?.assignedToId, selectedLead?.notes]);
 
   const assignableUsers = useMemo(() => {
     if (!selectedLead) return [];
@@ -232,11 +266,14 @@ export default function LeadsClient({
     const followed = items.reduce(
       (count, item) =>
         count +
-        (item.followers.some((follower) => follower.userId === currentUserId) ? 1 : 0),
+        (item.followers.some((follower) => follower.userId === currentUserId)
+          ? 1
+          : 0),
       0
     );
+    const agentLeads = items.filter((item) => item.source === "agent").length;
 
-    return { total, unassigned, converted, followed };
+    return { total, unassigned, converted, followed, agentLeads };
   }, [items, currentUserId]);
 
   async function handleAssign(leadId: string, assignedToId: string) {
@@ -350,6 +387,7 @@ export default function LeadsClient({
         prev.map((item) => (item.id === leadId ? successData.lead : item))
       );
 
+      setDraftNotes(successData.lead.notes || "");
       setMessage("Lead notes saved.");
     } catch (error) {
       setMessage(error instanceof Error ? error.message : "Failed to save notes");
@@ -474,7 +512,7 @@ export default function LeadsClient({
           </div>
         </div>
 
-        <div className="grid gap-4 bg-slate-50/70 px-6 py-5 md:grid-cols-2 xl:grid-cols-4">
+        <div className="grid gap-4 bg-slate-50/70 px-6 py-5 md:grid-cols-2 xl:grid-cols-5">
           <MetricCard
             label="Total Leads"
             value={stats.total}
@@ -494,6 +532,11 @@ export default function LeadsClient({
             label="Following"
             value={stats.followed}
             subtext="Leads you currently follow"
+          />
+          <MetricCard
+            label="Agent Leads"
+            value={stats.agentLeads}
+            subtext="Created from agent referral forms"
           />
         </div>
       </section>
@@ -573,6 +616,20 @@ export default function LeadsClient({
                         </div>
 
                         <div className="mt-2 flex flex-wrap gap-2">
+                          <span
+                            className={`rounded-full px-2.5 py-1 text-[11px] font-medium ${getSourceBadgeClass(
+                              lead.source
+                            )}`}
+                          >
+                            {formatSource(lead.source)}
+                          </span>
+
+                          {lead.agent ? (
+                            <span className="rounded-full bg-violet-100 px-2.5 py-1 text-[11px] font-medium text-violet-700 ring-1 ring-violet-200">
+                              Agent: {lead.agent.name}
+                            </span>
+                          ) : null}
+
                           <span className="rounded-full bg-slate-100 px-2.5 py-1 text-[11px] font-medium text-slate-600">
                             {lead.followers.length} followers
                           </span>
@@ -612,9 +669,6 @@ export default function LeadsClient({
                     <h2 className="mt-1 truncate text-2xl font-semibold tracking-tight text-slate-900">
                       {formatPersonName(selectedLead.firstName, selectedLead.lastName)}
                     </h2>
-                    <p className="mt-2 text-sm text-slate-500">
-                      Source: {formatSource(selectedLead.source)}
-                    </p>
 
                     <div className="mt-3 flex flex-wrap gap-2">
                       <span
@@ -624,6 +678,20 @@ export default function LeadsClient({
                       >
                         {selectedLead.status}
                       </span>
+
+                      <span
+                        className={`rounded-full px-3 py-1 text-xs font-medium ${getSourceBadgeClass(
+                          selectedLead.source
+                        )}`}
+                      >
+                        Source: {formatSource(selectedLead.source)}
+                      </span>
+
+                      {selectedLead.agent ? (
+                        <span className="rounded-full bg-violet-100 px-3 py-1 text-xs font-medium text-violet-700 ring-1 ring-violet-200">
+                          Agent: {selectedLead.agent.name}
+                        </span>
+                      ) : null}
 
                       {selectedLead.client ? (
                         <span className="rounded-full bg-green-100 px-3 py-1 text-xs font-medium text-green-700">
@@ -640,7 +708,7 @@ export default function LeadsClient({
                   </div>
                 </div>
 
-                <div className="grid gap-3 sm:grid-cols-2 xl:w-[360px]">
+                <div className="grid gap-3 sm:grid-cols-2 xl:w-[420px]">
                   <div className="rounded-2xl border border-slate-200 bg-slate-50 p-4">
                     <p className="text-xs uppercase tracking-[0.14em] text-slate-400">
                       Assigned To
@@ -701,6 +769,13 @@ export default function LeadsClient({
 
                     <div>
                       <span className="text-xs uppercase tracking-[0.14em] text-slate-400">
+                        Country
+                      </span>
+                      <p className="mt-1">{selectedLead.country || "—"}</p>
+                    </div>
+
+                    <div>
+                      <span className="text-xs uppercase tracking-[0.14em] text-slate-400">
                         Branch
                       </span>
                       <p className="mt-1">{selectedLead.branch?.name || "—"}</p>
@@ -750,6 +825,63 @@ export default function LeadsClient({
                   </div>
                 </div>
               </div>
+
+              {selectedLead.agent ? (
+                <div className="rounded-3xl border border-violet-200 bg-violet-50 p-5">
+                  <div className="flex flex-col gap-4 md:flex-row md:items-start md:justify-between">
+                    <div>
+                      <p className="text-sm font-semibold text-slate-900">
+                        Agent Referral
+                      </p>
+                      <p className="mt-1 text-xs text-slate-600">
+                        This lead came through an agent-linked referral form.
+                      </p>
+                    </div>
+
+                    <span className="rounded-full bg-white px-3 py-1 text-xs font-medium text-violet-700 ring-1 ring-violet-200">
+                      {selectedLead.agent.referralCode}
+                    </span>
+                  </div>
+
+                  <div className="mt-4 grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
+                    <div className="rounded-2xl border border-violet-200 bg-white p-4">
+                      <p className="text-xs uppercase tracking-[0.14em] text-slate-400">
+                        Agent Name
+                      </p>
+                      <p className="mt-1 text-sm font-semibold text-slate-900">
+                        {selectedLead.agent.name}
+                      </p>
+                    </div>
+
+                    <div className="rounded-2xl border border-violet-200 bg-white p-4">
+                      <p className="text-xs uppercase tracking-[0.14em] text-slate-400">
+                        Contact
+                      </p>
+                      <p className="mt-1 text-sm text-slate-700">
+                        {selectedLead.agent.contact || "—"}
+                      </p>
+                    </div>
+
+                    <div className="rounded-2xl border border-violet-200 bg-white p-4">
+                      <p className="text-xs uppercase tracking-[0.14em] text-slate-400">
+                        Email
+                      </p>
+                      <p className="mt-1 text-sm text-slate-700">
+                        {selectedLead.agent.email || "—"}
+                      </p>
+                    </div>
+
+                    <div className="rounded-2xl border border-violet-200 bg-white p-4">
+                      <p className="text-xs uppercase tracking-[0.14em] text-slate-400">
+                        Phone
+                      </p>
+                      <p className="mt-1 text-sm text-slate-700">
+                        {selectedLead.agent.phone || "—"}
+                      </p>
+                    </div>
+                  </div>
+                </div>
+              ) : null}
 
               <div className="grid gap-4 xl:grid-cols-[1.1fr_0.9fr]">
                 <div className="rounded-3xl border border-slate-200 bg-white p-5">
@@ -810,8 +942,8 @@ export default function LeadsClient({
                         {assigningId === selectedLead.id
                           ? "Assigning..."
                           : draftAssignedUserId
-                            ? "Assign Lead"
-                            : "Save Unassigned"}
+                          ? "Assign Lead"
+                          : "Save Unassigned"}
                       </button>
 
                       {selectedLead.assignedToId ? (
@@ -968,7 +1100,7 @@ export default function LeadsClient({
                                 )
                               }
                               disabled={followerLoadingId === selectedLead.id}
-                              className="rounded-full bg-white px-2 py-0.5 text-[11px] font-semibold text-slate-600 transition hover:bg-slate-200 disabled:opacity-50"
+                              className="rounded-full bg-white px-2 py-1 text-[10px] font-semibold text-slate-600 ring-1 ring-slate-200 hover:bg-slate-50 disabled:opacity-50"
                             >
                               Remove
                             </button>
@@ -982,47 +1114,60 @@ export default function LeadsClient({
 
               <div className="rounded-3xl border border-slate-200 bg-white p-5">
                 <div className="flex items-center justify-between gap-3">
-                  <label className="text-sm font-semibold text-slate-900">
-                    Internal Notes
-                  </label>
-                  {savingNotesId === selectedLead.id ? (
-                    <span className="text-xs text-slate-500">Saving...</span>
-                  ) : null}
+                  <div>
+                    <p className="text-sm font-semibold text-slate-900">Notes</p>
+                    <p className="mt-1 text-xs text-slate-500">
+                      Save internal notes for the lead.
+                    </p>
+                  </div>
+
+                  <button
+                    type="button"
+                    onClick={() => void handleNotesUpdate(selectedLead.id, draftNotes)}
+                    disabled={savingNotesId === selectedLead.id}
+                    className="rounded-2xl bg-slate-950 px-4 py-2 text-sm font-medium text-white transition hover:bg-slate-800 disabled:opacity-50"
+                  >
+                    {savingNotesId === selectedLead.id ? "Saving..." : "Save Notes"}
+                  </button>
                 </div>
 
                 <textarea
-                  defaultValue={selectedLead.notes || ""}
+                  value={draftNotes}
+                  onChange={(e) => setDraftNotes(e.target.value)}
                   rows={6}
-                  className="mt-4 w-full rounded-2xl border border-slate-300 px-4 py-3 text-sm outline-none transition focus:border-slate-500"
-                  placeholder="Write notes for this lead..."
-                  onBlur={(e) =>
-                    void handleNotesUpdate(selectedLead.id, e.target.value)
-                  }
+                  className="mt-4 w-full rounded-2xl border border-slate-300 px-4 py-3 text-sm"
+                  placeholder="Add internal notes about this lead..."
                 />
-
-                <p className="mt-2 text-xs text-slate-500">
-                  Notes are saved when you click outside the box.
-                </p>
               </div>
 
-              <div className="flex flex-wrap justify-end gap-3 border-t border-slate-100 pt-2">
-                {selectedLead.client ? (
-                  <Link
-                    href={`/clients/${selectedLead.client.id}`}
-                    className="rounded-2xl border border-slate-300 bg-white px-4 py-2.5 text-sm font-medium text-slate-700 transition hover:bg-slate-50"
-                  >
-                    View Client
-                  </Link>
-                ) : null}
+              <div className="rounded-3xl border border-slate-200 bg-white p-5">
+                <p className="text-sm font-semibold text-slate-900">Quick Links</p>
+                <div className="mt-4 flex flex-wrap gap-3">
+                  {selectedLead.client ? (
+                    <Link
+                      href={`/clients/${selectedLead.client.id}`}
+                      className="rounded-2xl border border-slate-300 bg-white px-4 py-3 text-sm font-medium text-slate-700 transition hover:bg-slate-50"
+                    >
+                      Open Client
+                    </Link>
+                  ) : null}
 
-                {selectedLead.intakeSubmission ? (
+                  {selectedLead.intakeSubmission ? (
+                    <Link
+                      href={`/intake-submissions/${selectedLead.intakeSubmission.id}/convert`}
+                      className="rounded-2xl border border-slate-300 bg-white px-4 py-3 text-sm font-medium text-slate-700 transition hover:bg-slate-50"
+                    >
+                      Convert Submission
+                    </Link>
+                  ) : null}
+
                   <Link
-                    href={`/intake-submissions/${selectedLead.intakeSubmission.id}/convert`}
-                    className="rounded-2xl bg-slate-950 px-4 py-2.5 text-sm font-medium text-white transition hover:bg-slate-800"
+                    href="/intake-submissions"
+                    className="rounded-2xl border border-slate-300 bg-white px-4 py-3 text-sm font-medium text-slate-700 transition hover:bg-slate-50"
                   >
-                    Open Intake / Convert
+                    Intake Submissions
                   </Link>
-                ) : null}
+                </div>
               </div>
             </div>
           )}

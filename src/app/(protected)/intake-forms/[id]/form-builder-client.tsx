@@ -21,6 +21,22 @@ type FormSection = {
   fields: FormField[];
 };
 
+type Agent = {
+  id: string;
+  name: string;
+  referralCode: string;
+  country?: string | null;
+  email?: string | null;
+  phone?: string | null;
+  contact?: string | null;
+};
+
+type FormSettings = {
+  referralType?: "standard" | "agent";
+  agentId?: string | null;
+  source?: string;
+};
+
 type FormBuilderClientProps = {
   form: {
     id: string;
@@ -32,9 +48,11 @@ type FormBuilderClientProps = {
     submitButtonText?: string | null;
     successMessage?: string | null;
     formSchema?: unknown;
+    settings?: unknown;
     isActive?: boolean;
     status?: string;
   };
+  agents: Agent[];
 };
 
 function isFormSectionArray(value: unknown): value is FormSection[] {
@@ -49,6 +67,33 @@ function isFormSectionArray(value: unknown): value is FormSection[] {
         "fields" in section
     )
   );
+}
+
+function normalizeSettings(value: unknown): FormSettings {
+  if (!value || typeof value !== "object" || Array.isArray(value)) {
+    return {
+      referralType: "standard",
+      agentId: null,
+      source: "intake_form",
+    };
+  }
+
+  const settings = value as Record<string, unknown>;
+
+  return {
+    referralType:
+      settings.referralType === "agent" ? "agent" : "standard",
+    agentId:
+      typeof settings.agentId === "string" && settings.agentId.trim().length > 0
+        ? settings.agentId.trim()
+        : null,
+    source:
+      typeof settings.source === "string" && settings.source.trim().length > 0
+        ? settings.source.trim()
+        : settings.referralType === "agent"
+        ? "agent"
+        : "intake_form",
+  };
 }
 
 function slugify(value: string) {
@@ -80,7 +125,19 @@ function getWidthClass(width?: FormField["width"]) {
   }
 }
 
-export default function FormBuilderClient({ form }: FormBuilderClientProps) {
+function getInitials(name: string) {
+  return name
+    .split(" ")
+    .filter(Boolean)
+    .slice(0, 2)
+    .map((part) => part[0]?.toUpperCase())
+    .join("");
+}
+
+export default function FormBuilderClient({
+  form,
+  agents,
+}: FormBuilderClientProps) {
   const [origin, setOrigin] = useState("");
   const [copied, setCopied] = useState(false);
   const [saving, setSaving] = useState(false);
@@ -89,6 +146,8 @@ export default function FormBuilderClient({ form }: FormBuilderClientProps) {
   const [selectedFieldIndex, setSelectedFieldIndex] = useState<number>(0);
   const [previewValues, setPreviewValues] = useState<Record<string, string>>({});
   const qrWrapperRef = useRef<HTMLDivElement | null>(null);
+
+  const initialSettings = normalizeSettings(form.settings);
 
   const [title, setTitle] = useState(form.title ?? "");
   const [description, setDescription] = useState(form.description ?? "");
@@ -100,13 +159,21 @@ export default function FormBuilderClient({ form }: FormBuilderClientProps) {
   );
   const [isActive, setIsActive] = useState(Boolean(form.isActive));
   const [status, setStatus] = useState(form.status ?? "draft");
+  const [referralType, setReferralType] = useState<"standard" | "agent">(
+    initialSettings.referralType === "agent" ? "agent" : "standard"
+  );
+  const [selectedAgentId, setSelectedAgentId] = useState<string>(
+    initialSettings.agentId ?? ""
+  );
 
   const [schema, setSchema] = useState<FormSection[]>(
     isFormSectionArray(form.formSchema) ? form.formSchema : []
   );
 
   useEffect(() => {
-    setOrigin(window.location.origin);
+    if (typeof window !== "undefined") {
+      setOrigin(window.location.origin);
+    }
   }, []);
 
   useEffect(() => {
@@ -134,14 +201,31 @@ export default function FormBuilderClient({ form }: FormBuilderClientProps) {
       ? selectedSection.fields[selectedFieldIndex]
       : null;
 
+  const selectedAgent =
+    referralType === "agent"
+      ? agents.find((agent) => agent.id === selectedAgentId) ?? null
+      : null;
+
   const publicPath = form.publicUrl || `/forms/${form.token}`;
-  const publicLink = origin ? `${origin}${publicPath}` : "";
+  const publicLink = origin ? `${origin}${publicPath}` : publicPath;
   const qrValue = publicLink || publicPath;
 
   const totalFields = useMemo(
     () => schema.reduce((sum, section) => sum + section.fields.length, 0),
     [schema]
   );
+
+  const visibleFields = useMemo(
+    () =>
+      schema.reduce(
+        (sum, section) =>
+          sum + section.fields.filter((field) => field.visible !== false).length,
+        0
+      ),
+    [schema]
+  );
+
+  const hiddenFields = totalFields - visibleFields;
 
   const handleCopy = async () => {
     try {
@@ -333,6 +417,19 @@ export default function FormBuilderClient({ form }: FormBuilderClientProps) {
       setSaving(true);
       setMessage("");
 
+      const settings =
+        referralType === "agent" && selectedAgentId
+          ? {
+              referralType: "agent",
+              agentId: selectedAgentId,
+              source: "agent",
+            }
+          : {
+              referralType: "standard",
+              agentId: null,
+              source: "intake_form",
+            };
+
       const response = await fetch(`/api/intake-forms/${form.id}`, {
         method: "PATCH",
         headers: {
@@ -346,6 +443,7 @@ export default function FormBuilderClient({ form }: FormBuilderClientProps) {
           isActive,
           status,
           formSchema: schema,
+          settings,
         }),
       });
 
@@ -377,12 +475,13 @@ export default function FormBuilderClient({ form }: FormBuilderClientProps) {
               </p>
               <h1 className="mt-2 text-2xl font-bold">Customize Intake Form</h1>
               <p className="mt-2 max-w-2xl text-sm text-gray-300">
-                Build sections, arrange fields, manage sharing, and preview the
-                final form experience from one dashboard.
+                Build sections, arrange fields, manage public sharing, configure
+                referral behavior, and preview the final form experience from
+                one dashboard.
               </p>
             </div>
 
-            <div className="grid grid-cols-3 gap-3 text-center">
+            <div className="grid grid-cols-4 gap-3 text-center">
               <div className="rounded-xl border border-white/10 bg-white/5 px-4 py-3">
                 <p className="text-xs text-gray-300">Sections</p>
                 <p className="mt-1 text-xl font-semibold">{schema.length}</p>
@@ -390,6 +489,10 @@ export default function FormBuilderClient({ form }: FormBuilderClientProps) {
               <div className="rounded-xl border border-white/10 bg-white/5 px-4 py-3">
                 <p className="text-xs text-gray-300">Fields</p>
                 <p className="mt-1 text-xl font-semibold">{totalFields}</p>
+              </div>
+              <div className="rounded-xl border border-white/10 bg-white/5 px-4 py-3">
+                <p className="text-xs text-gray-300">Visible</p>
+                <p className="mt-1 text-xl font-semibold">{visibleFields}</p>
               </div>
               <div className="rounded-xl border border-white/10 bg-white/5 px-4 py-3">
                 <p className="text-xs text-gray-300">Status</p>
@@ -410,9 +513,20 @@ export default function FormBuilderClient({ form }: FormBuilderClientProps) {
             >
               {isActive ? "Active" : "Inactive"}
             </span>
+
             <span className="rounded-full bg-gray-100 px-3 py-1 text-xs font-medium text-gray-700">
               Token: {form.token}
             </span>
+
+            <span className="rounded-full bg-gray-100 px-3 py-1 text-xs font-medium text-gray-700">
+              Referral: {referralType === "agent" ? "Agent" : "Standard"}
+            </span>
+
+            {selectedAgent ? (
+              <span className="rounded-full bg-violet-100 px-3 py-1 text-xs font-medium text-violet-700">
+                Agent: {selectedAgent.name}
+              </span>
+            ) : null}
           </div>
 
           <button
@@ -533,6 +647,84 @@ export default function FormBuilderClient({ form }: FormBuilderClientProps) {
               </div>
             </div>
           </div>
+
+          <div className="rounded-2xl border bg-white p-5 shadow-sm">
+            <h2 className="text-lg font-semibold text-gray-900">
+              Referral Configuration
+            </h2>
+            <p className="mt-1 text-sm text-gray-600">
+              Configure whether this form is a standard public intake form or an
+              agent-linked referral form.
+            </p>
+
+            <div className="mt-4 space-y-4">
+              <div>
+                <label className="mb-2 block text-sm font-medium text-gray-700">
+                  Referral Type
+                </label>
+                <select
+                  value={referralType}
+                  onChange={(e) =>
+                    setReferralType(e.target.value as "standard" | "agent")
+                  }
+                  className="w-full rounded-xl border px-3 py-2.5 text-sm"
+                >
+                  <option value="standard">Standard Form</option>
+                  <option value="agent">Agent Referral</option>
+                </select>
+              </div>
+
+              {referralType === "agent" ? (
+                <div>
+                  <label className="mb-2 block text-sm font-medium text-gray-700">
+                    Select Agent
+                  </label>
+                  <select
+                    value={selectedAgentId}
+                    onChange={(e) => setSelectedAgentId(e.target.value)}
+                    className="w-full rounded-xl border px-3 py-2.5 text-sm"
+                  >
+                    <option value="">Select an agent</option>
+                    {agents.map((agent) => (
+                      <option key={agent.id} value={agent.id}>
+                        {agent.name} ({agent.referralCode})
+                      </option>
+                    ))}
+                  </select>
+                </div>
+              ) : null}
+
+              {referralType === "agent" && selectedAgent ? (
+                <div className="rounded-2xl border border-violet-200 bg-violet-50 p-4">
+                  <div className="flex items-start gap-3">
+                    <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl bg-slate-950 text-xs font-bold text-white">
+                      {getInitials(selectedAgent.name || "A")}
+                    </div>
+
+                    <div className="min-w-0">
+                      <p className="text-sm font-semibold text-slate-900">
+                        {selectedAgent.name}
+                      </p>
+                      <p className="mt-1 text-xs text-slate-600">
+                        Referral Code: {selectedAgent.referralCode}
+                      </p>
+                      {selectedAgent.contact ? (
+                        <p className="mt-1 text-xs text-slate-500">
+                          Contact: {selectedAgent.contact}
+                        </p>
+                      ) : null}
+                    </div>
+                  </div>
+                </div>
+              ) : null}
+
+              <div className="rounded-xl border bg-gray-50 px-4 py-3 text-xs text-gray-600">
+                {referralType === "agent"
+                  ? "Submissions from this form will be treated as agent referrals and can create leads linked to the selected agent."
+                  : "Submissions from this form will be treated as standard intake submissions."}
+              </div>
+            </div>
+          </div>
         </div>
 
         <div className="space-y-6">
@@ -589,6 +781,7 @@ export default function FormBuilderClient({ form }: FormBuilderClientProps) {
                   >
                     <option value="draft">draft</option>
                     <option value="active">active</option>
+                    <option value="inactive">inactive</option>
                     <option value="archived">archived</option>
                   </select>
                 </div>
@@ -711,7 +904,9 @@ export default function FormBuilderClient({ form }: FormBuilderClientProps) {
                 <div className="rounded-2xl border bg-gray-50 p-4">
                   <div className="mb-4 flex items-center justify-between gap-3">
                     <div>
-                      <h3 className="text-sm font-semibold text-gray-900">Fields</h3>
+                      <h3 className="text-sm font-semibold text-gray-900">
+                        Fields
+                      </h3>
                       <p className="text-xs text-gray-500">
                         Click a field to edit its details
                       </p>
@@ -753,7 +948,8 @@ export default function FormBuilderClient({ form }: FormBuilderClientProps) {
                                   {field.label || `Field ${fieldIndex + 1}`}
                                 </p>
                                 <p className="mt-1 text-xs text-gray-500">
-                                  {field.key} • {field.type} • {field.width ?? "full"}
+                                  {field.key} • {field.type} •{" "}
+                                  {field.width ?? "full"}
                                 </p>
                               </div>
 
@@ -804,7 +1000,10 @@ export default function FormBuilderClient({ form }: FormBuilderClientProps) {
                               <button
                                 type="button"
                                 onClick={() =>
-                                  moveFieldDown(selectedSectionIndex, selectedFieldIndex)
+                                  moveFieldDown(
+                                    selectedSectionIndex,
+                                    selectedFieldIndex
+                                  )
                                 }
                                 className="rounded-lg border px-3 py-2 text-xs text-gray-700"
                               >
@@ -995,7 +1194,9 @@ export default function FormBuilderClient({ form }: FormBuilderClientProps) {
                                 }}
                                 rows={4}
                                 className="w-full rounded-xl border px-3 py-2.5 text-sm"
-                                placeholder={"Student Visa:student_visa\nVisitor Visa:visitor_visa"}
+                                placeholder={
+                                  "Student Visa:student_visa\nVisitor Visa:visitor_visa"
+                                }
                               />
                             </div>
                           ) : null}
@@ -1024,6 +1225,13 @@ export default function FormBuilderClient({ form }: FormBuilderClientProps) {
 
             {description ? (
               <p className="mt-2 text-sm text-gray-600">{description}</p>
+            ) : null}
+
+            {referralType === "agent" && selectedAgent ? (
+              <div className="mt-4 rounded-2xl border border-violet-200 bg-violet-50 px-4 py-3 text-sm text-violet-700">
+                This form is configured as an agent referral form for{" "}
+                <span className="font-semibold">{selectedAgent.name}</span>.
+              </div>
             ) : null}
 
             <div className="mt-6 space-y-6">
@@ -1067,13 +1275,14 @@ export default function FormBuilderClient({ form }: FormBuilderClientProps) {
                                 <label className="mb-2 block text-sm font-medium text-gray-700">
                                   {field.label || "Untitled Field"}
                                   {field.required ? (
-                                    <span className="ml-1 text-red-500">*</span>
+                                    <span className="text-red-500"> *</span>
                                   ) : null}
                                 </label>
                               ) : null}
 
                               {isTextarea ? (
                                 <textarea
+                                  rows={4}
                                   value={value}
                                   onChange={(e) =>
                                     setPreviewValues((prev) => ({
@@ -1081,9 +1290,8 @@ export default function FormBuilderClient({ form }: FormBuilderClientProps) {
                                       [field.key]: e.target.value,
                                     }))
                                   }
-                                  placeholder={field.placeholder}
-                                  rows={4}
-                                  className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm outline-none transition focus:border-black"
+                                  placeholder={field.placeholder || ""}
+                                  className="w-full rounded-xl border px-3 py-2.5 text-sm"
                                 />
                               ) : isSelect ? (
                                 <select
@@ -1094,12 +1302,12 @@ export default function FormBuilderClient({ form }: FormBuilderClientProps) {
                                       [field.key]: e.target.value,
                                     }))
                                   }
-                                  className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm outline-none transition focus:border-black"
+                                  className="w-full rounded-xl border px-3 py-2.5 text-sm"
                                 >
-                                  <option value="">Select</option>
-                                  {field.options?.map((option) => (
+                                  <option value="">Select an option</option>
+                                  {(field.options ?? []).map((option, optionIndex) => (
                                     <option
-                                      key={option.value}
+                                      key={`${option.value}-${optionIndex}`}
                                       value={option.value}
                                     >
                                       {option.label}
@@ -1107,30 +1315,29 @@ export default function FormBuilderClient({ form }: FormBuilderClientProps) {
                                   ))}
                                 </select>
                               ) : isRadio ? (
-                                <div className="flex flex-wrap gap-4">
-                                  {field.options?.map((option) => (
+                                <div className="space-y-2">
+                                  {(field.options ?? []).map((option, optionIndex) => (
                                     <label
-                                      key={option.value}
-                                      className="flex items-center gap-2 text-sm text-gray-700"
+                                      key={`${option.value}-${optionIndex}`}
+                                      className="flex items-center gap-2 rounded-lg border bg-white px-3 py-2 text-sm text-gray-700"
                                     >
                                       <input
                                         type="radio"
                                         name={field.key}
-                                        value={option.value}
                                         checked={value === option.value}
-                                        onChange={(e) =>
+                                        onChange={() =>
                                           setPreviewValues((prev) => ({
                                             ...prev,
-                                            [field.key]: e.target.value,
+                                            [field.key]: option.value,
                                           }))
                                         }
                                       />
-                                      {option.label}
+                                      <span>{option.label}</span>
                                     </label>
                                   ))}
                                 </div>
                               ) : isCheckbox ? (
-                                <label className="flex items-center gap-2 text-sm text-gray-700">
+                                <label className="flex items-center gap-3 rounded-xl border bg-white px-4 py-3 text-sm text-gray-700">
                                   <input
                                     type="checkbox"
                                     checked={value === "true"}
@@ -1143,11 +1350,16 @@ export default function FormBuilderClient({ form }: FormBuilderClientProps) {
                                       }))
                                     }
                                   />
-                                  {field.label}
+                                  <span>
+                                    {field.label || "Untitled Field"}
+                                    {field.required ? (
+                                      <span className="text-red-500"> *</span>
+                                    ) : null}
+                                  </span>
                                 </label>
                               ) : (
                                 <input
-                                  type={field.type === "radio" ? "text" : field.type}
+                                  type={field.type === "email" ? "email" : field.type === "number" ? "number" : field.type === "date" ? "date" : field.type === "tel" ? "tel" : "text"}
                                   value={value}
                                   onChange={(e) =>
                                     setPreviewValues((prev) => ({
@@ -1155,8 +1367,8 @@ export default function FormBuilderClient({ form }: FormBuilderClientProps) {
                                       [field.key]: e.target.value,
                                     }))
                                   }
-                                  placeholder={field.placeholder}
-                                  className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm outline-none transition focus:border-black"
+                                  placeholder={field.placeholder || ""}
+                                  className="w-full rounded-xl border px-3 py-2.5 text-sm"
                                 />
                               )}
                             </div>
@@ -1168,14 +1380,25 @@ export default function FormBuilderClient({ form }: FormBuilderClientProps) {
               )}
             </div>
 
-            {schema.length > 0 ? (
-              <div className="mt-6 flex justify-end">
-                <button
-                  type="button"
-                  className="rounded-lg bg-black px-5 py-3 text-sm font-medium text-white"
-                >
-                  {submitButtonText || "Submit"}
-                </button>
+            <div className="mt-6">
+              <button
+                type="button"
+                className="rounded-xl bg-black px-5 py-2.5 text-sm font-medium text-white"
+              >
+                {submitButtonText || "Submit"}
+              </button>
+            </div>
+
+            {successMessage ? (
+              <div className="mt-4 rounded-xl border border-green-100 bg-green-50 px-4 py-3 text-sm text-green-700">
+                Success message preview: {successMessage}
+              </div>
+            ) : null}
+
+            {hiddenFields > 0 ? (
+              <div className="mt-4 rounded-xl border border-amber-100 bg-amber-50 px-4 py-3 text-sm text-amber-700">
+                {hiddenFields} field{hiddenFields === 1 ? "" : "s"} currently hidden
+                from the live preview.
               </div>
             ) : null}
           </div>

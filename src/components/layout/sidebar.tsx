@@ -55,7 +55,10 @@ export default function Sidebar({
   async function loadUnreadCount() {
     if (pollingRef.current) return;
 
-    if (typeof document !== "undefined" && document.visibilityState === "hidden") {
+    if (
+      typeof document !== "undefined" &&
+      document.visibilityState === "hidden"
+    ) {
       return;
     }
 
@@ -201,7 +204,7 @@ export default function Sidebar({
         {
           id: "subagents",
           href: "/subagents",
-          label: "Subagents",
+          label: "Agents",
           icon: "◍",
           matchStartsWith: true,
         },
