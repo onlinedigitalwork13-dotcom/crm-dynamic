@@ -1,5 +1,12 @@
 import Link from "next/link";
 import { prisma } from "@/lib/prisma";
+import { Prisma } from "@prisma/client";
+
+type IntakeFormSettings = {
+  referralType?: string;
+  agentId?: string | null;
+  source?: string;
+};
 
 function getInitials(name: string) {
   return name
@@ -10,32 +17,114 @@ function getInitials(name: string) {
     .join("");
 }
 
-function getFullPublicReferralLink(referralCode: string) {
+function getSettingsObject(value: Prisma.JsonValue | null): IntakeFormSettings {
+  if (!value || typeof value !== "object" || Array.isArray(value)) {
+    return {};
+  }
+
+  const settings = value as Record<string, unknown>;
+
+  return {
+    referralType:
+      typeof settings.referralType === "string"
+        ? settings.referralType.trim()
+        : undefined,
+    agentId:
+      typeof settings.agentId === "string" ? settings.agentId.trim() : null,
+    source:
+      typeof settings.source === "string" ? settings.source.trim() : undefined,
+  };
+}
+
+function getAbsoluteOrRelativeUrl(value: string | null) {
+  if (!value) return null;
+
+  const trimmed = value.trim();
+  if (!trimmed) return null;
+
+  if (trimmed.startsWith("http://") || trimmed.startsWith("https://")) {
+    return trimmed;
+  }
+
   const appUrl =
     process.env.NEXT_PUBLIC_APP_URL?.trim().replace(/\/+$/, "") || "";
-  return appUrl ? `${appUrl}/apply/${referralCode}` : `/apply/${referralCode}`;
+
+  return appUrl ? `${appUrl}${trimmed.startsWith("/") ? trimmed : `/${trimmed}`}` : trimmed;
 }
 
 export default async function AgentsPage() {
-  const subagents = await prisma.subagent.findMany({
-    orderBy: {
-      createdAt: "desc",
-    },
-    include: {
-      clients: {
-        select: {
-          id: true,
+  const [subagents, intakeForms] = await Promise.all([
+    prisma.subagent.findMany({
+      orderBy: {
+        createdAt: "desc",
+      },
+      include: {
+        clients: {
+          select: {
+            id: true,
+          },
+        },
+        leads: {
+          select: {
+            id: true,
+            status: true,
+            createdAt: true,
+          },
         },
       },
-      leads: {
-        select: {
-          id: true,
-          status: true,
-          createdAt: true,
-        },
+    }),
+    prisma.intakeFormRequest.findMany({
+      select: {
+        id: true,
+        title: true,
+        token: true,
+        publicUrl: true,
+        status: true,
+        isActive: true,
+        settings: true,
+        updatedAt: true,
+        createdAt: true,
       },
-    },
-  });
+      orderBy: {
+        updatedAt: "desc",
+      },
+    }),
+  ]);
+
+  const linkedFormsByAgentId = new Map<
+    string,
+    {
+      id: string;
+      title: string;
+      token: string;
+      publicUrl: string | null;
+      status: string;
+      isActive: boolean;
+      updatedAt: Date;
+      createdAt: Date;
+    }
+  >();
+
+  for (const form of intakeForms) {
+    const settings = getSettingsObject(form.settings as Prisma.JsonValue | null);
+
+    if (settings.referralType !== "agent" || !settings.agentId) {
+      continue;
+    }
+
+    if (!linkedFormsByAgentId.has(settings.agentId)) {
+      linkedFormsByAgentId.set(settings.agentId, {
+        id: form.id,
+        title: form.title,
+        token: form.token,
+        publicUrl: form.publicUrl,
+        status: form.status,
+        isActive: form.isActive,
+        updatedAt: form.updatedAt,
+        createdAt: form.createdAt,
+      });
+    }
+  }
 
   const totalAgents = subagents.length;
   const activeAgents = subagents.filter((item) => item.isActive).length;
@@ -66,6 +155,10 @@ export default async function AgentsPage() {
     0
   );
 
+  const linkedFormsCount = subagents.filter((subagent) =>
+    linkedFormsByAgentId.has(subagent.id)
+  ).length;
+
   const agents = subagents.map((subagent) => {
     const totalLeadsCount = subagent.leads.length;
     const openLeadsCount = subagent.leads.filter(
@@ -80,13 +173,19 @@ export default async function AgentsPage() {
         ? Math.round((convertedLeadsCount / totalLeadsCount) * 100)
         : 0;
 
+    const linkedForm = linkedFormsByAgentId.get(subagent.id) ?? null;
+    const linkedPublicUrl = linkedForm
+      ? getAbsoluteOrRelativeUrl(linkedForm.publicUrl || `/forms/${linkedForm.token}`)
+      : null;
+
     return {
       ...subagent,
       totalLeadsCount,
       openLeadsCount,
       convertedLeadsCount,
       conversionRate,
-      referralLink: getFullPublicReferralLink(subagent.referralCode),
+      linkedForm,
+      linkedPublicUrl,
     };
   });
 
@@ -105,7 +204,7 @@ export default async function AgentsPage() {
               </h1>
 
               <p className="mt-3 max-w-2xl text-sm leading-6 text-slate-600 sm:text-base">
-                Manage external agents, referral partners, public intake links,
+                Manage external agents, referral partners, linked intake forms,
                 and incoming lead channels from one premium workspace.
               </p>
             </div>
@@ -184,13 +283,13 @@ export default async function AgentsPage() {
 
           <div className="rounded-3xl border border-indigo-200 bg-gradient-to-br from-indigo-50 to-white p-5 xl:col-span-1">
             <p className="text-xs font-semibold uppercase tracking-[0.2em] text-indigo-700">
-              Open Leads
+              Linked Forms
             </p>
             <p className="mt-3 text-3xl font-bold text-slate-950">
-              {openLeads}
+              {linkedFormsCount}
             </p>
             <p className="mt-2 text-sm text-slate-500">
-              {convertedLeads} converted so far
+              Agents with working public intake forms
             </p>
           </div>
         </div>
@@ -203,8 +302,8 @@ export default async function AgentsPage() {
               Agent Directory
             </h2>
             <p className="mt-1 text-sm text-slate-500">
-              Premium overview of all partner agents, referral links, and lead
-              performance.
+              Premium overview of all partner agents, linked intake forms, and
+              lead performance.
             </p>
           </div>
 
@@ -256,7 +355,7 @@ export default async function AgentsPage() {
                       Referral Code
                     </th>
                     <th className="px-8 py-4 text-xs font-semibold uppercase tracking-[0.18em] text-slate-500">
-                      Public Link
+                      Linked Intake Form
                     </th>
                     <th className="px-8 py-4 text-xs font-semibold uppercase tracking-[0.18em] text-slate-500">
                       Active Clients
@@ -323,11 +422,31 @@ export default async function AgentsPage() {
                       </td>
 
                       <td className="px-8 py-5">
-                        <div className="max-w-[240px]">
-                          <p className="truncate text-sm text-slate-700">
-                            {subagent.referralLink}
-                          </p>
-                        </div>
+                        {subagent.linkedForm && subagent.linkedPublicUrl ? (
+                          <div className="space-y-2">
+                            <Link
+                              href={`/intake-forms/${subagent.linkedForm.id}`}
+                              className="inline-flex rounded-full bg-emerald-50 px-3 py-1 text-[11px] font-medium text-emerald-700 ring-1 ring-emerald-200"
+                            >
+                              {subagent.linkedForm.title}
+                            </Link>
+                            <p className="max-w-[260px] truncate text-sm text-slate-700">
+                              {subagent.linkedPublicUrl}
+                            </p>
+                          </div>
+                        ) : (
+                          <div className="space-y-2">
+                            <span className="inline-flex rounded-full bg-slate-100 px-3 py-1 text-[11px] font-medium text-slate-600 ring-1 ring-slate-200">
+                              No linked form
+                            </span>
+                            <Link
+                              href="/intake-forms/new"
+                              className="block text-sm font-medium text-slate-700 underline-offset-4 hover:underline"
+                            >
+                              Create intake form
+                            </Link>
+                          </div>
+                        )}
                       </td>
 
                       <td className="px-8 py-5 text-sm font-semibold text-slate-900">
@@ -477,11 +596,28 @@ export default async function AgentsPage() {
 
                   <div className="mt-4 rounded-2xl border border-dashed border-slate-300 bg-slate-50 px-4 py-3">
                     <p className="text-xs font-semibold uppercase tracking-[0.18em] text-slate-500">
-                      Public Link
+                      Linked Intake Form
                     </p>
-                    <p className="mt-2 break-all text-sm text-slate-900">
-                      {subagent.referralLink}
-                    </p>
+
+                    {subagent.linkedForm && subagent.linkedPublicUrl ? (
+                      <>
+                        <p className="mt-2 text-sm font-semibold text-slate-900">
+                          {subagent.linkedForm.title}
+                        </p>
+                        <p className="mt-2 break-all text-sm text-slate-700">
+                          {subagent.linkedPublicUrl}
+                        </p>
+                      </>
+                    ) : (
+                      <>
+                        <p className="mt-2 text-sm text-slate-600">
+                          No linked form yet
+                        </p>
+                        <p className="mt-2 text-sm text-slate-500">
+                          Create an intake form and assign this agent in Referral Configuration.
+                        </p>
+                      </>
+                    )}
                   </div>
 
                   <div className="mt-4 rounded-2xl border border-slate-200 bg-slate-50 p-4">
