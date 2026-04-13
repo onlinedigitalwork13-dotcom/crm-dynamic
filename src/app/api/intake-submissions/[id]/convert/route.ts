@@ -22,12 +22,6 @@ function readString(formData: FormData, key: string): string | null {
   return trimmed.length > 0 ? trimmed : null;
 }
 
-function readDate(value: string | null): Date | null {
-  if (!value) return null;
-  const parsed = new Date(value);
-  return Number.isNaN(parsed.getTime()) ? null : parsed;
-}
-
 function wantsJson(request: NextRequest) {
   const accept = request.headers.get("accept") || "";
   return accept.includes("application/json");
@@ -45,6 +39,11 @@ function redirectWithMessage(
   });
 
   return NextResponse.redirect(url);
+}
+
+function generateReferralCode() {
+  const randomPart = Math.random().toString(36).slice(2, 8).toUpperCase();
+  return `SAG-${Date.now().toString(36).toUpperCase()}-${randomPart}`;
 }
 
 export async function POST(request: NextRequest, { params }: RouteContext) {
@@ -189,7 +188,10 @@ export async function POST(request: NextRequest, { params }: RouteContext) {
     const lastName = readString(formData, "lastName") ?? submission.lastName;
     const email = readString(formData, "email") ?? submission.email;
     const phone = readString(formData, "phone") ?? submission.phone;
-    const passport = readString(formData, "passport") ?? submission.passportNumber;
+    const passport =
+      readString(formData, "passport") ??
+      readString(formData, "passportNumber") ??
+      submission.passportNumber;
     const notes = readString(formData, "notes") ?? submission.notes;
 
     const requestedBranchId =
@@ -201,7 +203,12 @@ export async function POST(request: NextRequest, { params }: RouteContext) {
     const currentStageId =
       readString(formData, "currentStageId") ??
       readString(formData, "workflowStageId");
-    const subagentId = readString(formData, "subagentId");
+
+    const selectedSubagentId = readString(formData, "subagentId");
+    const newSubagentName = readString(formData, "newSubagentName");
+    const newSubagentEmail = readString(formData, "newSubagentEmail");
+    const newSubagentPhone = readString(formData, "newSubagentPhone");
+    const newSubagentAgency = readString(formData, "newSubagentAgency");
 
     if (!firstName || !lastName || !phone) {
       const error = "First name, last name, and phone are required";
@@ -245,7 +252,54 @@ export async function POST(request: NextRequest, { params }: RouteContext) {
       );
     }
 
-    const [branch, leadSource, workflow, workflowStage, subagent] =
+    if (currentStageId && !workflowId) {
+      const error = "A workflow stage requires a workflow";
+
+      if (wantsJson(request)) {
+        return NextResponse.json({ error }, { status: 400 });
+      }
+
+      return redirectWithMessage(
+        request,
+        `/intake-submissions/${submission.id}/convert`,
+        { error }
+      );
+    }
+
+    if (selectedSubagentId && newSubagentName) {
+      const error =
+        "Please either select an existing subagent or create a new one, not both";
+
+      if (wantsJson(request)) {
+        return NextResponse.json({ error }, { status: 400 });
+      }
+
+      return redirectWithMessage(
+        request,
+        `/intake-submissions/${submission.id}/convert`,
+        { error }
+      );
+    }
+
+    if (
+      !selectedSubagentId &&
+      !newSubagentName &&
+      (newSubagentEmail || newSubagentPhone || newSubagentAgency)
+    ) {
+      const error = "Subagent name is required when creating a new subagent";
+
+      if (wantsJson(request)) {
+        return NextResponse.json({ error }, { status: 400 });
+      }
+
+      return redirectWithMessage(
+        request,
+        `/intake-submissions/${submission.id}/convert`,
+        { error }
+      );
+    }
+
+    const [branch, leadSource, workflow, workflowStage, selectedSubagent] =
       await Promise.all([
         prisma.branch.findUnique({
           where: { id: requestedBranchId },
@@ -281,9 +335,9 @@ export async function POST(request: NextRequest, { params }: RouteContext) {
               },
             })
           : Promise.resolve(null),
-        subagentId
+        selectedSubagentId
           ? prisma.subagent.findUnique({
-              where: { id: subagentId },
+              where: { id: selectedSubagentId },
               select: {
                 id: true,
                 isActive: true,
@@ -334,20 +388,6 @@ export async function POST(request: NextRequest, { params }: RouteContext) {
       );
     }
 
-    if (currentStageId && !workflowId) {
-      const error = "A workflow stage requires a workflow";
-
-      if (wantsJson(request)) {
-        return NextResponse.json({ error }, { status: 400 });
-      }
-
-      return redirectWithMessage(
-        request,
-        `/intake-submissions/${submission.id}/convert`,
-        { error }
-      );
-    }
-
     if (workflowStage && workflowId && workflowStage.workflowId !== workflowId) {
       const error = "Selected stage does not belong to the selected workflow";
 
@@ -362,7 +402,7 @@ export async function POST(request: NextRequest, { params }: RouteContext) {
       );
     }
 
-    if (subagentId && (!subagent || !subagent.isActive)) {
+    if (selectedSubagentId && (!selectedSubagent || !selectedSubagent.isActive)) {
       const error = "Selected subagent was not found or is inactive";
 
       if (wantsJson(request)) {
@@ -399,9 +439,29 @@ export async function POST(request: NextRequest, { params }: RouteContext) {
         submission.submissionMeta && typeof submission.submissionMeta === "object"
           ? (submission.submissionMeta as Prisma.InputJsonObject)
           : {},
+      newSubagentAgency: newSubagentAgency ?? null,
     };
 
     const result = await prisma.$transaction(async (tx) => {
+      let resolvedSubagentId: string | null = selectedSubagentId;
+
+      if (!resolvedSubagentId && newSubagentName) {
+        const createdSubagent = await tx.subagent.create({
+          data: {
+            name: newSubagentName,
+            email: newSubagentEmail,
+            phone: newSubagentPhone,
+            referralCode: generateReferralCode(),
+            isActive: true,
+          },
+          select: {
+            id: true,
+          },
+        });
+
+        resolvedSubagentId = createdSubagent.id;
+      }
+
       const resolvedAssignedToId =
         submission.assignedToId ??
         submission.lead?.assignedToId ??
@@ -424,7 +484,7 @@ export async function POST(request: NextRequest, { params }: RouteContext) {
           sourceId: sourceId ?? undefined,
           workflowId: workflowId ?? undefined,
           currentStageId: currentStageId ?? undefined,
-          subagentId: subagentId ?? undefined,
+          subagentId: resolvedSubagentId ?? undefined,
           originalIntakeSubmissionId: submission.id,
           createdById: resolvedCreatedById,
           assignedToId: resolvedAssignedToId,
@@ -455,6 +515,7 @@ export async function POST(request: NextRequest, { params }: RouteContext) {
             assignedToId: resolvedAssignedToId,
             status: "converted",
             lastActivityAt: new Date(),
+            agentId: resolvedSubagentId ?? undefined,
             activities: {
               create: {
                 actorUserId: currentUser.id,
@@ -462,6 +523,8 @@ export async function POST(request: NextRequest, { params }: RouteContext) {
                 details: {
                   clientId: client.id,
                   intakeSubmissionId: submission.id,
+                  subagentId: resolvedSubagentId,
+                  newSubagentAgency,
                 } as Prisma.InputJsonValue,
               },
             },
@@ -490,9 +553,11 @@ export async function POST(request: NextRequest, { params }: RouteContext) {
             sourceId,
             workflowId,
             currentStageId,
-            subagentId,
+            subagentId: resolvedSubagentId,
             createdById: resolvedCreatedById,
             assignedToId: resolvedAssignedToId,
+            createdNewSubagent: Boolean(!selectedSubagentId && newSubagentName),
+            newSubagentAgency,
           } as Prisma.InputJsonValue,
         },
       });

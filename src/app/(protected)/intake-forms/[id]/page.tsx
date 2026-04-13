@@ -56,13 +56,15 @@ export default async function IntakeFormEditPage({ params }: PageProps) {
 
   return (
     <div className="mx-auto max-w-7xl space-y-6">
-      <div className="rounded-xl border bg-white p-6 shadow-sm">
+      <div className="rounded-2xl border bg-white p-6 shadow-sm">
         <p className="text-sm text-gray-500">Intake Form Builder</p>
         <h1 className="text-2xl font-bold text-gray-900">Edit Intake Form</h1>
-        <p className="mt-2 text-sm text-gray-600">
+        <p className="mt-2 max-w-4xl text-sm leading-6 text-gray-600">
           Customize the shared intake form, manage public sharing, configure
-          referral settings, and preview the same form used in Add Client,
-          Check-In, public intake, and agent referral flows.
+          channel behavior, and preview the same dynamic form experience used
+          across your CRM intake flows. This supports general intake, shared
+          subagent intake, event intake, and partner intake without changing
+          your existing Check-In or Add Client structures.
         </p>
       </div>
 

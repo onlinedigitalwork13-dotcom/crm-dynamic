@@ -35,6 +35,9 @@ type FormSettings = {
   referralType?: "standard" | "agent";
   agentId?: string | null;
   source?: string;
+  channel?: "general" | "subagent" | "event" | "partner";
+  agentMode?: "none" | "optional" | "required";
+  defaultAgentId?: string | null;
 };
 
 type FormBuilderClientProps = {
@@ -75,24 +78,48 @@ function normalizeSettings(value: unknown): FormSettings {
       referralType: "standard",
       agentId: null,
       source: "intake_form",
+      channel: "general",
+      agentMode: "none",
+      defaultAgentId: null,
     };
   }
 
   const settings = value as Record<string, unknown>;
+  const referralType =
+    settings.referralType === "agent" ? "agent" : "standard";
 
   return {
-    referralType:
-      settings.referralType === "agent" ? "agent" : "standard",
+    referralType,
     agentId:
-      typeof settings.agentId === "string" && settings.agentId.trim().length > 0
+      typeof settings.agentId === "string" && settings.agentId.trim()
         ? settings.agentId.trim()
         : null,
     source:
-      typeof settings.source === "string" && settings.source.trim().length > 0
+      typeof settings.source === "string" && settings.source.trim()
         ? settings.source.trim()
-        : settings.referralType === "agent"
+        : referralType === "agent"
         ? "agent"
         : "intake_form",
+    channel:
+      settings.channel === "subagent" ||
+      settings.channel === "event" ||
+      settings.channel === "partner"
+        ? settings.channel
+        : referralType === "agent"
+        ? "subagent"
+        : "general",
+    agentMode:
+      settings.agentMode === "required"
+        ? "required"
+        : settings.agentMode === "optional"
+        ? "optional"
+        : referralType === "agent"
+        ? "required"
+        : "none",
+    defaultAgentId:
+      typeof settings.defaultAgentId === "string" && settings.defaultAgentId.trim()
+        ? settings.defaultAgentId.trim()
+        : null,
   };
 }
 
@@ -134,6 +161,207 @@ function getInitials(name: string) {
     .join("");
 }
 
+function getChannelLabel(channel: FormSettings["channel"]) {
+  switch (channel) {
+    case "subagent":
+      return "Subagent";
+    case "event":
+      return "Event";
+    case "partner":
+      return "Partner";
+    case "general":
+    default:
+      return "General";
+  }
+}
+
+function ensureSubagentStarterFields(schema: FormSection[]) {
+  const next = [...schema];
+
+  const findOrCreateSection = (
+    key: string,
+    title: string,
+    description: string
+  ) => {
+    const existingIndex = next.findIndex((section) => section.key === key);
+    if (existingIndex >= 0) return existingIndex;
+
+    next.push({
+      key,
+      title,
+      description,
+      fields: [],
+    });
+
+    return next.length - 1;
+  };
+
+  const ensureField = (sectionIndex: number, field: FormField) => {
+    const exists = next[sectionIndex].fields.some(
+      (item) => item.key === field.key
+    );
+    if (!exists) {
+      next[sectionIndex] = {
+        ...next[sectionIndex],
+        fields: [...next[sectionIndex].fields, field],
+      };
+    }
+  };
+
+  // ✅ STUDENT DETAILS (CLEAN)
+  const studentIndex = findOrCreateSection(
+    "student_details",
+    "Student Details",
+    "Basic student information"
+  );
+
+  ensureField(studentIndex, {
+    key: "firstName",
+    label: "First Name",
+    type: "text",
+    required: true,
+    width: "half",
+  });
+
+  ensureField(studentIndex, {
+    key: "lastName",
+    label: "Last Name",
+    type: "text",
+    required: true,
+    width: "half",
+  });
+
+  ensureField(studentIndex, {
+    key: "email",
+    label: "Email",
+    type: "email",
+    width: "half",
+  });
+
+  ensureField(studentIndex, {
+    key: "phone",
+    label: "Phone Number",
+    type: "tel",
+    required: true,
+    width: "half",
+  });
+
+  ensureField(studentIndex, {
+    key: "nationality",
+    label: "Nationality",
+    type: "text",
+    width: "half",
+  });
+
+  ensureField(studentIndex, {
+    key: "passportNumber",
+    label: "Passport Number",
+    type: "text",
+    width: "half",
+  });
+
+  ensureField(studentIndex, {
+    key: "isExistingStudent",
+    label: "Existing Student",
+    type: "checkbox",
+    width: "full",
+  });
+
+  // ✅ STUDY PREFERENCES (CLEAN)
+  const studyIndex = findOrCreateSection(
+    "study_preferences",
+    "Study Preferences",
+    "Course and intake details"
+  );
+
+  ensureField(studyIndex, {
+    key: "destinationCountry",
+    label: "Destination Country",
+    type: "text",
+    width: "half",
+  });
+
+  ensureField(studyIndex, {
+    key: "providerName",
+    label: "Provider / University",
+    type: "text",
+    width: "half",
+  });
+
+  ensureField(studyIndex, {
+    key: "courseName",
+    label: "Course / Program",
+    type: "text",
+    width: "half",
+  });
+
+  ensureField(studyIndex, {
+    key: "intake",
+    label: "Preferred Intake",
+    type: "text",
+    width: "half",
+  });
+
+  ensureField(studyIndex, {
+    key: "studyLevel",
+    label: "Study Level",
+    type: "text",
+    width: "half",
+  });
+
+  // ✅ SUBAGENT DETAILS (CLEAN)
+  const subagentIndex = findOrCreateSection(
+    "subagent_details",
+    "Subagent Details",
+    "Referral details"
+  );
+
+  ensureField(subagentIndex, {
+    key: "subagentName",
+    label: "Subagent Name",
+    type: "text",
+    required: true,
+    width: "half",
+  });
+
+  ensureField(subagentIndex, {
+    key: "agencyName",
+    label: "Agency Name",
+    type: "text",
+    width: "half",
+  });
+
+  ensureField(subagentIndex, {
+    key: "subagentEmail",
+    label: "Subagent Email",
+    type: "email",
+    width: "half",
+  });
+
+  ensureField(subagentIndex, {
+    key: "subagentPhone",
+    label: "Subagent Phone",
+    type: "tel",
+    width: "half",
+  });
+
+  // ✅ NOTES (NEW CLEAN SECTION)
+  const notesIndex = findOrCreateSection(
+    "notes",
+    "Notes",
+    "Additional information"
+  );
+
+  ensureField(notesIndex, {
+    key: "notes",
+    label: "Notes",
+    type: "textarea",
+    width: "full",
+  });
+
+  return next;
+}
+
 export default function FormBuilderClient({
   form,
   agents,
@@ -159,11 +387,17 @@ export default function FormBuilderClient({
   );
   const [isActive, setIsActive] = useState(Boolean(form.isActive));
   const [status, setStatus] = useState(form.status ?? "draft");
-  const [referralType, setReferralType] = useState<"standard" | "agent">(
-    initialSettings.referralType === "agent" ? "agent" : "standard"
-  );
-  const [selectedAgentId, setSelectedAgentId] = useState<string>(
-    initialSettings.agentId ?? ""
+
+  const [channel, setChannel] = useState<
+    "general" | "subagent" | "event" | "partner"
+  >(initialSettings.channel ?? "general");
+
+  const [agentMode, setAgentMode] = useState<
+    "none" | "optional" | "required"
+  >(initialSettings.agentMode ?? "none");
+
+  const [defaultAgentId, setDefaultAgentId] = useState<string>(
+    initialSettings.defaultAgentId ?? ""
   );
 
   const [schema, setSchema] = useState<FormSection[]>(
@@ -202,8 +436,8 @@ export default function FormBuilderClient({
       : null;
 
   const selectedAgent =
-    referralType === "agent"
-      ? agents.find((agent) => agent.id === selectedAgentId) ?? null
+    defaultAgentId
+      ? agents.find((agent) => agent.id === defaultAgentId) ?? null
       : null;
 
   const publicPath = form.publicUrl || `/forms/${form.token}`;
@@ -412,58 +646,98 @@ export default function FormBuilderClient({
     setSelectedFieldIndex(fieldIndex + 1);
   };
 
-  const saveForm = async () => {
-    try {
-      setSaving(true);
-      setMessage("");
-
-      const settings =
-        referralType === "agent" && selectedAgentId
-          ? {
-              referralType: "agent",
-              agentId: selectedAgentId,
-              source: "agent",
-            }
-          : {
-              referralType: "standard",
-              agentId: null,
-              source: "intake_form",
-            };
-
-      const response = await fetch(`/api/intake-forms/${form.id}`, {
-        method: "PATCH",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-          title,
-          description,
-          submitButtonText,
-          successMessage,
-          isActive,
-          status,
-          formSchema: schema,
-          settings,
-        }),
-      });
-
-      const data = await response.json();
-
-      if (!response.ok) {
-        throw new Error(data?.error || "Failed to save form.");
-      }
-
-      setMessage("Form saved successfully.");
-    } catch (error) {
-      console.error(error);
-      setMessage(
-        error instanceof Error ? error.message : "Failed to save form."
-      );
-    } finally {
-      setSaving(false);
-    }
+  const handleApplySubagentStarter = () => {
+    setSchema((prev) => ensureSubagentStarterFields(prev));
+    setMessage("Subagent starter fields applied successfully.");
   };
 
+const saveForm = async () => {
+  try {
+    setSaving(true);
+    setMessage("");
+
+    // ✅ AUTO SYNC STATUS <-> ACTIVE
+    let finalStatus = status;
+    let finalIsActive = isActive;
+
+    if (isActive) {
+      finalStatus = "active";
+    } else {
+      if (status === "active") {
+        finalStatus = "draft";
+      }
+    }
+
+    // ✅ SUBAGENT LOGIC
+    let finalAgentMode = agentMode;
+    let finalDefaultAgentId = defaultAgentId || null;
+
+    if (channel === "subagent") {
+      if (agentMode === "required" && !defaultAgentId) {
+        setMessage(
+          "Please select a default internal agent or change Agent Mode."
+        );
+        setSaving(false);
+        return;
+      }
+
+      if (agentMode === "none") {
+        finalDefaultAgentId = null;
+      }
+    } else {
+      finalAgentMode = "none";
+      finalDefaultAgentId = null;
+    }
+
+    const settings = {
+      referralType: channel === "subagent" ? "agent" : "standard",
+      agentId: null,
+      channel,
+      agentMode: finalAgentMode,
+      defaultAgentId: finalDefaultAgentId,
+      source:
+        channel === "subagent"
+          ? "subagent"
+          : channel === "event"
+          ? "event"
+          : channel === "partner"
+          ? "partner"
+          : "intake_form",
+    };
+
+    const response = await fetch(`/api/intake-forms/${form.id}`, {
+      method: "PATCH",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        title,
+        description,
+        submitButtonText,
+        successMessage,
+        isActive: finalIsActive,
+        status: finalStatus,
+        formSchema: schema,
+        settings,
+      }),
+    });
+
+    const data = await response.json();
+
+    if (!response.ok) {
+      throw new Error(data?.error || "Failed to save form.");
+    }
+
+    setMessage("Form saved successfully.");
+  } catch (error) {
+    console.error(error);
+    setMessage(
+      error instanceof Error ? error.message : "Failed to save form."
+    );
+  } finally {
+    setSaving(false);
+  }
+};
   return (
     <div className="space-y-6">
       <div className="overflow-hidden rounded-2xl border bg-white shadow-sm">
@@ -476,8 +750,8 @@ export default function FormBuilderClient({
               <h1 className="mt-2 text-2xl font-bold">Customize Intake Form</h1>
               <p className="mt-2 max-w-2xl text-sm text-gray-300">
                 Build sections, arrange fields, manage public sharing, configure
-                referral behavior, and preview the final form experience from
-                one dashboard.
+                channel behavior, and preview the final form experience from one
+                dashboard.
               </p>
             </div>
 
@@ -519,12 +793,16 @@ export default function FormBuilderClient({
             </span>
 
             <span className="rounded-full bg-gray-100 px-3 py-1 text-xs font-medium text-gray-700">
-              Referral: {referralType === "agent" ? "Agent" : "Standard"}
+              Channel: {getChannelLabel(channel)}
+            </span>
+
+            <span className="rounded-full bg-gray-100 px-3 py-1 text-xs font-medium text-gray-700">
+              Hidden: {hiddenFields}
             </span>
 
             {selectedAgent ? (
               <span className="rounded-full bg-violet-100 px-3 py-1 text-xs font-medium text-violet-700">
-                Agent: {selectedAgent.name}
+                Default Agent: {selectedAgent.name}
               </span>
             ) : null}
           </div>
@@ -650,78 +928,130 @@ export default function FormBuilderClient({
 
           <div className="rounded-2xl border bg-white p-5 shadow-sm">
             <h2 className="text-lg font-semibold text-gray-900">
-              Referral Configuration
+              Channel Configuration
             </h2>
             <p className="mt-1 text-sm text-gray-600">
-              Configure whether this form is a standard public intake form or an
-              agent-linked referral form.
+              Configure the form as a general intake, subagent intake, event
+              form, or partner form without exposing internal agent lists
+              publicly.
             </p>
 
             <div className="mt-4 space-y-4">
               <div>
                 <label className="mb-2 block text-sm font-medium text-gray-700">
-                  Referral Type
+                  Channel Type
                 </label>
                 <select
-                  value={referralType}
+                  value={channel}
                   onChange={(e) =>
-                    setReferralType(e.target.value as "standard" | "agent")
+                    setChannel(
+                      e.target.value as "general" | "subagent" | "event" | "partner"
+                    )
                   }
                   className="w-full rounded-xl border px-3 py-2.5 text-sm"
                 >
-                  <option value="standard">Standard Form</option>
-                  <option value="agent">Agent Referral</option>
+                  <option value="general">General</option>
+                  <option value="subagent">Subagent</option>
+                  <option value="event">Event</option>
+                  <option value="partner">Partner</option>
                 </select>
               </div>
 
-              {referralType === "agent" ? (
-                <div>
-                  <label className="mb-2 block text-sm font-medium text-gray-700">
-                    Select Agent
-                  </label>
-                  <select
-                    value={selectedAgentId}
-                    onChange={(e) => setSelectedAgentId(e.target.value)}
-                    className="w-full rounded-xl border px-3 py-2.5 text-sm"
-                  >
-                    <option value="">Select an agent</option>
-                    {agents.map((agent) => (
-                      <option key={agent.id} value={agent.id}>
-                        {agent.name} ({agent.referralCode})
-                      </option>
-                    ))}
-                  </select>
-                </div>
-              ) : null}
+              {channel === "subagent" ? (
+  <>
+    <div>
+      <label className="mb-2 block text-sm font-medium text-gray-700">
+        Agent Mode
+      </label>
+      <select
+        value={agentMode}
+        onChange={(e) => {
+          const value = e.target.value as "none" | "optional" | "required";
+          setAgentMode(value);
 
-              {referralType === "agent" && selectedAgent ? (
-                <div className="rounded-2xl border border-violet-200 bg-violet-50 p-4">
-                  <div className="flex items-start gap-3">
-                    <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl bg-slate-950 text-xs font-bold text-white">
-                      {getInitials(selectedAgent.name || "A")}
-                    </div>
+          if (value === "none") {
+            setDefaultAgentId("");
+          }
+        }}
+        className="w-full rounded-xl border px-3 py-2.5 text-sm"
+      >
+        <option value="none">No internal agent binding</option>
+        <option value="optional">Optional internal default agent</option>
+        <option value="required">Required internal default agent</option>
+      </select>
+    </div>
 
-                    <div className="min-w-0">
-                      <p className="text-sm font-semibold text-slate-900">
-                        {selectedAgent.name}
-                      </p>
-                      <p className="mt-1 text-xs text-slate-600">
-                        Referral Code: {selectedAgent.referralCode}
-                      </p>
-                      {selectedAgent.contact ? (
-                        <p className="mt-1 text-xs text-slate-500">
-                          Contact: {selectedAgent.contact}
-                        </p>
-                      ) : null}
-                    </div>
-                  </div>
-                </div>
-              ) : null}
+    <div>
+      <label className="mb-2 block text-sm font-medium text-gray-700">
+        Default Internal Agent
+      </label>
+      <select
+        value={defaultAgentId}
+        onChange={(e) => setDefaultAgentId(e.target.value)}
+        disabled={agentMode === "none"}
+        className="w-full rounded-xl border px-3 py-2.5 text-sm disabled:bg-gray-100 disabled:text-gray-400"
+      >
+        <option value="">
+          {agentMode === "none"
+            ? "No internal agent binding"
+            : "Select default internal agent"}
+        </option>
+        {agents.map((agent) => (
+          <option key={agent.id} value={agent.id}>
+            {agent.name} ({agent.referralCode})
+          </option>
+        ))}
+      </select>
+    </div>
+
+    {agentMode === "required" && !defaultAgentId ? (
+      <div className="rounded-2xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-800">
+        Required mode needs a default internal agent before the form can be saved.
+      </div>
+    ) : null}
+
+    {selectedAgent ? (
+      <div className="rounded-2xl border border-violet-200 bg-violet-50 p-4">
+        <div className="flex items-start gap-3">
+          <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl bg-slate-950 text-xs font-bold text-white">
+            {getInitials(selectedAgent.name || "A")}
+          </div>
+
+          <div className="min-w-0">
+            <p className="text-sm font-semibold text-slate-900">
+              {selectedAgent.name}
+            </p>
+            <p className="mt-1 text-xs text-slate-600">
+              Referral Code: {selectedAgent.referralCode}
+            </p>
+            {selectedAgent.contact ? (
+              <p className="mt-1 text-xs text-slate-500">
+                Contact: {selectedAgent.contact}
+              </p>
+            ) : null}
+          </div>
+        </div>
+      </div>
+    ) : null}
+
+    <button
+      type="button"
+      onClick={handleApplySubagentStarter}
+      className="w-full rounded-xl border border-black bg-black px-4 py-2.5 text-sm font-medium text-white"
+    >
+      Apply Subagent Starter Fields
+    </button>
+  </>
+) : null}
 
               <div className="rounded-xl border bg-gray-50 px-4 py-3 text-xs text-gray-600">
-                {referralType === "agent"
-                  ? "Submissions from this form will be treated as agent referrals and can create leads linked to the selected agent."
-                  : "Submissions from this form will be treated as standard intake submissions."}
+                {channel === "subagent"
+                  ? "This form will act as one shared subagent intake form. Public users will not see your full internal agent list. Instead, the form can capture private subagent details and still route leads correctly."
+                  : channel === "event"
+                  ? "This form will behave like an event intake channel."
+                  : channel === "partner"
+                  ? "This form will behave like a partner intake channel."
+                  : "This form will behave like a standard intake form."}
               </div>
             </div>
           </div>
@@ -804,7 +1134,11 @@ export default function FormBuilderClient({
                 <input
                   type="checkbox"
                   checked={isActive}
-                  onChange={(e) => setIsActive(e.target.checked)}
+                 onChange={(e) => {
+  const checked = e.target.checked;
+  setIsActive(checked);
+  setStatus(checked ? "active" : "draft");
+}}
                 />
                 Make this form active
               </label>
@@ -1227,10 +1561,16 @@ export default function FormBuilderClient({
               <p className="mt-2 text-sm text-gray-600">{description}</p>
             ) : null}
 
-            {referralType === "agent" && selectedAgent ? (
+            {channel === "subagent" ? (
               <div className="mt-4 rounded-2xl border border-violet-200 bg-violet-50 px-4 py-3 text-sm text-violet-700">
-                This form is configured as an agent referral form for{" "}
-                <span className="font-semibold">{selectedAgent.name}</span>.
+                This form is configured as a shared subagent intake form.
+                {selectedAgent ? (
+                  <>
+                    {" "}
+                    Default internal agent:{" "}
+                    <span className="font-semibold">{selectedAgent.name}</span>.
+                  </>
+                ) : null}
               </div>
             ) : null}
 
@@ -1259,88 +1599,19 @@ export default function FormBuilderClient({
                     <div className="grid grid-cols-1 gap-5 p-6 md:grid-cols-12">
                       {section.fields
                         .filter((field) => field.visible !== false)
-                        .map((field, fieldIndex) => {
-                          const value = previewValues[field.key] ?? "";
-                          const isTextarea = field.type === "textarea";
-                          const isSelect = field.type === "select";
-                          const isRadio = field.type === "radio";
-                          const isCheckbox = field.type === "checkbox";
+                        .map((field) => {
+                          const previewValue = previewValues[field.key] ?? "";
 
                           return (
                             <div
-                              key={`${field.key}-${fieldIndex}`}
+                              key={field.key}
                               className={getWidthClass(field.width)}
                             >
-                              {!isCheckbox ? (
-                                <label className="mb-2 block text-sm font-medium text-gray-700">
-                                  {field.label || "Untitled Field"}
-                                  {field.required ? (
-                                    <span className="text-red-500"> *</span>
-                                  ) : null}
-                                </label>
-                              ) : null}
-
-                              {isTextarea ? (
-                                <textarea
-                                  rows={4}
-                                  value={value}
-                                  onChange={(e) =>
-                                    setPreviewValues((prev) => ({
-                                      ...prev,
-                                      [field.key]: e.target.value,
-                                    }))
-                                  }
-                                  placeholder={field.placeholder || ""}
-                                  className="w-full rounded-xl border px-3 py-2.5 text-sm"
-                                />
-                              ) : isSelect ? (
-                                <select
-                                  value={value}
-                                  onChange={(e) =>
-                                    setPreviewValues((prev) => ({
-                                      ...prev,
-                                      [field.key]: e.target.value,
-                                    }))
-                                  }
-                                  className="w-full rounded-xl border px-3 py-2.5 text-sm"
-                                >
-                                  <option value="">Select an option</option>
-                                  {(field.options ?? []).map((option, optionIndex) => (
-                                    <option
-                                      key={`${option.value}-${optionIndex}`}
-                                      value={option.value}
-                                    >
-                                      {option.label}
-                                    </option>
-                                  ))}
-                                </select>
-                              ) : isRadio ? (
-                                <div className="space-y-2">
-                                  {(field.options ?? []).map((option, optionIndex) => (
-                                    <label
-                                      key={`${option.value}-${optionIndex}`}
-                                      className="flex items-center gap-2 rounded-lg border bg-white px-3 py-2 text-sm text-gray-700"
-                                    >
-                                      <input
-                                        type="radio"
-                                        name={field.key}
-                                        checked={value === option.value}
-                                        onChange={() =>
-                                          setPreviewValues((prev) => ({
-                                            ...prev,
-                                            [field.key]: option.value,
-                                          }))
-                                        }
-                                      />
-                                      <span>{option.label}</span>
-                                    </label>
-                                  ))}
-                                </div>
-                              ) : isCheckbox ? (
-                                <label className="flex items-center gap-3 rounded-xl border bg-white px-4 py-3 text-sm text-gray-700">
+                              {field.type === "checkbox" ? (
+                                <label className="flex items-center gap-2 text-sm text-gray-700">
                                   <input
                                     type="checkbox"
-                                    checked={value === "true"}
+                                    checked={previewValue === "true"}
                                     onChange={(e) =>
                                       setPreviewValues((prev) => ({
                                         ...prev,
@@ -1350,26 +1621,89 @@ export default function FormBuilderClient({
                                       }))
                                     }
                                   />
-                                  <span>
-                                    {field.label || "Untitled Field"}
-                                    {field.required ? (
-                                      <span className="text-red-500"> *</span>
-                                    ) : null}
-                                  </span>
+                                  {field.label}
                                 </label>
                               ) : (
-                                <input
-                                  type={field.type === "email" ? "email" : field.type === "number" ? "number" : field.type === "date" ? "date" : field.type === "tel" ? "tel" : "text"}
-                                  value={value}
-                                  onChange={(e) =>
-                                    setPreviewValues((prev) => ({
-                                      ...prev,
-                                      [field.key]: e.target.value,
-                                    }))
-                                  }
-                                  placeholder={field.placeholder || ""}
-                                  className="w-full rounded-xl border px-3 py-2.5 text-sm"
-                                />
+                                <>
+                                  <label className="mb-2 block text-sm font-medium text-gray-700">
+                                    {field.label}
+                                    {field.required ? (
+                                      <span className="ml-1 text-red-500">*</span>
+                                    ) : null}
+                                  </label>
+
+                                  {field.type === "textarea" ? (
+                                    <textarea
+                                      value={previewValue}
+                                      onChange={(e) =>
+                                        setPreviewValues((prev) => ({
+                                          ...prev,
+                                          [field.key]: e.target.value,
+                                        }))
+                                      }
+                                      rows={4}
+                                      placeholder={field.placeholder}
+                                      className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm outline-none transition focus:border-black"
+                                    />
+                                  ) : field.type === "select" ? (
+                                    <select
+                                      value={previewValue}
+                                      onChange={(e) =>
+                                        setPreviewValues((prev) => ({
+                                          ...prev,
+                                          [field.key]: e.target.value,
+                                        }))
+                                      }
+                                      className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm outline-none transition focus:border-black"
+                                    >
+                                      <option value="">Select</option>
+                                      {field.options?.map((option) => (
+                                        <option
+                                          key={option.value}
+                                          value={option.value}
+                                        >
+                                          {option.label}
+                                        </option>
+                                      ))}
+                                    </select>
+                                  ) : field.type === "radio" ? (
+                                    <div className="flex flex-wrap gap-4">
+                                      {field.options?.map((option) => (
+                                        <label
+                                          key={option.value}
+                                          className="flex items-center gap-2 text-sm text-gray-700"
+                                        >
+                                          <input
+                                            type="radio"
+                                            name={`preview_${field.key}`}
+                                            value={option.value}
+                                            checked={previewValue === option.value}
+                                            onChange={(e) =>
+                                              setPreviewValues((prev) => ({
+                                                ...prev,
+                                                [field.key]: e.target.value,
+                                              }))
+                                            }
+                                          />
+                                          {option.label}
+                                        </label>
+                                      ))}
+                                    </div>
+                                  ) : (
+                                    <input
+                                      type={field.type === "tel" ? "tel" : field.type}
+                                      value={previewValue}
+                                      onChange={(e) =>
+                                        setPreviewValues((prev) => ({
+                                          ...prev,
+                                          [field.key]: e.target.value,
+                                        }))
+                                      }
+                                      placeholder={field.placeholder}
+                                      className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm outline-none transition focus:border-black"
+                                    />
+                                  )}
+                                </>
                               )}
                             </div>
                           );
@@ -1380,27 +1714,14 @@ export default function FormBuilderClient({
               )}
             </div>
 
-            <div className="mt-6">
+            <div className="mt-6 flex justify-end">
               <button
                 type="button"
-                className="rounded-xl bg-black px-5 py-2.5 text-sm font-medium text-white"
+                className="rounded-lg bg-black px-5 py-3 text-sm font-medium text-white"
               >
                 {submitButtonText || "Submit"}
               </button>
             </div>
-
-            {successMessage ? (
-              <div className="mt-4 rounded-xl border border-green-100 bg-green-50 px-4 py-3 text-sm text-green-700">
-                Success message preview: {successMessage}
-              </div>
-            ) : null}
-
-            {hiddenFields > 0 ? (
-              <div className="mt-4 rounded-xl border border-amber-100 bg-amber-50 px-4 py-3 text-sm text-amber-700">
-                {hiddenFields} field{hiddenFields === 1 ? "" : "s"} currently hidden
-                from the live preview.
-              </div>
-            ) : null}
           </div>
         </div>
       </div>

@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { Prisma } from "@prisma/client";
+import { Prisma, IntakeFormRequestStatus } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
 import { requireAuth } from "@/lib/require-auth";
 
@@ -11,6 +11,9 @@ type IntakeFormSettings = {
   referralType: "standard" | "agent";
   agentId: string | null;
   source: string;
+  channel: "general" | "subagent" | "event" | "partner";
+  agentMode: "none" | "optional" | "required";
+  defaultAgentId: string | null;
 };
 
 function normalizeOptionalString(value: unknown) {
@@ -19,37 +22,24 @@ function normalizeOptionalString(value: unknown) {
   return trimmed.length > 0 ? trimmed : null;
 }
 
-function normalizeSettings(value: unknown): IntakeFormSettings {
-  if (!value || typeof value !== "object" || Array.isArray(value)) {
-    return {
-      referralType: "standard",
-      agentId: null,
-      source: "intake_form",
-    };
-  }
+function normalizeChannel(value: unknown): IntakeFormSettings["channel"] {
+  if (value === "subagent") return "subagent";
+  if (value === "event") return "event";
+  if (value === "partner") return "partner";
+  return "general";
+}
 
-  const obj = value as Record<string, unknown>;
+function normalizeAgentMode(value: unknown): IntakeFormSettings["agentMode"] {
+  if (value === "required") return "required";
+  if (value === "optional") return "optional";
+  return "none";
+}
 
-  const referralType =
-    obj.referralType === "agent" ? "agent" : "standard";
-
-  const agentId =
-    typeof obj.agentId === "string" && obj.agentId.trim().length > 0
-      ? obj.agentId.trim()
-      : null;
-
-  const source =
-    typeof obj.source === "string" && obj.source.trim().length > 0
-      ? obj.source.trim()
-      : referralType === "agent"
-      ? "agent"
-      : "intake_form";
-
-  return {
-    referralType,
-    agentId,
-    source,
-  };
+function normalizeStatus(value: unknown): IntakeFormRequestStatus {
+  if (value === "active") return IntakeFormRequestStatus.active;
+  if (value === "inactive") return IntakeFormRequestStatus.inactive;
+  if (value === "archived") return IntakeFormRequestStatus.archived;
+  return IntakeFormRequestStatus.draft;
 }
 
 function buildPublicUrl(token: string) {
@@ -58,11 +48,71 @@ function buildPublicUrl(token: string) {
   return base ? `${base}/forms/${token}` : `/forms/${token}`;
 }
 
-function normalizeStatus(value: unknown) {
-  if (value === "active") return "active";
-  if (value === "inactive") return "inactive";
-  if (value === "archived") return "archived";
-  return "draft";
+function normalizeSettings(value: unknown): IntakeFormSettings {
+  if (!value || typeof value !== "object" || Array.isArray(value)) {
+    return {
+      referralType: "standard",
+      agentId: null,
+      source: "intake_form",
+      channel: "general",
+      agentMode: "none",
+      defaultAgentId: null,
+    };
+  }
+
+  const obj = value as Record<string, unknown>;
+
+  const referralType =
+    obj.referralType === "agent" ? "agent" : "standard";
+
+  const channel =
+    typeof obj.channel === "string"
+      ? normalizeChannel(obj.channel)
+      : referralType === "agent"
+      ? "subagent"
+      : "general";
+
+  const agentMode =
+    typeof obj.agentMode === "string"
+      ? normalizeAgentMode(obj.agentMode)
+      : referralType === "agent"
+      ? "required"
+      : "none";
+
+  const defaultAgentId =
+    typeof obj.defaultAgentId === "string" &&
+    obj.defaultAgentId.trim().length > 0
+      ? obj.defaultAgentId.trim()
+      : null;
+
+  const legacyAgentId =
+    typeof obj.agentId === "string" && obj.agentId.trim().length > 0
+      ? obj.agentId.trim()
+      : null;
+
+  const resolvedDefaultAgentId = defaultAgentId ?? legacyAgentId;
+
+  const source =
+    typeof obj.source === "string" && obj.source.trim().length > 0
+      ? obj.source.trim()
+      : channel === "subagent"
+      ? "subagent"
+      : channel === "event"
+      ? "event"
+      : channel === "partner"
+      ? "partner"
+      : referralType === "agent"
+      ? "agent"
+      : "intake_form";
+
+  return {
+    referralType: channel === "subagent" ? "agent" : referralType,
+    agentId: null,
+    source,
+    channel,
+    agentMode,
+    defaultAgentId: resolvedDefaultAgentId,
+  };
 }
 
 export async function PATCH(req: NextRequest, context: RouteContext) {
@@ -106,8 +156,9 @@ export async function PATCH(req: NextRequest, context: RouteContext) {
     const normalizedSuccessMessage =
       normalizeOptionalString(successMessage) ??
       "Form submitted successfully.";
-    const normalizedStatus = normalizeStatus(status);
+
     const normalizedSettings = normalizeSettings(settings);
+    const requestedStatus = normalizeStatus(status);
 
     if (!normalizedTitle) {
       return NextResponse.json(
@@ -117,11 +168,21 @@ export async function PATCH(req: NextRequest, context: RouteContext) {
     }
 
     if (
-      normalizedSettings.referralType === "agent" &&
-      normalizedSettings.agentId
+      normalizedSettings.agentMode === "required" &&
+      !normalizedSettings.defaultAgentId
     ) {
+      return NextResponse.json(
+        {
+          error:
+            "A default internal agent is required when agent mode is set to required.",
+        },
+        { status: 400 }
+      );
+    }
+
+    if (normalizedSettings.defaultAgentId) {
       const agent = await prisma.subagent.findUnique({
-        where: { id: normalizedSettings.agentId },
+        where: { id: normalizedSettings.defaultAgentId },
         select: {
           id: true,
           isActive: true,
@@ -130,14 +191,27 @@ export async function PATCH(req: NextRequest, context: RouteContext) {
 
       if (!agent || !agent.isActive) {
         return NextResponse.json(
-          { error: "Selected agent is invalid or inactive." },
+          { error: "Selected default internal agent is invalid or inactive." },
           { status: 400 }
         );
       }
     }
 
+    let resolvedStatus: IntakeFormRequestStatus = requestedStatus;
+    let resolvedIsActive =
+      typeof isActive === "boolean" ? isActive : undefined;
+
+    if (resolvedStatus === IntakeFormRequestStatus.draft) {
+      resolvedIsActive = false;
+    } else if (resolvedStatus === IntakeFormRequestStatus.inactive) {
+      resolvedIsActive = false;
+    } else if (resolvedStatus === IntakeFormRequestStatus.archived) {
+      resolvedIsActive = false;
+    } else if (resolvedStatus === IntakeFormRequestStatus.active) {
+      resolvedIsActive = true;
+    }
+
     const publicUrl = buildPublicUrl(existing.token);
-    const shouldBeActive = typeof isActive === "boolean" ? isActive : undefined;
 
     const updated = await prisma.intakeFormRequest.update({
       where: { id },
@@ -148,14 +222,14 @@ export async function PATCH(req: NextRequest, context: RouteContext) {
         successMessage: normalizedSuccessMessage,
         publicUrl,
         qrCodeValue: publicUrl,
-        isActive: shouldBeActive,
-        status: normalizedStatus,
+        isActive: resolvedIsActive,
+        status: resolvedStatus,
         formSchema: Array.isArray(formSchema)
           ? (formSchema as Prisma.InputJsonValue)
           : [],
         settings: normalizedSettings as Prisma.InputJsonValue,
         sharedAt:
-          normalizedStatus === "active"
+          resolvedStatus === IntakeFormRequestStatus.active
             ? existing.sharedAt ?? new Date()
             : null,
       },

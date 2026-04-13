@@ -42,14 +42,15 @@ export default function DynamicFormRenderer({
   onChange,
 }: DynamicFormRendererProps) {
   return (
-    <div className="mx-auto max-w-6xl space-y-8">
+    <div className="mx-auto max-w-6xl space-y-10">
       {schema.map((section) => (
         <section
           key={section.key}
-          className="rounded-xl border border-gray-200 bg-white shadow-sm"
+          className="rounded-3xl border border-gray-200 bg-white shadow-[0_10px_30px_rgba(0,0,0,0.05)]"
         >
-          <div className="border-b border-gray-100 px-6 py-4">
-            <h2 className="text-lg font-semibold text-gray-900">
+          {/* Section Header */}
+          <div className="border-b border-gray-100 px-6 py-5">
+            <h2 className="text-xl font-semibold text-gray-900">
               {section.title}
             </h2>
 
@@ -60,10 +61,10 @@ export default function DynamicFormRenderer({
             ) : null}
           </div>
 
-          <div className="grid grid-cols-1 gap-5 p-6 md:grid-cols-12">
-            {schema
-              .find((s) => s.key === section.key)
-              ?.fields.filter((field) => field.visible !== false)
+          {/* Fields */}
+          <div className="grid grid-cols-1 gap-6 p-6 md:grid-cols-12">
+            {section.fields
+              .filter((field) => field.visible !== false)
               .map((field) => {
                 const rawValue = values[field.key];
                 const value = getStringValue(rawValue);
@@ -77,28 +78,30 @@ export default function DynamicFormRenderer({
 
                 return (
                   <div key={field.key} className={getWidthClass(field)}>
-                    {!isCheckbox ? (
+                    {!isCheckbox && (
                       <label className="mb-2 block text-sm font-medium text-gray-700">
                         {field.label}
-                        {field.required ? (
+                        {field.required && (
                           <span className="ml-1 text-red-500">*</span>
-                        ) : null}
+                        )}
                       </label>
-                    ) : null}
+                    )}
 
+                    {/* TEXTAREA */}
                     {isTextarea ? (
                       <textarea
                         value={value}
                         onChange={(e) => onChange(field.key, e.target.value)}
                         placeholder={field.placeholder}
                         rows={4}
-                        className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm outline-none transition focus:border-black"
+                        className="w-full rounded-xl border border-gray-300 px-4 py-3 text-sm shadow-sm outline-none transition focus:border-black focus:ring-1 focus:ring-black"
                       />
                     ) : isSelect ? (
+                      /* SELECT */
                       <select
                         value={value}
                         onChange={(e) => onChange(field.key, e.target.value)}
-                        className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm outline-none transition focus:border-black"
+                        className="w-full rounded-xl border border-gray-300 px-4 py-3 text-sm shadow-sm outline-none transition focus:border-black focus:ring-1 focus:ring-black"
                       >
                         <option value="">Select</option>
                         {field.options?.map((option) => (
@@ -108,33 +111,40 @@ export default function DynamicFormRenderer({
                         ))}
                       </select>
                     ) : isRadio ? (
+                      /* RADIO */
                       <div className="flex flex-wrap gap-4">
                         {field.options?.map((option) => (
                           <label
                             key={option.value}
-                            className="flex items-center gap-2 text-sm text-gray-700"
+                            className="flex items-center gap-2 rounded-lg border px-3 py-2 text-sm text-gray-700 hover:bg-gray-50"
                           >
                             <input
                               type="radio"
                               name={field.key}
                               value={option.value}
                               checked={value === option.value}
-                              onChange={(e) => onChange(field.key, e.target.value)}
+                              onChange={(e) =>
+                                onChange(field.key, e.target.value)
+                              }
                             />
                             {option.label}
                           </label>
                         ))}
                       </div>
                     ) : isCheckbox ? (
-                      <label className="flex items-center gap-2 text-sm text-gray-700">
+                      /* CHECKBOX */
+                      <label className="flex items-center gap-3 rounded-xl border px-4 py-3 text-sm text-gray-700 hover:bg-gray-50">
                         <input
                           type="checkbox"
                           checked={checked}
-                          onChange={(e) => onChange(field.key, e.target.checked)}
+                          onChange={(e) =>
+                            onChange(field.key, e.target.checked)
+                          }
                         />
                         {field.label}
                       </label>
                     ) : (
+                      /* INPUT */
                       <input
                         type={field.type}
                         value={value}
@@ -149,7 +159,7 @@ export default function DynamicFormRenderer({
                           )
                         }
                         placeholder={field.placeholder}
-                        className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm outline-none transition focus:border-black"
+                        className="w-full rounded-xl border border-gray-300 px-4 py-3 text-sm shadow-sm outline-none transition focus:border-black focus:ring-1 focus:ring-black"
                       />
                     )}
                   </div>

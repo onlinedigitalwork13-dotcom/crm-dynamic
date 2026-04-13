@@ -84,6 +84,7 @@ export default async function LeadsPage() {
           phone: true,
           assignedToId: true,
           createdById: true,
+          branchId: true,
         },
       },
       intakeSubmission: {
@@ -95,6 +96,47 @@ export default async function LeadsPage() {
           phone: true,
           status: true,
           assignedToId: true,
+          clientId: true,
+          country: true,
+          city: true,
+          address: true,
+          nationality: true,
+          passportNumber: true,
+          dateOfBirth: true,
+          notes: true,
+          createdAt: true,
+          updatedAt: true,
+          submissionMeta: true,
+          intakeFormRequest: {
+            select: {
+              id: true,
+              title: true,
+              token: true,
+            },
+          },
+          branch: {
+            select: {
+              id: true,
+              name: true,
+              code: true,
+            },
+          },
+          assignedTo: {
+            select: {
+              id: true,
+              firstName: true,
+              lastName: true,
+              email: true,
+            },
+          },
+          reviewedBy: {
+            select: {
+              id: true,
+              firstName: true,
+              lastName: true,
+              email: true,
+            },
+          },
         },
       },
       clientCheckIn: {
@@ -126,6 +168,27 @@ export default async function LeadsPage() {
         },
         orderBy: {
           createdAt: "asc",
+        },
+      },
+      activities: {
+        orderBy: {
+          createdAt: "desc",
+        },
+        take: 10,
+        select: {
+          id: true,
+          action: true,
+          details: true,
+          createdAt: true,
+          actorUserId: true,
+          actorUser: {
+            select: {
+              id: true,
+              firstName: true,
+              lastName: true,
+              email: true,
+            },
+          },
         },
       },
     },

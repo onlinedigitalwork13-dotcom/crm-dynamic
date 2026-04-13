@@ -22,7 +22,7 @@ function getDefaultFormSchema(): Prisma.InputJsonValue {
     {
       key: "personal_details",
       title: "Personal Details",
-      description: "Basic client information",
+      description: "Basic student or client information",
       fields: [
         {
           key: "firstName",
@@ -31,6 +31,7 @@ function getDefaultFormSchema(): Prisma.InputJsonValue {
           required: true,
           width: "half",
           placeholder: "Enter first name",
+          visible: true,
         },
         {
           key: "lastName",
@@ -39,6 +40,7 @@ function getDefaultFormSchema(): Prisma.InputJsonValue {
           required: true,
           width: "half",
           placeholder: "Enter last name",
+          visible: true,
         },
         {
           key: "email",
@@ -46,14 +48,16 @@ function getDefaultFormSchema(): Prisma.InputJsonValue {
           type: "email",
           width: "half",
           placeholder: "Enter email address",
+          visible: true,
         },
         {
           key: "phone",
           label: "Phone Number",
-          type: "text",
+          type: "tel",
           required: true,
           width: "half",
           placeholder: "Enter phone number",
+          visible: true,
         },
         {
           key: "country",
@@ -61,6 +65,7 @@ function getDefaultFormSchema(): Prisma.InputJsonValue {
           type: "text",
           width: "half",
           placeholder: "Enter country",
+          visible: true,
         },
         {
           key: "notes",
@@ -68,17 +73,24 @@ function getDefaultFormSchema(): Prisma.InputJsonValue {
           type: "textarea",
           width: "full",
           placeholder: "Add any extra details",
+          visible: true,
         },
       ],
     },
-  ];
+  ] as Prisma.InputJsonValue;
 }
 
 function getDefaultSettings(): Prisma.InputJsonValue {
   return {
+    // backward compatibility
     referralType: "standard",
     agentId: null,
     source: "intake_form",
+
+    // new channel-based system
+    channel: "general",
+    agentMode: "none",
+    defaultAgentId: null,
   };
 }
 

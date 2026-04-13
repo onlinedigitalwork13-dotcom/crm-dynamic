@@ -39,6 +39,27 @@ type Props = {
   subagents: OptionItem[];
 };
 
+type SelectOption = {
+  value: string;
+  label: string;
+};
+
+type InputProps = {
+  label: string;
+  name: string;
+  defaultValue?: string;
+};
+
+type SelectProps = {
+  label: string;
+  name: string;
+  options: SelectOption[];
+  value?: string;
+  defaultValue?: string;
+  onChange?: (value: string) => void;
+  disabled?: boolean;
+};
+
 export default function ConvertIntakeSubmissionClient({
   submissionId,
   defaultValues,
@@ -52,8 +73,22 @@ export default function ConvertIntakeSubmissionClient({
   const [selectedStageId, setSelectedStageId] = useState("");
   const [submitting, setSubmitting] = useState(false);
 
+  const [search, setSearch] = useState("");
+  const [selectedSubagentId, setSelectedSubagentId] = useState("");
+  const [createNew, setCreateNew] = useState(false);
+
+  const filteredSubagents = useMemo(() => {
+    if (!search.trim()) return subagents;
+
+    const query = search.trim().toLowerCase();
+    return subagents.filter((subagent) =>
+      subagent.name.toLowerCase().includes(query)
+    );
+  }, [search, subagents]);
+
   const filteredStages = useMemo(() => {
     if (!selectedWorkflowId) return [];
+
     return workflowStages
       .filter((stage) => stage.workflowId === selectedWorkflowId)
       .sort((a, b) => a.orderIndex - b.orderIndex);
@@ -64,165 +99,134 @@ export default function ConvertIntakeSubmissionClient({
       action={`/api/intake-submissions/${submissionId}/convert`}
       method="post"
       onSubmit={() => setSubmitting(true)}
-      className="rounded-xl border bg-white p-6 shadow-sm"
+      className="rounded-2xl border bg-white p-6 shadow-sm"
     >
       <h2 className="text-lg font-semibold text-gray-900">
         Conversion Settings
       </h2>
       <p className="mt-2 text-sm text-gray-600">
-        Adjust the client details and select branch, source, workflow, stage,
-        and subagent before conversion.
+        Review details, assign workflow, and intelligently link or create a
+        subagent before conversion.
       </p>
 
       <div className="mt-6 grid gap-4 md:grid-cols-2">
-        <div>
-          <label className="mb-2 block text-sm font-medium text-gray-700">
-            First Name
-          </label>
-          <input
-            name="firstName"
-            defaultValue={defaultValues.firstName}
-            className="w-full rounded-lg border px-3 py-2 text-sm"
-          />
-        </div>
+        <Input
+          label="First Name"
+          name="firstName"
+          defaultValue={defaultValues.firstName}
+        />
+        <Input
+          label="Last Name"
+          name="lastName"
+          defaultValue={defaultValues.lastName}
+        />
+        <Input
+          label="Email"
+          name="email"
+          defaultValue={defaultValues.email}
+        />
+        <Input
+          label="Phone"
+          name="phone"
+          defaultValue={defaultValues.phone}
+        />
+        <Input
+          label="Passport"
+          name="passportNumber"
+          defaultValue={defaultValues.passport}
+        />
 
-        <div>
-          <label className="mb-2 block text-sm font-medium text-gray-700">
-            Last Name
-          </label>
-          <input
-            name="lastName"
-            defaultValue={defaultValues.lastName}
-            className="w-full rounded-lg border px-3 py-2 text-sm"
-          />
-        </div>
+        <Select
+          label="Branch"
+          name="branchId"
+          defaultValue={defaultValues.branchId}
+          options={branches.map((branch) => ({
+            value: branch.id,
+            label: `${branch.name}${branch.code ? ` (${branch.code})` : ""}`,
+          }))}
+        />
 
-        <div>
-          <label className="mb-2 block text-sm font-medium text-gray-700">
-            Email
-          </label>
-          <input
-            name="email"
-            defaultValue={defaultValues.email}
-            className="w-full rounded-lg border px-3 py-2 text-sm"
-          />
-        </div>
+        <Select
+          label="Lead Source"
+          name="leadSourceId"
+          options={leadSources.map((source) => ({
+            value: source.id,
+            label: source.name,
+          }))}
+        />
 
-        <div>
-          <label className="mb-2 block text-sm font-medium text-gray-700">
-            Phone
-          </label>
-          <input
-            name="phone"
-            defaultValue={defaultValues.phone}
-            className="w-full rounded-lg border px-3 py-2 text-sm"
-          />
-        </div>
+        <Select
+          label="Workflow"
+          name="workflowId"
+          value={selectedWorkflowId}
+          onChange={(value: string) => {
+            setSelectedWorkflowId(value);
+            setSelectedStageId("");
+          }}
+          options={workflows.map((workflow) => ({
+            value: workflow.id,
+            label: workflow.name,
+          }))}
+        />
 
-        <div>
-          <label className="mb-2 block text-sm font-medium text-gray-700">
-            Passport
-          </label>
-          <input
-            name="passportNumber"
-            defaultValue={defaultValues.passport}
-            className="w-full rounded-lg border px-3 py-2 text-sm"
-          />
-        </div>
+        <Select
+          label="Stage"
+          name="workflowStageId"
+          value={selectedStageId}
+          disabled={!selectedWorkflowId}
+          onChange={(value: string) => setSelectedStageId(value)}
+          options={filteredStages.map((stage) => ({
+            value: stage.id,
+            label: stage.name,
+          }))}
+        />
 
-        <div>
-          <label className="mb-2 block text-sm font-medium text-gray-700">
-            Branch
-          </label>
-          <select
-            name="branchId"
-            defaultValue={defaultValues.branchId}
-            className="w-full rounded-lg border px-3 py-2 text-sm"
-          >
-            <option value="">Select branch</option>
-            {branches.map((branch) => (
-              <option key={branch.id} value={branch.id}>
-                {branch.name}
-                {branch.code ? ` (${branch.code})` : ""}
-              </option>
-            ))}
-          </select>
-        </div>
+        <div className="md:col-span-2 rounded-2xl border p-4">
+          <div className="flex items-center justify-between">
+            <p className="text-sm font-semibold text-gray-900">
+              Subagent Assignment
+            </p>
 
-        <div>
-          <label className="mb-2 block text-sm font-medium text-gray-700">
-            Lead Source
-          </label>
-          <select
-            name="leadSourceId"
-            className="w-full rounded-lg border px-3 py-2 text-sm"
-          >
-            <option value="">Select source</option>
-            {leadSources.map((source) => (
-              <option key={source.id} value={source.id}>
-                {source.name}
-              </option>
-            ))}
-          </select>
-        </div>
+            <button
+              type="button"
+              onClick={() => setCreateNew((prev) => !prev)}
+              className="text-xs text-blue-600 underline"
+            >
+              {createNew ? "Search Existing" : "Create New"}
+            </button>
+          </div>
 
-        <div>
-          <label className="mb-2 block text-sm font-medium text-gray-700">
-            Workflow
-          </label>
-          <select
-            name="workflowId"
-            value={selectedWorkflowId}
-            onChange={(e) => {
-              setSelectedWorkflowId(e.target.value);
-              setSelectedStageId("");
-            }}
-            className="w-full rounded-lg border px-3 py-2 text-sm"
-          >
-            <option value="">Select workflow</option>
-            {workflows.map((workflow) => (
-              <option key={workflow.id} value={workflow.id}>
-                {workflow.name}
-              </option>
-            ))}
-          </select>
-        </div>
+          {!createNew ? (
+            <>
+              <input
+                placeholder="Search subagent..."
+                value={search}
+                onChange={(e) => setSearch(e.target.value)}
+                className="mt-3 w-full rounded-lg border px-3 py-2 text-sm"
+              />
 
-        <div>
-          <label className="mb-2 block text-sm font-medium text-gray-700">
-            Stage
-          </label>
-          <select
-            name="workflowStageId"
-            value={selectedStageId}
-            onChange={(e) => setSelectedStageId(e.target.value)}
-            disabled={!selectedWorkflowId}
-            className="w-full rounded-lg border px-3 py-2 text-sm disabled:bg-gray-100"
-          >
-            <option value="">Select stage</option>
-            {filteredStages.map((stage) => (
-              <option key={stage.id} value={stage.id}>
-                {stage.name}
-              </option>
-            ))}
-          </select>
-        </div>
-
-        <div>
-          <label className="mb-2 block text-sm font-medium text-gray-700">
-            Subagent
-          </label>
-          <select
-            name="subagentId"
-            className="w-full rounded-lg border px-3 py-2 text-sm"
-          >
-            <option value="">Select subagent</option>
-            {subagents.map((subagent) => (
-              <option key={subagent.id} value={subagent.id}>
-                {subagent.name}
-              </option>
-            ))}
-          </select>
+              <select
+                name="subagentId"
+                value={selectedSubagentId}
+                onChange={(e) => setSelectedSubagentId(e.target.value)}
+                className="mt-3 w-full rounded-lg border px-3 py-2 text-sm"
+              >
+                <option value="">Select subagent</option>
+                {filteredSubagents.map((subagent) => (
+                  <option key={subagent.id} value={subagent.id}>
+                    {subagent.name}
+                  </option>
+                ))}
+              </select>
+            </>
+          ) : (
+            <div className="mt-3 grid gap-3 md:grid-cols-2">
+              <Input label="Subagent Name" name="newSubagentName" />
+              <Input label="Email" name="newSubagentEmail" />
+              <Input label="Phone" name="newSubagentPhone" />
+              <Input label="Company / Agency" name="newSubagentAgency" />
+            </div>
+          )}
         </div>
 
         <div className="md:col-span-2">
@@ -238,10 +242,10 @@ export default function ConvertIntakeSubmissionClient({
         </div>
       </div>
 
-      <div className="mt-6 flex flex-wrap justify-end gap-3">
+      <div className="mt-6 flex justify-end gap-3">
         <Link
           href="/intake-submissions"
-          className="rounded-lg border border-gray-300 px-4 py-2 text-sm font-medium text-gray-700"
+          className="rounded-lg border px-4 py-2 text-sm"
         >
           Cancel
         </Link>
@@ -249,11 +253,59 @@ export default function ConvertIntakeSubmissionClient({
         <button
           type="submit"
           disabled={submitting}
-          className="rounded-lg bg-black px-4 py-2 text-sm font-medium text-white disabled:opacity-50"
+          className="rounded-lg bg-black px-4 py-2 text-sm text-white disabled:opacity-50"
         >
           {submitting ? "Converting..." : "Convert to Client"}
         </button>
       </div>
     </form>
+  );
+}
+
+function Input({ label, name, defaultValue }: InputProps) {
+  return (
+    <div>
+      <label className="mb-2 block text-sm font-medium text-gray-700">
+        {label}
+      </label>
+      <input
+        name={name}
+        defaultValue={defaultValue}
+        className="w-full rounded-lg border px-3 py-2 text-sm"
+      />
+    </div>
+  );
+}
+
+function Select({
+  label,
+  name,
+  options,
+  value,
+  defaultValue,
+  onChange,
+  disabled,
+}: SelectProps) {
+  return (
+    <div>
+      <label className="mb-2 block text-sm font-medium text-gray-700">
+        {label}
+      </label>
+      <select
+        name={name}
+        value={value}
+        defaultValue={defaultValue}
+        onChange={(e) => onChange?.(e.target.value)}
+        disabled={disabled}
+        className="w-full rounded-lg border px-3 py-2 text-sm disabled:bg-gray-100"
+      >
+        <option value="">Select</option>
+        {options.map((option) => (
+          <option key={option.value} value={option.value}>
+            {option.label}
+          </option>
+        ))}
+      </select>
+    </div>
   );
 }

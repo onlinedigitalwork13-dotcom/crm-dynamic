@@ -79,6 +79,7 @@ type LeadItem = {
     phone: string | null;
     status: string;
     assignedToId?: string | null;
+    submissionMeta?: unknown;
   } | null;
   clientCheckIn: {
     id: string;
@@ -160,8 +161,20 @@ function getSourceBadgeClass(source?: string | null) {
     return "bg-violet-100 text-violet-700 ring-1 ring-violet-200";
   }
 
+  if (source === "subagent") {
+    return "bg-fuchsia-100 text-fuchsia-700 ring-1 ring-fuchsia-200";
+  }
+
   if (source === "intake_form") {
     return "bg-cyan-100 text-cyan-700 ring-1 ring-cyan-200";
+  }
+
+  if (source === "event") {
+    return "bg-orange-100 text-orange-700 ring-1 ring-orange-200";
+  }
+
+  if (source === "partner") {
+    return "bg-indigo-100 text-indigo-700 ring-1 ring-indigo-200";
   }
 
   if (source === "check_in" || source === "walk_in") {
@@ -174,6 +187,34 @@ function getSourceBadgeClass(source?: string | null) {
 function formatSource(source?: string | null) {
   if (!source) return "Unknown";
   return source.replaceAll("_", " ");
+}
+
+type SubmissionMeta = {
+  subagent?: {
+    name?: string | null;
+    agencyName?: string | null;
+    email?: string | null;
+    phone?: string | null;
+    reference?: string | null;
+  };
+  applicationInterest?: {
+    destinationCountry?: string | null;
+    providerName?: string | null;
+    courseName?: string | null;
+    subjectArea?: string | null;
+    intake?: string | null;
+    studyLevel?: string | null;
+    preferredCampus?: string | null;
+  };
+  duplicateCheck?: {
+    existingClientFound?: boolean;
+    existingClientId?: string | null;
+  };
+};
+
+function getSubmissionMeta(value: unknown): SubmissionMeta | null {
+  if (!value || typeof value !== "object" || Array.isArray(value)) return null;
+  return value as SubmissionMeta;
 }
 
 function MetricCard({
@@ -224,6 +265,11 @@ export default function LeadsClient({
     [items, selectedLeadId]
   );
 
+  const selectedSubmissionMeta = useMemo(
+    () => getSubmissionMeta(selectedLead?.intakeSubmission?.submissionMeta),
+    [selectedLead]
+  );
+
   useEffect(() => {
     setDraftAssignedUserId(selectedLead?.assignedToId || "");
     setDraftNotes(selectedLead?.notes || "");
@@ -271,7 +317,7 @@ export default function LeadsClient({
           : 0),
       0
     );
-    const agentLeads = items.filter((item) => item.source === "agent").length;
+    const agentLeads = items.filter((item) => item.source === "agent" || item.source === "subagent").length;
 
     return { total, unassigned, converted, followed, agentLeads };
   }, [items, currentUserId]);
@@ -825,6 +871,114 @@ export default function LeadsClient({
                   </div>
                 </div>
               </div>
+
+              {selectedSubmissionMeta ? (
+                <div className="rounded-3xl border border-indigo-200 bg-indigo-50 p-5">
+                  <div className="flex flex-col gap-4 md:flex-row md:items-start md:justify-between">
+                    <div>
+                      <p className="text-sm font-semibold text-slate-900">
+                        Application Intelligence
+                      </p>
+                      <p className="mt-1 text-xs text-slate-600">
+                        Captured from the public intake form and available for review before conversion.
+                      </p>
+                    </div>
+
+                    {selectedSubmissionMeta.duplicateCheck?.existingClientFound ? (
+                      <span className="rounded-full bg-white px-3 py-1 text-xs font-medium text-green-700 ring-1 ring-green-200">
+                        Existing student matched
+                      </span>
+                    ) : (
+                      <span className="rounded-full bg-white px-3 py-1 text-xs font-medium text-indigo-700 ring-1 ring-indigo-200">
+                        New intake submission
+                      </span>
+                    )}
+                  </div>
+
+                  <div className="mt-4 grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
+                    <div className="rounded-2xl border border-indigo-200 bg-white p-4">
+                      <p className="text-xs uppercase tracking-[0.14em] text-slate-400">
+                        Destination
+                      </p>
+                      <p className="mt-1 text-sm font-semibold text-slate-900">
+                        {selectedSubmissionMeta.applicationInterest?.destinationCountry || "—"}
+                      </p>
+                    </div>
+
+                    <div className="rounded-2xl border border-indigo-200 bg-white p-4">
+                      <p className="text-xs uppercase tracking-[0.14em] text-slate-400">
+                        Provider
+                      </p>
+                      <p className="mt-1 text-sm font-semibold text-slate-900">
+                        {selectedSubmissionMeta.applicationInterest?.providerName || "—"}
+                      </p>
+                    </div>
+
+                    <div className="rounded-2xl border border-indigo-200 bg-white p-4">
+                      <p className="text-xs uppercase tracking-[0.14em] text-slate-400">
+                        Course
+                      </p>
+                      <p className="mt-1 text-sm font-semibold text-slate-900">
+                        {selectedSubmissionMeta.applicationInterest?.courseName || "—"}
+                      </p>
+                    </div>
+
+                    <div className="rounded-2xl border border-indigo-200 bg-white p-4">
+                      <p className="text-xs uppercase tracking-[0.14em] text-slate-400">
+                        Subject
+                      </p>
+                      <p className="mt-1 text-sm font-semibold text-slate-900">
+                        {selectedSubmissionMeta.applicationInterest?.subjectArea || "—"}
+                      </p>
+                    </div>
+
+                    <div className="rounded-2xl border border-indigo-200 bg-white p-4">
+                      <p className="text-xs uppercase tracking-[0.14em] text-slate-400">
+                        Intake
+                      </p>
+                      <p className="mt-1 text-sm font-semibold text-slate-900">
+                        {selectedSubmissionMeta.applicationInterest?.intake || "—"}
+                      </p>
+                    </div>
+
+                    <div className="rounded-2xl border border-indigo-200 bg-white p-4">
+                      <p className="text-xs uppercase tracking-[0.14em] text-slate-400">
+                        Study Level
+                      </p>
+                      <p className="mt-1 text-sm font-semibold text-slate-900">
+                        {selectedSubmissionMeta.applicationInterest?.studyLevel || "—"}
+                      </p>
+                    </div>
+
+                    <div className="rounded-2xl border border-indigo-200 bg-white p-4">
+                      <p className="text-xs uppercase tracking-[0.14em] text-slate-400">
+                        Preferred Campus
+                      </p>
+                      <p className="mt-1 text-sm font-semibold text-slate-900">
+                        {selectedSubmissionMeta.applicationInterest?.preferredCampus || "—"}
+                      </p>
+                    </div>
+
+                    <div className="rounded-2xl border border-indigo-200 bg-white p-4">
+                      <p className="text-xs uppercase tracking-[0.14em] text-slate-400">
+                        Subagent Name
+                      </p>
+                      <p className="mt-1 text-sm font-semibold text-slate-900">
+                        {selectedSubmissionMeta.subagent?.name || "—"}
+                      </p>
+                    </div>
+
+                    <div className="rounded-2xl border border-indigo-200 bg-white p-4">
+                      <p className="text-xs uppercase tracking-[0.14em] text-slate-400">
+                        Agency Name
+                      </p>
+                      <p className="mt-1 text-sm font-semibold text-slate-900">
+                        {selectedSubmissionMeta.subagent?.agencyName || "—"}
+                      </p>
+                    </div>
+                  </div>
+                </div>
+              ) : null}
 
               {selectedLead.agent ? (
                 <div className="rounded-3xl border border-violet-200 bg-violet-50 p-5">

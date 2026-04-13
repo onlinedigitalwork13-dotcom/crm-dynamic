@@ -6,6 +6,7 @@ type IntakeFormSettings = {
   referralType?: string;
   agentId?: string | null;
   source?: string;
+  channel?: string;
 };
 
 function getInitials(name: string) {
@@ -33,6 +34,8 @@ function getSettingsObject(value: Prisma.JsonValue | null): IntakeFormSettings {
       typeof settings.agentId === "string" ? settings.agentId.trim() : null,
     source:
       typeof settings.source === "string" ? settings.source.trim() : undefined,
+    channel:
+      typeof settings.channel === "string" ? settings.channel.trim() : undefined,
   };
 }
 
@@ -49,7 +52,9 @@ function getAbsoluteOrRelativeUrl(value: string | null) {
   const appUrl =
     process.env.NEXT_PUBLIC_APP_URL?.trim().replace(/\/+$/, "") || "";
 
-  return appUrl ? `${appUrl}${trimmed.startsWith("/") ? trimmed : `/${trimmed}`}` : trimmed;
+  return appUrl
+    ? `${appUrl}${trimmed.startsWith("/") ? trimmed : `/${trimmed}`}`
+    : trimmed;
 }
 
 export default async function AgentsPage() {
@@ -91,40 +96,30 @@ export default async function AgentsPage() {
     }),
   ]);
 
-  const linkedFormsByAgentId = new Map<
-    string,
-    {
-      id: string;
-      title: string;
-      token: string;
-      publicUrl: string | null;
-      status: string;
-      isActive: boolean;
-      updatedAt: Date;
-      createdAt: Date;
-    }
-  >();
+  const agentIntakeForm =
+    intakeForms.find((form) => {
+      const settings = getSettingsObject(form.settings as Prisma.JsonValue | null);
 
-  for (const form of intakeForms) {
-    const settings = getSettingsObject(form.settings as Prisma.JsonValue | null);
+      const title = form.title.toLowerCase();
+      const channel = (settings.channel || "").toLowerCase();
+      const source = (settings.source || "").toLowerCase();
 
-    if (settings.referralType !== "agent" || !settings.agentId) {
-      continue;
-    }
+      return (
+        form.isActive &&
+        form.status === "active" &&
+        (channel === "subagent" ||
+          source === "subagent" ||
+          source === "agent_form" ||
+          title.includes("agent") ||
+          title.includes("subagent"))
+      );
+    }) ?? null;
 
-    if (!linkedFormsByAgentId.has(settings.agentId)) {
-      linkedFormsByAgentId.set(settings.agentId, {
-        id: form.id,
-        title: form.title,
-        token: form.token,
-        publicUrl: form.publicUrl,
-        status: form.status,
-        isActive: form.isActive,
-        updatedAt: form.updatedAt,
-        createdAt: form.createdAt,
-      });
-    }
-  }
+  const agentIntakePublicUrl = agentIntakeForm
+    ? getAbsoluteOrRelativeUrl(
+        agentIntakeForm.publicUrl || `/forms/${agentIntakeForm.token}`
+      )
+    : null;
 
   const totalAgents = subagents.length;
   const activeAgents = subagents.filter((item) => item.isActive).length;
@@ -140,25 +135,6 @@ export default async function AgentsPage() {
     0
   );
 
-  const openLeads = subagents.reduce(
-    (sum, item) =>
-      sum +
-      item.leads.filter(
-        (lead) => lead.status !== "converted" && lead.status !== "closed"
-      ).length,
-    0
-  );
-
-  const convertedLeads = subagents.reduce(
-    (sum, item) =>
-      sum + item.leads.filter((lead) => lead.status === "converted").length,
-    0
-  );
-
-  const linkedFormsCount = subagents.filter((subagent) =>
-    linkedFormsByAgentId.has(subagent.id)
-  ).length;
-
   const agents = subagents.map((subagent) => {
     const totalLeadsCount = subagent.leads.length;
     const openLeadsCount = subagent.leads.filter(
@@ -173,19 +149,12 @@ export default async function AgentsPage() {
         ? Math.round((convertedLeadsCount / totalLeadsCount) * 100)
         : 0;
 
-    const linkedForm = linkedFormsByAgentId.get(subagent.id) ?? null;
-    const linkedPublicUrl = linkedForm
-      ? getAbsoluteOrRelativeUrl(linkedForm.publicUrl || `/forms/${linkedForm.token}`)
-      : null;
-
     return {
       ...subagent,
       totalLeadsCount,
       openLeadsCount,
       convertedLeadsCount,
       conversionRate,
-      linkedForm,
-      linkedPublicUrl,
     };
   });
 
@@ -204,8 +173,9 @@ export default async function AgentsPage() {
               </h1>
 
               <p className="mt-3 max-w-2xl text-sm leading-6 text-slate-600 sm:text-base">
-                Manage external agents, referral partners, linked intake forms,
-                and incoming lead channels from one premium workspace.
+                Manage external agents, referral partners, shared agent intake
+                channels, and incoming lead performance from one premium
+                workspace.
               </p>
             </div>
 
@@ -220,8 +190,8 @@ export default async function AgentsPage() {
           </div>
         </div>
 
-        <div className="grid gap-4 px-6 py-6 sm:grid-cols-2 sm:px-8 xl:grid-cols-6">
-          <div className="rounded-3xl border border-slate-200 bg-gradient-to-br from-slate-50 to-white p-5 xl:col-span-1">
+        <div className="grid gap-4 px-6 py-6 sm:grid-cols-2 sm:px-8 xl:grid-cols-5">
+          <div className="rounded-3xl border border-slate-200 bg-gradient-to-br from-slate-50 to-white p-5">
             <p className="text-xs font-semibold uppercase tracking-[0.2em] text-slate-500">
               Total Agents
             </p>
@@ -233,7 +203,7 @@ export default async function AgentsPage() {
             </p>
           </div>
 
-          <div className="rounded-3xl border border-emerald-200 bg-gradient-to-br from-emerald-50 to-white p-5 xl:col-span-1">
+          <div className="rounded-3xl border border-emerald-200 bg-gradient-to-br from-emerald-50 to-white p-5">
             <p className="text-xs font-semibold uppercase tracking-[0.2em] text-emerald-700">
               Active
             </p>
@@ -241,11 +211,11 @@ export default async function AgentsPage() {
               {activeAgents}
             </p>
             <p className="mt-2 text-sm text-slate-500">
-              Currently enabled for referrals
+              Currently enabled in the partner network
             </p>
           </div>
 
-          <div className="rounded-3xl border border-amber-200 bg-gradient-to-br from-amber-50 to-white p-5 xl:col-span-1">
+          <div className="rounded-3xl border border-amber-200 bg-gradient-to-br from-amber-50 to-white p-5">
             <p className="text-xs font-semibold uppercase tracking-[0.2em] text-amber-700">
               Inactive
             </p>
@@ -253,11 +223,11 @@ export default async function AgentsPage() {
               {inactiveAgents}
             </p>
             <p className="mt-2 text-sm text-slate-500">
-              Saved but not receiving submissions
+              Saved but not currently active
             </p>
           </div>
 
-          <div className="rounded-3xl border border-violet-200 bg-gradient-to-br from-violet-50 to-white p-5 xl:col-span-1">
+          <div className="rounded-3xl border border-violet-200 bg-gradient-to-br from-violet-50 to-white p-5">
             <p className="text-xs font-semibold uppercase tracking-[0.2em] text-violet-700">
               Active Clients
             </p>
@@ -269,7 +239,7 @@ export default async function AgentsPage() {
             </p>
           </div>
 
-          <div className="rounded-3xl border border-cyan-200 bg-gradient-to-br from-cyan-50 to-white p-5 xl:col-span-1">
+          <div className="rounded-3xl border border-cyan-200 bg-gradient-to-br from-cyan-50 to-white p-5">
             <p className="text-xs font-semibold uppercase tracking-[0.2em] text-cyan-700">
               Total Leads
             </p>
@@ -277,20 +247,43 @@ export default async function AgentsPage() {
               {totalLeads}
             </p>
             <p className="mt-2 text-sm text-slate-500">
-              Leads submitted through agents
+              Leads submitted through the partner network
             </p>
           </div>
+        </div>
 
-          <div className="rounded-3xl border border-indigo-200 bg-gradient-to-br from-indigo-50 to-white p-5 xl:col-span-1">
-            <p className="text-xs font-semibold uppercase tracking-[0.2em] text-indigo-700">
-              Linked Forms
-            </p>
-            <p className="mt-3 text-3xl font-bold text-slate-950">
-              {linkedFormsCount}
-            </p>
-            <p className="mt-2 text-sm text-slate-500">
-              Agents with working public intake forms
-            </p>
+        <div className="border-t border-slate-200/70 px-6 py-5 sm:px-8">
+          <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+            <div>
+              <p className="text-sm font-semibold text-slate-900">
+                Shared Agent Intake Channel
+              </p>
+              <p className="mt-1 text-sm text-slate-500">
+                Agents use one shared intake form instead of individual public
+                links.
+              </p>
+            </div>
+
+            {agentIntakeForm && agentIntakePublicUrl ? (
+              <div className="flex flex-col gap-2 text-sm sm:items-end">
+                <Link
+                  href={`/intake-forms/${agentIntakeForm.id}`}
+                  className="font-semibold text-slate-900 underline-offset-4 hover:underline"
+                >
+                  {agentIntakeForm.title}
+                </Link>
+                <p className="max-w-[420px] truncate text-slate-500">
+                  {agentIntakePublicUrl}
+                </p>
+              </div>
+            ) : (
+              <Link
+                href="/intake-forms"
+                className="text-sm font-semibold text-slate-900 underline-offset-4 hover:underline"
+              >
+                Create shared Agent Intake Form
+              </Link>
+            )}
           </div>
         </div>
       </section>
@@ -302,8 +295,7 @@ export default async function AgentsPage() {
               Agent Directory
             </h2>
             <p className="mt-1 text-sm text-slate-500">
-              Premium overview of all partner agents, linked intake forms, and
-              lead performance.
+              Premium overview of all partner agents and their lead performance.
             </p>
           </div>
 
@@ -353,9 +345,6 @@ export default async function AgentsPage() {
                     </th>
                     <th className="px-8 py-4 text-xs font-semibold uppercase tracking-[0.18em] text-slate-500">
                       Referral Code
-                    </th>
-                    <th className="px-8 py-4 text-xs font-semibold uppercase tracking-[0.18em] text-slate-500">
-                      Linked Intake Form
                     </th>
                     <th className="px-8 py-4 text-xs font-semibold uppercase tracking-[0.18em] text-slate-500">
                       Active Clients
@@ -419,34 +408,6 @@ export default async function AgentsPage() {
                         <div className="inline-flex rounded-xl border border-slate-200 bg-slate-50 px-3 py-2 text-xs font-semibold tracking-[0.16em] text-slate-700">
                           {subagent.referralCode}
                         </div>
-                      </td>
-
-                      <td className="px-8 py-5">
-                        {subagent.linkedForm && subagent.linkedPublicUrl ? (
-                          <div className="space-y-2">
-                            <Link
-                              href={`/intake-forms/${subagent.linkedForm.id}`}
-                              className="inline-flex rounded-full bg-emerald-50 px-3 py-1 text-[11px] font-medium text-emerald-700 ring-1 ring-emerald-200"
-                            >
-                              {subagent.linkedForm.title}
-                            </Link>
-                            <p className="max-w-[260px] truncate text-sm text-slate-700">
-                              {subagent.linkedPublicUrl}
-                            </p>
-                          </div>
-                        ) : (
-                          <div className="space-y-2">
-                            <span className="inline-flex rounded-full bg-slate-100 px-3 py-1 text-[11px] font-medium text-slate-600 ring-1 ring-slate-200">
-                              No linked form
-                            </span>
-                            <Link
-                              href="/intake-forms/new"
-                              className="block text-sm font-medium text-slate-700 underline-offset-4 hover:underline"
-                            >
-                              Create intake form
-                            </Link>
-                          </div>
-                        )}
                       </td>
 
                       <td className="px-8 py-5 text-sm font-semibold text-slate-900">
@@ -592,32 +553,6 @@ export default async function AgentsPage() {
                     <p className="mt-2 text-sm font-semibold text-slate-900">
                       {subagent.referralCode}
                     </p>
-                  </div>
-
-                  <div className="mt-4 rounded-2xl border border-dashed border-slate-300 bg-slate-50 px-4 py-3">
-                    <p className="text-xs font-semibold uppercase tracking-[0.18em] text-slate-500">
-                      Linked Intake Form
-                    </p>
-
-                    {subagent.linkedForm && subagent.linkedPublicUrl ? (
-                      <>
-                        <p className="mt-2 text-sm font-semibold text-slate-900">
-                          {subagent.linkedForm.title}
-                        </p>
-                        <p className="mt-2 break-all text-sm text-slate-700">
-                          {subagent.linkedPublicUrl}
-                        </p>
-                      </>
-                    ) : (
-                      <>
-                        <p className="mt-2 text-sm text-slate-600">
-                          No linked form yet
-                        </p>
-                        <p className="mt-2 text-sm text-slate-500">
-                          Create an intake form and assign this agent in Referral Configuration.
-                        </p>
-                      </>
-                    )}
                   </div>
 
                   <div className="mt-4 rounded-2xl border border-slate-200 bg-slate-50 p-4">
