@@ -38,22 +38,26 @@ function getSettingsObject(value: Prisma.JsonValue | null): IntakeFormSettings {
   };
 }
 
-function getAbsoluteOrRelativeUrl(value: string | null) {
-  if (!value) return null;
-
-  const trimmed = value.trim();
-  if (!trimmed) return null;
-
-  if (trimmed.startsWith("http://") || trimmed.startsWith("https://")) {
-    return trimmed;
-  }
-
+function getPublicFormUrl(value: string | null, token?: string) {
   const appUrl =
     process.env.NEXT_PUBLIC_APP_URL?.trim().replace(/\/+$/, "") || "";
 
+  const path =
+    value && value.trim()
+      ? value.trim()
+      : token
+      ? `/forms/${token}`
+      : null;
+
+  if (!path) return null;
+
+  if (path.startsWith("http://") || path.startsWith("https://")) {
+    return path;
+  }
+
   return appUrl
-    ? `${appUrl}${trimmed.startsWith("/") ? trimmed : `/${trimmed}`}`
-    : trimmed;
+    ? `${appUrl}${path.startsWith("/") ? path : `/${path}`}`
+    : path;
 }
 
 function formatPersonName(firstName?: string | null, lastName?: string | null) {
@@ -146,10 +150,11 @@ export default async function AgentDetailPage({ params }: PageProps) {
     }) ?? null;
 
   const sharedAgentIntakeUrl = sharedAgentIntakeForm
-    ? getAbsoluteOrRelativeUrl(
-        sharedAgentIntakeForm.publicUrl || `/forms/${sharedAgentIntakeForm.token}`
-      )
-    : null;
+  ? getPublicFormUrl(
+      sharedAgentIntakeForm.publicUrl,
+      sharedAgentIntakeForm.token
+    )
+  : null;
 
   const openLeadsCount = agent.leads.filter(
     (lead) => lead.status !== "converted" && lead.status !== "closed"

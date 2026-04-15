@@ -39,22 +39,16 @@ function getSettingsObject(value: Prisma.JsonValue | null): IntakeFormSettings {
   };
 }
 
-function getAbsoluteOrRelativeUrl(value: string | null) {
-  if (!value) return null;
-
-  const trimmed = value.trim();
-  if (!trimmed) return null;
-
-  if (trimmed.startsWith("http://") || trimmed.startsWith("https://")) {
-    return trimmed;
-  }
-
+function getPublicFormUrl(_value: string | null, token?: string) {
   const appUrl =
-    process.env.NEXT_PUBLIC_APP_URL?.trim().replace(/\/+$/, "") || "";
+    process.env.NEXT_PUBLIC_APP_URL?.trim().replace(/\/+$/, "") ||
+    "http://localhost:3000";
 
-  return appUrl
-    ? `${appUrl}${trimmed.startsWith("/") ? trimmed : `/${trimmed}`}`
-    : trimmed;
+  const path = token ? `/agent-intake/${token}` : null;
+
+  if (!path) return null;
+
+  return `${appUrl}${path}`;
 }
 
 export default async function AgentsPage() {
@@ -116,9 +110,7 @@ export default async function AgentsPage() {
     }) ?? null;
 
   const agentIntakePublicUrl = agentIntakeForm
-    ? getAbsoluteOrRelativeUrl(
-        agentIntakeForm.publicUrl || `/forms/${agentIntakeForm.token}`
-      )
+    ? getPublicFormUrl(agentIntakeForm.publicUrl, agentIntakeForm.token)
     : null;
 
   const totalAgents = subagents.length;
@@ -272,9 +264,27 @@ export default async function AgentsPage() {
                 >
                   {agentIntakeForm.title}
                 </Link>
-                <p className="max-w-[420px] truncate text-slate-500">
-                  {agentIntakePublicUrl}
-                </p>
+
+                <div className="flex flex-wrap items-center gap-2 sm:justify-end">
+                  <a
+                    href={agentIntakePublicUrl}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="max-w-[320px] truncate text-slate-500 underline-offset-4 hover:text-slate-900 hover:underline"
+                    title={agentIntakePublicUrl}
+                  >
+                    {agentIntakePublicUrl}
+                  </a>
+
+                  <a
+                    href={agentIntakePublicUrl}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="rounded-lg bg-slate-950 px-3 py-1.5 text-xs font-semibold text-white transition hover:bg-slate-800"
+                  >
+                    Open
+                  </a>
+                </div>
               </div>
             ) : (
               <Link

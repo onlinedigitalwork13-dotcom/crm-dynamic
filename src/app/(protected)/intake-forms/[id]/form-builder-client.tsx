@@ -440,9 +440,26 @@ export default function FormBuilderClient({
       ? agents.find((agent) => agent.id === defaultAgentId) ?? null
       : null;
 
-  const publicPath = form.publicUrl || `/forms/${form.token}`;
-  const publicLink = origin ? `${origin}${publicPath}` : publicPath;
-  const qrValue = publicLink || publicPath;
+const publicPath = form.publicUrl || `/forms/${form.token}`;
+
+const publicLink = useMemo(() => {
+  const trimmed = publicPath?.trim() || "";
+
+  if (!trimmed) return "";
+
+  if (
+    trimmed.startsWith("http://") ||
+    trimmed.startsWith("https://")
+  ) {
+    return trimmed;
+  }
+
+  return origin
+    ? `${origin}${trimmed.startsWith("/") ? trimmed : `/${trimmed}`}`
+    : trimmed;
+}, [origin, publicPath]);
+
+const qrValue = publicLink || publicPath;
 
   const totalFields = useMemo(
     () => schema.reduce((sum, section) => sum + section.fields.length, 0),

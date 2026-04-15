@@ -94,7 +94,6 @@ function buildSource(settings: IntakeFormSettings) {
   if (settings.channel === "event") return "event";
   if (settings.channel === "partner") return "partner";
 
-  // fallback only for old data
   if (settings.referralType === "agent") return "subagent";
 
   return "intake_form";
@@ -103,7 +102,7 @@ function buildSource(settings: IntakeFormSettings) {
 async function resolveDefaultSubagentId(settings: IntakeFormSettings) {
   const candidateIds = [
     settings.defaultAgentId?.trim(),
-    settings.agentId?.trim(), // backward compatibility only
+    settings.agentId?.trim(),
   ].filter((value): value is string => Boolean(value));
 
   for (const id of candidateIds) {
@@ -135,7 +134,7 @@ async function findExistingClient(params: {
     orFilters.push({
       email: {
         equals: email,
-        mode: "insensitive",
+        mode: Prisma.QueryMode.insensitive,
       },
     });
   }
@@ -156,6 +155,22 @@ async function findExistingClient(params: {
     where: {
       OR: orFilters,
     },
+    select: {
+      id: true,
+      firstName: true,
+      lastName: true,
+      email: true,
+      phone: true,
+      branchId: true,
+    },
+  });
+}
+
+async function findSelectedExistingClient(existingClientId: string | null) {
+  if (!existingClientId) return null;
+
+  return prisma.client.findUnique({
+    where: { id: existingClientId },
     select: {
       id: true,
       firstName: true,
@@ -235,6 +250,12 @@ export async function POST(
 
     const formData = await request.formData();
 
+    // Search-first intake flow values
+    const existingClientId = normalizeString(formData.get("existingClientId"));
+    const existingClientMatched = normalizeBoolean(
+      formData.get("existingClientMatched")
+    );
+
     // Core student identity
     const firstName = normalizeString(formData.get("firstName"));
     const lastName = normalizeString(formData.get("lastName"));
@@ -283,10 +304,22 @@ export async function POST(
     const defaultSubagentId = await resolveDefaultSubagentId(settings);
     const source = buildSource(settings);
 
-    const existingClient = await findExistingClient({
+    // Priority:
+    // 1. explicitly selected existing client from public search
+    // 2. fallback duplicate match by email/phone
+    const selectedExistingClient = await findSelectedExistingClient(
+      existingClientId
+    );
+
+    const fallbackExistingClient = await findExistingClient({
       email,
       phone,
     });
+
+    const existingClient =
+      selectedExistingClient ??
+      fallbackExistingClient ??
+      null;
 
     const submissionMeta: Prisma.InputJsonObject = {
       submittedFromToken: token,
@@ -297,6 +330,11 @@ export async function POST(
       channel: settings.channel || "general",
       agentMode: settings.agentMode || "none",
       defaultAgentId: settings.defaultAgentId || null,
+
+      // search-first intake flow
+      existingClientIdFromForm: existingClientId,
+      existingClientMatched,
+      existingClientResolvedId: existingClient?.id ?? null,
 
       // backward compatibility snapshot only
       legacyReferralType: settings.referralType || null,
@@ -326,8 +364,9 @@ export async function POST(
         existingClientFound: Boolean(existingClient),
         existingClientId: existingClient?.id ?? null,
         matchedBy: {
-          email: Boolean(email && existingClient?.email),
-          phone: Boolean(phone && existingClient?.phone),
+          explicitSelection: Boolean(selectedExistingClient),
+          email: Boolean(email && fallbackExistingClient?.email),
+          phone: Boolean(phone && fallbackExistingClient?.phone),
           passportNumber: false,
         },
       },
@@ -368,10 +407,7 @@ export async function POST(
           intakeSubmissionId: submission.id,
           clientId: existingClient?.id ?? null,
           branchId: existingClient?.branchId ?? intakeForm.branchId,
-
-          // only default subagent binding if configured internally
           agentId: defaultSubagentId,
-
           firstName,
           lastName,
           email,
@@ -391,8 +427,15 @@ export async function POST(
             preferredCampus ? `Campus: ${preferredCampus}` : null,
             subagentName ? `Subagent: ${subagentName}` : null,
             agencyName ? `Agency: ${agencyName}` : null,
-            existingClient
-              ? `Matched existing client: ${[
+            selectedExistingClient
+              ? `Matched existing client by selected search result: ${[
+                  selectedExistingClient.firstName,
+                  selectedExistingClient.lastName,
+                ]
+                  .filter(Boolean)
+                  .join(" ")}`
+              : existingClient
+              ? `Matched existing client automatically: ${[
                   existingClient.firstName,
                   existingClient.lastName,
                 ]
@@ -412,6 +455,8 @@ export async function POST(
                 source,
                 channel: settings.channel || "general",
                 existingClientId: existingClient?.id ?? null,
+                existingClientMatched,
+                selectedExistingClientId: selectedExistingClient?.id ?? null,
                 defaultSubagentId,
                 subagentName,
                 agencyName,

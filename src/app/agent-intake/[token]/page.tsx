@@ -9,7 +9,7 @@ type PageProps = {
   }>;
 };
 
-export default async function PublicFormPage({ params }: PageProps) {
+export default async function AgentIntakePage({ params }: PageProps) {
   const { token } = await params;
 
   const form = await prisma.intakeFormRequest.findUnique({
@@ -52,7 +52,7 @@ export default async function PublicFormPage({ params }: PageProps) {
     );
   }
 
- const schema = normalizeFormSchema(form.formSchema);
+  const schema = normalizeFormSchema(form.formSchema);
 
   return <PublicDynamicIntakeForm form={form} schema={schema} />;
 }
