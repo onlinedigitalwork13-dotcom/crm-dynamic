@@ -140,7 +140,7 @@ export default function Sidebar({
         { id: "dashboard", href: "/dashboard", label: "Dashboard", icon: "⌂" },
         {
           id: "leads",
-          href: "/intake-submissions",
+          href: "/leads",
           label: "Leads",
           icon: "◉",
           matchStartsWith: true,

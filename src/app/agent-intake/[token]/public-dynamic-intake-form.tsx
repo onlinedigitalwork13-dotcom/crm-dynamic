@@ -375,6 +375,7 @@ export default function PublicDynamicIntakeForm({ form, schema }: Props) {
   const [successPayload, setSuccessPayload] = useState<{
     message?: string;
     matchedExistingClient?: boolean;
+    subagentId?: string | null;
   } | null>(null);
 
   const [providers, setProviders] = useState<ProviderOption[]>([]);
@@ -730,6 +731,10 @@ export default function PublicDynamicIntakeForm({ form, schema }: Props) {
       if (selectedStudent) {
         formData.append("existingClientId", selectedStudent.id);
         formData.append("existingClientMatched", "true");
+        formData.append("isExistingStudent", "true");
+      } else {
+        formData.append("existingClientMatched", "false");
+        formData.append("isExistingStudent", "false");
       }
 
       if (!selectedStudent) {
@@ -843,6 +848,8 @@ export default function PublicDynamicIntakeForm({ form, schema }: Props) {
         matchedExistingClient: Boolean(
           data?.matchedExistingClient || selectedStudent
         ),
+        subagentId:
+          typeof data?.subagentId === "string" ? data.subagentId : null,
       });
 
       setSubmitSuccess(true);
@@ -950,6 +957,12 @@ export default function PublicDynamicIntakeForm({ form, schema }: Props) {
                       <div className="mt-4 rounded-2xl border border-emerald-200 bg-white px-4 py-3 text-sm text-emerald-900">
                         This application was linked to an existing student profile,
                         keeping the CRM clean while still recording the new intake.
+                      </div>
+                    ) : null}
+
+                    {successPayload?.subagentId ? (
+                      <div className="mt-4 rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm text-slate-700">
+                        Referral tracking has been linked successfully for CRM processing.
                       </div>
                     ) : null}
 

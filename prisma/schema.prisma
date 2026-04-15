@@ -150,8 +150,8 @@ model User {
   auditLogs     AuditLog[]
   notifications Notification[]
 
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  createdAt  DateTime    @default(now())
+  updatedAt  DateTime    @updatedAt
   importJobs ImportJob[]
 }
 
@@ -172,6 +172,7 @@ model AuditLog {
   @@index([action])
   @@index([createdAt])
 }
+
 
 model NotificationEvent {
   id         String                  @id @default(cuid())
@@ -378,8 +379,9 @@ model Subagent {
   referralCode String  @unique
   isActive     Boolean @default(true)
 
-  clients Client[]
-  leads   Lead[]
+  clients           Client[]
+  leads             Lead[]
+  intakeSubmissions IntakeFormSubmission[]
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -388,7 +390,6 @@ model Subagent {
   @@index([name])
   @@index([country])
 }
-
 
 model Provider {
   id          String  @id @default(cuid())
@@ -402,7 +403,6 @@ model Provider {
   description String?
   isActive    Boolean @default(true)
 
-  // Phase 1 advanced provider fields
   legalName       String?
   defaultCurrency String?
   supportEmail    String?
@@ -415,12 +415,11 @@ model Provider {
   address         String?
   notes           String?
 
-  // Sync readiness
   syncStatus      String?
   lastSyncAt      DateTime?
   lastSyncMessage String?
   autoSyncEnabled Boolean   @default(false)
-  sourceType      String? // manual, csv, sheet, api
+  sourceType      String?
 
   courses      Course[]
   applications ClientApplication[]
@@ -526,7 +525,7 @@ model ProviderCampus {
 model ProviderSyncSource {
   id              String  @id @default(cuid())
   providerId      String
-  sourceType      String // manual, csv, sheet, api
+  sourceType      String
   name            String?
   endpointUrl     String?
   authType        String?
@@ -875,6 +874,7 @@ model IntakeFormSubmission {
   assignedToId        String?
   reviewedById        String?
   clientId            String?
+  subagentId          String?
 
   firstName      String?
   lastName       String?
@@ -908,6 +908,7 @@ model IntakeFormSubmission {
   assignedTo        User?             @relation("IntakeSubmissionAssignedTo", fields: [assignedToId], references: [id], onDelete: SetNull)
   reviewedBy        User?             @relation("IntakeSubmissionReviewedBy", fields: [reviewedById], references: [id], onDelete: SetNull)
   client            Client?           @relation(fields: [clientId], references: [id], onDelete: SetNull)
+  subagent          Subagent?         @relation(fields: [subagentId], references: [id], onDelete: SetNull)
 
   originalForClient Client?         @relation("ClientOriginalIntakeSubmission")
   checkIns          ClientCheckIn[]
@@ -918,6 +919,7 @@ model IntakeFormSubmission {
   @@index([assignedToId])
   @@index([reviewedById])
   @@index([clientId])
+  @@index([subagentId])
   @@index([status])
   @@index([submittedAt])
 }
@@ -1010,7 +1012,7 @@ model Lead {
   status LeadStatus @default(new_lead)
 
   assignedToId String?
-  assignedTo   User? @relation("LeadAssignedTo", fields: [assignedToId], references: [id], onDelete: SetNull)
+  assignedTo   User?   @relation("LeadAssignedTo", fields: [assignedToId], references: [id], onDelete: SetNull)
 
   assignedAt DateTime?
 
@@ -1101,24 +1103,25 @@ model CommunicationTemplate {
   @@index([isActive])
   @@index([createdAt])
 }
+
 model ImportJob {
-  id           String   @id @default(cuid())
-  type         String
-  sourceType   String
-  sourceValue  String?
-  status       String
+  id          String  @id @default(cuid())
+  type        String
+  sourceType  String
+  sourceValue String?
+  status      String
 
-  totalRows    Int      @default(0)
-  validRows    Int      @default(0)
-  invalidRows  Int      @default(0)
-  importedRows Int      @default(0)
-  skippedRows  Int      @default(0)
+  totalRows    Int @default(0)
+  validRows    Int @default(0)
+  invalidRows  Int @default(0)
+  importedRows Int @default(0)
+  skippedRows  Int @default(0)
 
-  createdById  String?
-  createdBy    User?    @relation(fields: [createdById], references: [id], onDelete: SetNull)
+  createdById String?
+  createdBy   User?   @relation(fields: [createdById], references: [id], onDelete: SetNull)
 
-  createdAt    DateTime @default(now())
-  updatedAt    DateTime @updatedAt
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 
   rows ImportJobRow[]
 
@@ -1130,22 +1133,22 @@ model ImportJob {
 }
 
 model ImportJobRow {
-  id           String    @id @default(cuid())
-  importJobId  String
-  importJob    ImportJob @relation(fields: [importJobId], references: [id], onDelete: Cascade)
+  id          String    @id @default(cuid())
+  importJobId String
+  importJob   ImportJob @relation(fields: [importJobId], references: [id], onDelete: Cascade)
 
   rawRowIndex  Int?
   providerName String?
   courseName   String?
   payloadJson  Json?
 
-  isValid      Boolean   @default(false)
-  isDuplicate  Boolean   @default(false)
-  wasImported  Boolean   @default(false)
+  isValid     Boolean @default(false)
+  isDuplicate Boolean @default(false)
+  wasImported Boolean @default(false)
 
-  errors       String[]
+  errors String[]
 
-  createdAt    DateTime  @default(now())
+  createdAt DateTime @default(now())
 
   @@index([importJobId])
   @@index([rawRowIndex])

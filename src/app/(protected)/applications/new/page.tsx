@@ -1,23 +1,10 @@
 "use client";
 
-import { FormEvent, useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
-import { useRouter } from "next/navigation";
-import {
-  ArrowLeft,
-  CalendarDays,
-  CheckCircle2,
-  ChevronDown,
-  FilePlus2,
-  FileText,
-  GraduationCap,
-  Loader2,
-  Search,
-  Sparkles,
-  UserRoundSearch,
-} from "lucide-react";
+import { useEffect, useMemo, useState } from "react";
+import { useRouter, useSearchParams } from "next/navigation";
 
-type Client = {
+type ClientOption = {
   id: string;
   firstName: string;
   lastName: string;
@@ -26,25 +13,75 @@ type Client = {
   passport?: string | null;
 };
 
-type Provider = {
+type ProviderOption = {
   id: string;
   name: string;
-  isActive?: boolean;
-  code?: string | null;
-  city?: string | null;
   country?: string | null;
+  city?: string | null;
 };
 
-type Course = {
+type CourseOption = {
   id: string;
-  providerId: string;
   name: string;
-  code?: string | null;
   level?: string | null;
   campus?: string | null;
   intakeMonths?: string | null;
-  tuitionFee?: number | null;
-  currency?: string | null;
+  duration?: string | null;
+};
+
+type LeadPrefillPayload = {
+  success?: boolean;
+  data?: {
+    lead: {
+      id: string;
+      firstName?: string | null;
+      lastName?: string | null;
+      email?: string | null;
+      phone?: string | null;
+      country?: string | null;
+      source?: string | null;
+      status?: string | null;
+      notes?: string | null;
+      createdAt?: string | null;
+    };
+    client: {
+      id: string;
+      firstName: string;
+      lastName: string;
+      email?: string | null;
+      phone?: string | null;
+      passport?: string | null;
+    } | null;
+    intakeSubmission: {
+      id: string;
+      status?: string | null;
+      submittedAt?: string | null;
+    } | null;
+    subagent: {
+      id?: string | null;
+      name?: string | null;
+      referralCode?: string | null;
+      email?: string | null;
+      phone?: string | null;
+      agencyName?: string | null;
+    };
+    applicationPrefill: {
+      providerId?: string;
+      providerName?: string;
+      courseId?: string;
+      courseName?: string;
+      intake?: string;
+      studyLevel?: string;
+      preferredCampus?: string;
+      subjectArea?: string;
+      duration?: string;
+      destinationCountry?: string;
+      notes?: string;
+    };
+    canCreateApplication: boolean;
+    blockingReason?: string | null;
+  };
+  error?: string;
 };
 
 type ApiListResponse<T> =
@@ -56,801 +93,801 @@ type ApiListResponse<T> =
       success?: boolean;
     };
 
-function cn(...classes: Array<string | false | null | undefined>) {
-  return classes.filter(Boolean).join(" ");
-}
-
-function inputClassName() {
-  return "w-full rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm text-slate-900 shadow-sm outline-none transition-all duration-200 placeholder:text-slate-400 hover:border-slate-300 focus:border-blue-500 focus:ring-4 focus:ring-blue-100";
-}
-
-function selectClassName() {
-  return "w-full rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm text-slate-900 shadow-sm outline-none transition-all duration-200 hover:border-slate-300 focus:border-blue-500 focus:ring-4 focus:ring-blue-100";
-}
-
-function textareaClassName() {
-  return "w-full rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm text-slate-900 shadow-sm outline-none transition-all duration-200 placeholder:text-slate-400 hover:border-slate-300 focus:border-blue-500 focus:ring-4 focus:ring-blue-100";
-}
-
-function SectionCard({
-  title,
-  description,
-  icon: Icon,
-  children,
-}: {
-  title: string;
-  description?: string;
-  icon?: React.ComponentType<{ className?: string }>;
-  children: React.ReactNode;
-}) {
-  return (
-    <section className="rounded-[28px] border border-slate-200/70 bg-white/90 shadow-[0_18px_50px_rgba(15,23,42,0.06)] backdrop-blur">
-      <div className="border-b border-slate-100 px-6 py-5 sm:px-7">
-        <div className="flex items-start gap-3">
-          {Icon ? (
-            <div className="flex h-11 w-11 items-center justify-center rounded-2xl border border-slate-200 bg-slate-50 text-slate-700 shadow-sm">
-              <Icon className="h-5 w-5" />
-            </div>
-          ) : null}
-          <div>
-            <h2 className="text-lg font-semibold tracking-tight text-slate-950">
-              {title}
-            </h2>
-            {description ? (
-              <p className="mt-1 text-sm text-slate-500">{description}</p>
-            ) : null}
-          </div>
-        </div>
-      </div>
-      <div className="p-6 sm:p-7">{children}</div>
-    </section>
-  );
-}
-
-function Field({
-  label,
-  required,
-  hint,
-  children,
-}: {
-  label: string;
-  required?: boolean;
-  hint?: string;
-  children: React.ReactNode;
-}) {
-  return (
-    <div className="space-y-2.5">
-      <label className="text-sm font-medium text-slate-800">
-        {label}
-        {required ? <span className="ml-1 text-rose-500">*</span> : null}
-      </label>
-      {children}
-      {hint ? <p className="text-xs text-slate-500">{hint}</p> : null}
-    </div>
-  );
-}
-
-function StatBadge({
-  label,
-  value,
-  tone = "slate",
-}: {
-  label: string;
-  value: string;
-  tone?: "green" | "blue" | "amber" | "slate";
-}) {
-  const toneClasses = {
-    green: "border-emerald-200 bg-emerald-50 text-emerald-700",
-    blue: "border-blue-200 bg-blue-50 text-blue-700",
-    amber: "border-amber-200 bg-amber-50 text-amber-700",
-    slate: "border-slate-200 bg-slate-50 text-slate-700",
-  };
-
-  return (
-    <div
-      className={cn(
-        "inline-flex items-center gap-2 rounded-full border px-3 py-1.5 text-xs font-medium",
-        toneClasses[tone]
-      )}
-    >
-      <span className="text-slate-500">{label}</span>
-      <span>{value}</span>
-    </div>
-  );
-}
-
-function formatCurrency(value?: number | null, currency?: string | null) {
-  if (value === null || value === undefined) return "—";
-  return `${currency || "AUD"} ${value.toLocaleString()}`;
-}
-
 function extractList<T>(payload: ApiListResponse<T>): T[] {
   if (Array.isArray(payload)) return payload;
   if (payload && Array.isArray(payload.data)) return payload.data;
   return [];
 }
 
+function safeString(value: unknown) {
+  return typeof value === "string" ? value : "";
+}
+
+function getClientLabel(client: ClientOption) {
+  const fullName = [client.firstName, client.lastName].filter(Boolean).join(" ");
+  return fullName || "Unnamed client";
+}
+
 export default function NewApplicationPage() {
   const router = useRouter();
+  const searchParams = useSearchParams();
+  const leadId = searchParams.get("leadId");
 
-  const [clients, setClients] = useState<Client[]>([]);
-  const [providers, setProviders] = useState<Provider[]>([]);
-  const [courses, setCourses] = useState<Course[]>([]);
+  const [clients, setClients] = useState<ClientOption[]>([]);
+  const [providers, setProviders] = useState<ProviderOption[]>([]);
+  const [courses, setCourses] = useState<CourseOption[]>([]);
 
-  const [clientId, setClientId] = useState("");
-  const [providerId, setProviderId] = useState("");
-  const [courseId, setCourseId] = useState("");
+  const [loadingClients, setLoadingClients] = useState(true);
+  const [loadingProviders, setLoadingProviders] = useState(true);
+  const [loadingCourses, setLoadingCourses] = useState(false);
+  const [loadingPrefill, setLoadingPrefill] = useState(Boolean(leadId));
+
+  const [clientSearch, setClientSearch] = useState("");
+  const [selectedClientId, setSelectedClientId] = useState("");
+  const [selectedProviderId, setSelectedProviderId] = useState("");
+  const [selectedCourseId, setSelectedCourseId] = useState("");
+
   const [intake, setIntake] = useState("");
   const [intakeYear, setIntakeYear] = useState("");
   const [status, setStatus] = useState("applied");
   const [applicationNo, setApplicationNo] = useState("");
   const [notes, setNotes] = useState("");
   const [appliedAt, setAppliedAt] = useState("");
+  const [offerDate, setOfferDate] = useState("");
 
-  const [loading, setLoading] = useState(false);
-  const [pageLoading, setPageLoading] = useState(true);
-  const [error, setError] = useState("");
-  const [successMessage, setSuccessMessage] = useState("");
+  const [leadPrefill, setLeadPrefill] = useState<LeadPrefillPayload["data"] | null>(null);
 
-  const [clientQuery, setClientQuery] = useState("");
-  const [clientPickerOpen, setClientPickerOpen] = useState(false);
+  const [pageError, setPageError] = useState<string | null>(null);
+  const [submitError, setSubmitError] = useState<string | null>(null);
+  const [submitting, setSubmitting] = useState(false);
 
-  const clientPickerRef = useRef<HTMLDivElement | null>(null);
+  const filteredClients = useMemo(() => {
+    const q = clientSearch.trim().toLowerCase();
+    if (!q) return clients;
 
-  useEffect(() => {
-    async function loadData() {
-      try {
-        setPageLoading(true);
-        setError("");
+    return clients.filter((client) => {
+      const fullName = `${client.firstName || ""} ${client.lastName || ""}`.toLowerCase();
+      const email = (client.email || "").toLowerCase();
+      const phone = (client.phone || "").toLowerCase();
+      const passport = (client.passport || "").toLowerCase();
 
-        const [clientsRes, providersRes, coursesRes] = await Promise.all([
-          fetch("/api/clients", { cache: "no-store" }),
-          fetch("/api/providers", { cache: "no-store" }),
-          fetch("/api/courses", { cache: "no-store" }),
-        ]);
-
-        const [clientsData, providersData, coursesData] = (await Promise.all([
-          clientsRes.json(),
-          providersRes.json(),
-          coursesRes.json(),
-        ])) as [
-          ApiListResponse<Client>,
-          ApiListResponse<Provider>,
-          ApiListResponse<Course>
-        ];
-
-        if (!clientsRes.ok) {
-          throw new Error(
-            (!Array.isArray(clientsData) && clientsData?.error) ||
-              "Failed to load clients"
-          );
-        }
-
-        if (!providersRes.ok) {
-          throw new Error(
-            (!Array.isArray(providersData) && providersData?.error) ||
-              "Failed to load providers"
-          );
-        }
-
-        if (!coursesRes.ok) {
-          throw new Error(
-            (!Array.isArray(coursesData) && coursesData?.error) ||
-              "Failed to load courses"
-          );
-        }
-
-        const resolvedClients = extractList(clientsData);
-        const resolvedProviders = extractList(providersData);
-        const resolvedCourses = extractList(coursesData);
-
-        setClients(resolvedClients);
-        setProviders(
-          resolvedProviders.filter(
-            (provider: Provider) => provider.isActive !== false
-          )
-        );
-        setCourses(resolvedCourses);
-      } catch (err) {
-        setError(err instanceof Error ? err.message : "Failed to load form data");
-      } finally {
-        setPageLoading(false);
-      }
-    }
-
-    loadData();
-  }, []);
-
-  const filteredCourses = useMemo(() => {
-    return courses.filter((course) => course.providerId === providerId);
-  }, [courses, providerId]);
+      return (
+        fullName.includes(q) ||
+        email.includes(q) ||
+        phone.includes(q) ||
+        passport.includes(q)
+      );
+    });
+  }, [clients, clientSearch]);
 
   const selectedClient = useMemo(
-    () => clients.find((client) => client.id === clientId) ?? null,
-    [clients, clientId]
+    () => clients.find((client) => client.id === selectedClientId) || null,
+    [clients, selectedClientId]
   );
 
   const selectedProvider = useMemo(
-    () => providers.find((provider) => provider.id === providerId) ?? null,
-    [providers, providerId]
+    () => providers.find((provider) => provider.id === selectedProviderId) || null,
+    [providers, selectedProviderId]
   );
 
   const selectedCourse = useMemo(
-    () => filteredCourses.find((course) => course.id === courseId) ?? null,
-    [filteredCourses, courseId]
+    () => courses.find((course) => course.id === selectedCourseId) || null,
+    [courses, selectedCourseId]
   );
 
-  const filteredClients = useMemo(() => {
-    const query = clientQuery.trim().toLowerCase();
-
-    if (!query) {
-      return clients.slice(0, 12);
-    }
-
-    return clients
-      .filter((client) => {
-        const haystack = [
-          client.firstName,
-          client.lastName,
-          client.email || "",
-          client.phone || "",
-          client.passport || "",
-        ]
-          .join(" ")
-          .toLowerCase();
-
-        return haystack.includes(query);
-      })
-      .slice(0, 20);
-  }, [clientQuery, clients]);
-
-  const completionScore = useMemo(() => {
-    let score = 0;
-    if (clientId) score += 25;
-    if (providerId) score += 20;
-    if (courseId) score += 20;
-    if (intake.trim()) score += 10;
-    if (intakeYear.trim()) score += 5;
-    if (status.trim()) score += 5;
-    if (applicationNo.trim()) score += 5;
-    if (appliedAt.trim()) score += 5;
-    if (notes.trim()) score += 5;
-    return Math.min(score, 100);
-  }, [
-    clientId,
-    providerId,
-    courseId,
-    intake,
-    intakeYear,
-    status,
-    applicationNo,
-    appliedAt,
-    notes,
-  ]);
-
-  const completionTone =
-    completionScore >= 80 ? "green" : completionScore >= 50 ? "blue" : "amber";
-
   useEffect(() => {
-    setCourseId("");
-  }, [providerId]);
+    let active = true;
 
-  useEffect(() => {
-    function handleOutsideClick(event: MouseEvent) {
-      if (
-        clientPickerRef.current &&
-        !clientPickerRef.current.contains(event.target as Node)
-      ) {
-        setClientPickerOpen(false);
+    async function loadClients() {
+      setLoadingClients(true);
+
+      try {
+        const response = await fetch("/api/clients");
+        const payload = (await response.json()) as ApiListResponse<ClientOption>;
+
+        if (!response.ok) {
+          throw new Error(
+            !Array.isArray(payload) && payload?.error
+              ? payload.error
+              : "Failed to load clients"
+          );
+        }
+
+        if (!active) return;
+        setClients(extractList(payload));
+      } catch (error) {
+        if (!active) return;
+        setPageError(
+          error instanceof Error ? error.message : "Failed to load clients"
+        );
+      } finally {
+        if (active) {
+          setLoadingClients(false);
+        }
       }
     }
 
-    document.addEventListener("mousedown", handleOutsideClick);
-    return () => document.removeEventListener("mousedown", handleOutsideClick);
+    loadClients();
+
+    return () => {
+      active = false;
+    };
   }, []);
 
-  function handleClientSelect(client: Client) {
-    setClientId(client.id);
-    setClientQuery(
-      `${client.firstName} ${client.lastName}${
-        client.email ? ` · ${client.email}` : ""
-      }`
-    );
-    setClientPickerOpen(false);
-  }
+  useEffect(() => {
+    let active = true;
 
-  async function handleSubmit(e: FormEvent<HTMLFormElement>) {
-    e.preventDefault();
+    async function loadProviders() {
+      setLoadingProviders(true);
 
-    if (!clientId || !providerId || !courseId || !intake.trim()) {
-      setError("Please fill in all required fields.");
+      try {
+        const response = await fetch("/api/public/providers");
+        const payload = await response.json();
+
+        if (!response.ok) {
+          throw new Error(payload?.error || "Failed to load providers");
+        }
+
+        if (!active) return;
+        setProviders(Array.isArray(payload?.items) ? payload.items : []);
+      } catch (error) {
+        if (!active) return;
+        setPageError(
+          error instanceof Error ? error.message : "Failed to load providers"
+        );
+      } finally {
+        if (active) {
+          setLoadingProviders(false);
+        }
+      }
+    }
+
+    loadProviders();
+
+    return () => {
+      active = false;
+    };
+  }, []);
+
+  useEffect(() => {
+    let active = true;
+
+    async function loadCourses() {
+      if (!selectedProviderId) {
+        setCourses([]);
+        setSelectedCourseId("");
+        return;
+      }
+
+      setLoadingCourses(true);
+
+      try {
+        const response = await fetch(
+          `/api/public/providers/${selectedProviderId}/courses`
+        );
+        const payload = await response.json();
+
+        if (!response.ok) {
+          throw new Error(payload?.error || "Failed to load courses");
+        }
+
+        if (!active) return;
+        const nextCourses = Array.isArray(payload?.items) ? payload.items : [];
+        setCourses(nextCourses);
+      } catch (error) {
+        if (!active) return;
+        setPageError(
+          error instanceof Error ? error.message : "Failed to load courses"
+        );
+      } finally {
+        if (active) {
+          setLoadingCourses(false);
+        }
+      }
+    }
+
+    loadCourses();
+
+    return () => {
+      active = false;
+    };
+  }, [selectedProviderId]);
+
+  useEffect(() => {
+    let active = true;
+
+    async function loadLeadPrefill() {
+      if (!leadId) return;
+
+      setLoadingPrefill(true);
+
+      try {
+        const response = await fetch(`/api/leads/${leadId}/prefill`);
+        const payload = (await response.json()) as LeadPrefillPayload;
+
+        if (!response.ok || !payload?.data) {
+          throw new Error(payload?.error || "Failed to load lead prefill");
+        }
+
+        if (!active) return;
+
+        const data = payload.data;
+        setLeadPrefill(data);
+
+        if (data.client?.id) {
+          setSelectedClientId(data.client.id);
+        }
+
+        if (data.applicationPrefill?.providerId) {
+          setSelectedProviderId(data.applicationPrefill.providerId);
+        }
+
+        if (data.applicationPrefill?.intake) {
+          setIntake(data.applicationPrefill.intake);
+        }
+
+        if (data.applicationPrefill?.notes) {
+          setNotes(data.applicationPrefill.notes);
+        }
+      } catch (error) {
+        if (!active) return;
+        setPageError(
+          error instanceof Error ? error.message : "Failed to load lead prefill"
+        );
+      } finally {
+        if (active) {
+          setLoadingPrefill(false);
+        }
+      }
+    }
+
+    loadLeadPrefill();
+
+    return () => {
+      active = false;
+    };
+  }, [leadId]);
+
+  useEffect(() => {
+    if (!leadPrefill?.applicationPrefill?.courseId || courses.length === 0) {
       return;
     }
 
-    setLoading(true);
-    setError("");
-    setSuccessMessage("");
+    const match = courses.find(
+      (course) => course.id === leadPrefill.applicationPrefill.courseId
+    );
+
+    if (match) {
+      setSelectedCourseId(match.id);
+    }
+  }, [courses, leadPrefill]);
+
+  function handleProviderChange(providerId: string) {
+    setSelectedProviderId(providerId);
+    setSelectedCourseId("");
+  }
+
+  function handleCourseChange(courseId: string) {
+    setSelectedCourseId(courseId);
+
+    const course = courses.find((item) => item.id === courseId);
+    if (!course) return;
+
+    if (!intake && course.intakeMonths) {
+      setIntake(course.intakeMonths);
+    }
+  }
+
+  async function handleSubmit(event: React.FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    setSubmitError(null);
+
+    if (!selectedClientId) {
+      setSubmitError("Client is required.");
+      return;
+    }
+
+    if (!selectedProviderId) {
+      setSubmitError("Provider is required.");
+      return;
+    }
+
+    if (!selectedCourseId) {
+      setSubmitError("Course is required.");
+      return;
+    }
+
+    if (!intake.trim()) {
+      setSubmitError("Intake is required.");
+      return;
+    }
+
+    setSubmitting(true);
 
     try {
-      const res = await fetch("/api/applications", {
+      const response = await fetch("/api/applications", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
         },
         body: JSON.stringify({
-          clientId,
-          providerId,
-          courseId,
+          clientId: selectedClientId,
+          providerId: selectedProviderId,
+          courseId: selectedCourseId,
           intake: intake.trim(),
-          intakeYear: intakeYear.trim() || null,
-          status: status.trim(),
+          intakeYear: intakeYear.trim() ? Number(intakeYear) : null,
+          status: status.trim() || "applied",
           applicationNo: applicationNo.trim() || null,
           notes: notes.trim() || null,
           appliedAt: appliedAt || null,
+          offerDate: offerDate || null,
         }),
       });
 
-      const data = await res.json().catch(() => null);
+      const payload = await response.json();
 
-      if (!res.ok) {
-        setError(data?.error || "Failed to create application");
-        setLoading(false);
+      if (!response.ok) {
+        throw new Error(payload?.error || "Failed to create application");
+      }
+
+      const applicationId =
+        payload?.data?.id || payload?.id || payload?.application?.id;
+
+      if (!applicationId) {
+        router.push("/applications");
         return;
       }
 
-      setSuccessMessage("Application created successfully.");
-      router.push(`/applications/${data.id}`);
-      router.refresh();
-    } catch {
-      setError("Something went wrong while creating the application");
-      setLoading(false);
+      router.push(`/applications/${applicationId}`);
+    } catch (error) {
+      setSubmitError(
+        error instanceof Error ? error.message : "Failed to create application"
+      );
+    } finally {
+      setSubmitting(false);
     }
   }
 
-  if (pageLoading) {
-    return (
-      <div className="min-h-screen bg-[radial-gradient(circle_at_top,_rgba(59,130,246,0.08),_transparent_35%),linear-gradient(to_bottom,_#f8fafc,_#eef2ff_70%,_#f8fafc)]">
-        <div className="space-y-6 px-4 py-6 sm:px-6 lg:px-8">
-          <section className="overflow-hidden rounded-[32px] border border-slate-200/70 bg-white/90 shadow-[0_18px_50px_rgba(15,23,42,0.06)]">
-            <div className="bg-[radial-gradient(circle_at_top_right,rgba(96,165,250,0.22),transparent_30%),linear-gradient(135deg,#020617_0%,#0f172a_46%,#1e293b_100%)] px-6 py-8 text-white lg:px-8">
-              <p className="text-[11px] font-medium uppercase tracking-[0.22em] text-slate-300">
-                Application Setup
-              </p>
-              <h1 className="mt-2 text-3xl font-semibold tracking-tight sm:text-4xl">
-                Add Application
-              </h1>
-              <p className="mt-3 flex items-center gap-2 text-sm text-slate-300">
-                <Loader2 className="h-4 w-4 animate-spin" />
-                Loading application form...
-              </p>
-            </div>
-          </section>
-        </div>
-      </div>
-    );
-  }
+  const isInitialLoading =
+    loadingClients || loadingProviders || loadingPrefill;
 
   return (
-    <div className="min-h-screen bg-[radial-gradient(circle_at_top,_rgba(59,130,246,0.08),_transparent_35%),linear-gradient(to_bottom,_#f8fafc,_#eef2ff_70%,_#f8fafc)]">
-      <div className="space-y-6 px-4 py-6 sm:px-6 lg:px-8">
-        <section className="overflow-hidden rounded-[32px] border border-slate-200/70 bg-white/90 shadow-[0_18px_50px_rgba(15,23,42,0.06)]">
-          <div className="border-b border-slate-100 bg-[radial-gradient(circle_at_top_right,rgba(96,165,250,0.22),transparent_30%),linear-gradient(135deg,#020617_0%,#0f172a_46%,#1e293b_100%)] px-6 py-8 text-white lg:px-8">
-            <div className="flex flex-col gap-6 xl:flex-row xl:items-start xl:justify-between">
-              <div className="min-w-0">
-                <div className="flex flex-wrap items-center gap-2 text-sm text-slate-300">
-                  <Link href="/applications" className="transition hover:text-white">
-                    Applications
-                  </Link>
-                  <span>/</span>
-                  <span className="font-medium text-white">New</span>
-                </div>
+    <div className="space-y-6">
+      <div className="overflow-hidden rounded-[32px] border border-slate-200 bg-white shadow-sm">
+        <div className="border-b border-slate-200 bg-gradient-to-r from-slate-950 via-slate-900 to-slate-800 px-6 py-7 text-white sm:px-8">
+          <div className="flex flex-col gap-5 lg:flex-row lg:items-end lg:justify-between">
+            <div>
+              <p className="text-xs font-semibold uppercase tracking-[0.24em] text-slate-300">
+                Applications
+              </p>
+              <h1 className="mt-2 text-3xl font-bold tracking-tight">
+                New Application
+              </h1>
+              <p className="mt-3 max-w-3xl text-sm leading-6 text-slate-300">
+                Create a real application manually with staff review, while
+                reusing provider, course, client, and referral data already
+                captured during intake.
+              </p>
+            </div>
 
-                <div className="mt-5 flex items-start gap-4">
-                  <div className="flex h-14 w-14 items-center justify-center rounded-3xl bg-white/10 ring-1 ring-white/15">
-                    <Sparkles className="h-6 w-6" />
-                  </div>
-
-                  <div>
-                    <p className="text-[11px] font-medium uppercase tracking-[0.22em] text-slate-300">
-                      Application Setup
-                    </p>
-                    <h1 className="mt-2 text-3xl font-semibold tracking-tight sm:text-4xl">
-                      Add Application
-                    </h1>
-                    <p className="mt-3 max-w-3xl text-sm leading-6 text-slate-300">
-                      Create a new student application and connect it to client,
-                      provider, course, intake, and workflow-ready processing.
-                    </p>
-                  </div>
-                </div>
-              </div>
-
-              <div className="flex w-full flex-col gap-3 xl:w-[340px]">
-                <div className="rounded-2xl bg-white/8 px-4 py-3 ring-1 ring-white/10">
-                  <p className="text-[11px] uppercase tracking-[0.14em] text-slate-300">
-                    Workflow Focus
-                  </p>
-                  <p className="mt-1 text-sm text-white">
-                    Premium application creation with advanced client search and
-                    provider-linked course selection.
-                  </p>
-                </div>
-
-                <div className="flex flex-wrap gap-3">
-                  <Link
-                    href="/applications"
-                    className="inline-flex h-11 items-center justify-center gap-2 rounded-2xl border border-white/15 bg-white/10 px-4 text-sm font-medium text-white transition hover:bg-white/15"
-                  >
-                    <ArrowLeft className="h-4 w-4" />
-                    Back
-                  </Link>
-                </div>
-              </div>
+            <div className="rounded-2xl border border-white/10 bg-white/5 px-4 py-3 text-sm text-slate-200">
+              {leadId ? `Prefill source: lead ${leadId}` : "Manual application mode"}
             </div>
           </div>
-        </section>
+        </div>
 
-        <form onSubmit={handleSubmit} className="space-y-6">
-          {error ? (
-            <div className="rounded-2xl border border-rose-200 bg-rose-50 px-4 py-3 text-sm text-rose-700 shadow-sm">
-              {error}
+        <div className="px-4 py-4 sm:px-6 sm:py-6">
+          {pageError ? (
+            <div className="rounded-2xl border border-rose-200 bg-rose-50 px-4 py-3 text-sm text-rose-700">
+              {pageError}
             </div>
           ) : null}
 
-          {successMessage ? (
-            <div className="rounded-2xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm text-emerald-700 shadow-sm">
-              {successMessage}
+          {isInitialLoading ? (
+            <div className="rounded-[24px] border border-slate-200 bg-slate-50 px-6 py-10 text-center">
+              <p className="text-sm text-slate-600">Loading application setup...</p>
             </div>
-          ) : null}
+          ) : leadPrefill && !leadPrefill.canCreateApplication ? (
+            <div className="grid gap-6 xl:grid-cols-[minmax(0,1fr)_320px]">
+              <div className="rounded-[28px] border border-amber-200 bg-amber-50 p-6">
+                <p className="text-xs font-semibold uppercase tracking-[0.2em] text-amber-700">
+                  Action required
+                </p>
+                <h2 className="mt-2 text-2xl font-bold text-slate-950">
+                  Client profile required before application creation
+                </h2>
+                <p className="mt-3 max-w-2xl text-sm leading-6 text-slate-700">
+                  {leadPrefill.blockingReason ||
+                    "This lead is not linked to a client yet."}
+                </p>
 
-          <div className="grid gap-6 xl:grid-cols-[minmax(0,1.35fr)_380px]">
-            <div className="space-y-6">
-              <SectionCard
-                title="Application Setup"
-                description="Choose the client, provider, and course with smarter searchable selection."
-                icon={UserRoundSearch}
-              >
-                <div className="grid gap-5 md:grid-cols-2">
-                  <div className="md:col-span-2" ref={clientPickerRef}>
-                    <Field
-                      label="Client"
-                      required
-                      hint="Search by first name, last name, email, phone, or passport."
+                <div className="mt-6 flex flex-wrap gap-3">
+                  {leadPrefill.intakeSubmission?.id ? (
+                    <Link
+                      href={`/intake-submissions/${leadPrefill.intakeSubmission.id}/convert`}
+                      className="inline-flex items-center justify-center rounded-2xl bg-slate-950 px-5 py-3 text-sm font-semibold text-white transition hover:bg-slate-800"
                     >
-                      <div className="relative">
-                        <div className="relative">
-                          <Search className="pointer-events-none absolute left-4 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
-                          <input
-                            value={clientQuery}
-                            onChange={(e) => {
-                              setClientQuery(e.target.value);
-                              setClientPickerOpen(true);
-                              setClientId("");
-                            }}
-                            onFocus={() => setClientPickerOpen(true)}
-                            placeholder="Search client by name, email, phone, passport..."
-                            className={cn(inputClassName(), "pl-11 pr-11")}
-                            required={!clientId}
-                          />
-                          <ChevronDown className="pointer-events-none absolute right-4 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
-                        </div>
-
-                        {clientPickerOpen && (
-                          <div className="absolute z-30 mt-2 max-h-80 w-full overflow-y-auto rounded-2xl border border-slate-200 bg-white p-2 shadow-[0_20px_50px_rgba(15,23,42,0.15)]">
-                            {filteredClients.length === 0 ? (
-                              <div className="rounded-xl px-4 py-6 text-sm text-slate-500">
-                                No matching clients found.
-                              </div>
-                            ) : (
-                              <div className="space-y-1">
-                                {filteredClients.map((client) => (
-                                  <button
-                                    key={client.id}
-                                    type="button"
-                                    onClick={() => handleClientSelect(client)}
-                                    className="w-full rounded-xl border border-transparent px-4 py-3 text-left transition hover:border-slate-200 hover:bg-slate-50"
-                                  >
-                                    <div className="flex items-start justify-between gap-4">
-                                      <div className="min-w-0">
-                                        <p className="truncate text-sm font-semibold text-slate-900">
-                                          {client.firstName} {client.lastName}
-                                        </p>
-                                        <div className="mt-1 flex flex-wrap gap-x-3 gap-y-1 text-xs text-slate-500">
-                                          <span>{client.email || "No email"}</span>
-                                          <span>{client.phone || "No phone"}</span>
-                                          <span>
-                                            Passport: {client.passport || "—"}
-                                          </span>
-                                        </div>
-                                      </div>
-
-                                      <div className="shrink-0">
-                                        <span className="inline-flex rounded-full border border-slate-200 bg-slate-50 px-2.5 py-1 text-[11px] font-medium text-slate-600">
-                                          Select
-                                        </span>
-                                      </div>
-                                    </div>
-                                  </button>
-                                ))}
-                              </div>
-                            )}
-                          </div>
-                        )}
-                      </div>
-                    </Field>
-                  </div>
-
-                  <Field label="Provider" required>
-                    <select
-                      value={providerId}
-                      onChange={(e) => setProviderId(e.target.value)}
-                      className={selectClassName()}
-                      required
+                      Convert / Link Student First
+                    </Link>
+                  ) : (
+                    <Link
+                      href="/leads"
+                      className="inline-flex items-center justify-center rounded-2xl bg-slate-950 px-5 py-3 text-sm font-semibold text-white transition hover:bg-slate-800"
                     >
-                      <option value="">Select provider</option>
-                      {providers.map((provider) => (
-                        <option key={provider.id} value={provider.id}>
-                          {provider.name}
-                        </option>
-                      ))}
-                    </select>
-                  </Field>
+                      Back to Leads
+                    </Link>
+                  )}
 
-                  <Field label="Course" required>
-                    <select
-                      value={courseId}
-                      onChange={(e) => setCourseId(e.target.value)}
-                      className={cn(
-                        selectClassName(),
-                        !providerId && "bg-slate-100 text-slate-400"
-                      )}
-                      required
-                      disabled={!providerId}
-                    >
-                      <option value="">
-                        {providerId ? "Select course" : "Select provider first"}
-                      </option>
-                      {filteredCourses.map((course) => (
-                        <option key={course.id} value={course.id}>
-                          {course.name}
-                        </option>
-                      ))}
-                    </select>
-                  </Field>
+                  <Link
+                    href="/applications"
+                    className="inline-flex items-center justify-center rounded-2xl border border-slate-300 bg-white px-5 py-3 text-sm font-semibold text-slate-700 transition hover:bg-slate-50"
+                  >
+                    Back to Applications
+                  </Link>
                 </div>
-              </SectionCard>
+              </div>
 
-              <SectionCard
-                title="Intake & Status"
-                description="Set the operational intake timeline and current application stage."
-                icon={CalendarDays}
-              >
-                <div className="grid gap-5 md:grid-cols-2">
-                  <Field label="Intake" required>
+              <aside className="space-y-4">
+                <div className="rounded-[28px] border border-slate-200 bg-white p-5 shadow-sm">
+                  <h2 className="text-base font-semibold text-slate-950">
+                    Lead snapshot
+                  </h2>
+                  <div className="mt-4 space-y-3 text-sm text-slate-700">
+                    <p>
+                      <span className="font-semibold">Lead:</span>{" "}
+                      {[leadPrefill.lead.firstName, leadPrefill.lead.lastName]
+                        .filter(Boolean)
+                        .join(" ") || "Unnamed lead"}
+                    </p>
+                    <p>
+                      <span className="font-semibold">Source:</span>{" "}
+                      {leadPrefill.lead.source || "—"}
+                    </p>
+                    <p>
+                      <span className="font-semibold">Provider:</span>{" "}
+                      {leadPrefill.applicationPrefill.providerName || "—"}
+                    </p>
+                    <p>
+                      <span className="font-semibold">Course:</span>{" "}
+                      {leadPrefill.applicationPrefill.courseName || "—"}
+                    </p>
+                  </div>
+                </div>
+              </aside>
+            </div>
+          ) : (
+            <form
+              onSubmit={handleSubmit}
+              className="grid gap-6 xl:grid-cols-[minmax(0,1fr)_320px]"
+            >
+              <div className="space-y-6">
+                <section className="rounded-[28px] border border-slate-200 bg-white p-5 shadow-sm sm:p-6">
+                  <p className="text-xs font-semibold uppercase tracking-[0.2em] text-slate-500">
+                    Client
+                  </p>
+                  <h2 className="mt-2 text-2xl font-bold text-slate-950">
+                    Client selection
+                  </h2>
+                  <p className="mt-2 text-sm leading-6 text-slate-600">
+                    Search and confirm the correct client profile before creating
+                    the application.
+                  </p>
+
+                  <div className="mt-5 grid gap-4">
                     <input
-                      type="text"
-                      value={intake}
-                      onChange={(e) => setIntake(e.target.value)}
-                      placeholder="February"
-                      className={inputClassName()}
-                      required
+                      value={clientSearch}
+                      onChange={(e) => setClientSearch(e.target.value)}
+                      placeholder="Search by name, email, phone, or passport"
+                      className="w-full rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm text-slate-900 outline-none transition focus:border-slate-400 focus:ring-4 focus:ring-slate-100"
                     />
-                  </Field>
 
-                  <Field label="Intake Year">
-                    <input
-                      type="number"
-                      value={intakeYear}
-                      onChange={(e) => setIntakeYear(e.target.value)}
-                      placeholder="2026"
-                      className={inputClassName()}
-                    />
-                  </Field>
+                    <div className="max-h-[320px] overflow-auto rounded-2xl border border-slate-200">
+                      {loadingClients ? (
+                        <div className="px-4 py-6 text-sm text-slate-500">
+                          Loading clients...
+                        </div>
+                      ) : filteredClients.length === 0 ? (
+                        <div className="px-4 py-6 text-sm text-slate-500">
+                          No clients found.
+                        </div>
+                      ) : (
+                        <div className="divide-y divide-slate-200">
+                          {filteredClients.map((client) => {
+                            const active = client.id === selectedClientId;
 
-                  <Field label="Status">
-                    <select
-                      value={status}
-                      onChange={(e) => setStatus(e.target.value)}
-                      className={selectClassName()}
-                    >
-                      <option value="applied">applied</option>
-                      <option value="submitted">submitted</option>
-                      <option value="offer_received">offer_received</option>
-                      <option value="offer_accepted">offer_accepted</option>
-                      <option value="coe_issued">coe_issued</option>
-                      <option value="visa_lodged">visa_lodged</option>
-                      <option value="visa_granted">visa_granted</option>
-                      <option value="rejected">rejected</option>
-                    </select>
-                  </Field>
+                            return (
+                              <button
+                                key={client.id}
+                                type="button"
+                                onClick={() => setSelectedClientId(client.id)}
+                                className={`w-full px-4 py-4 text-left transition ${
+                                  active
+                                    ? "bg-slate-50"
+                                    : "bg-white hover:bg-slate-50"
+                                }`}
+                              >
+                                <p className="text-sm font-semibold text-slate-950">
+                                  {getClientLabel(client)}
+                                </p>
+                                <p className="mt-1 text-sm text-slate-600">
+                                  {client.email || "No email"}
+                                  {client.phone ? ` • ${client.phone}` : ""}
+                                  {client.passport ? ` • ${client.passport}` : ""}
+                                </p>
+                              </button>
+                            );
+                          })}
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                </section>
 
-                  <Field label="Application No">
-                    <input
-                      type="text"
-                      value={applicationNo}
-                      onChange={(e) => setApplicationNo(e.target.value)}
-                      placeholder="APP-001"
-                      className={inputClassName()}
-                    />
-                  </Field>
+                <section className="rounded-[28px] border border-slate-200 bg-white p-5 shadow-sm sm:p-6">
+                  <p className="text-xs font-semibold uppercase tracking-[0.2em] text-slate-500">
+                    Application
+                  </p>
+                  <h2 className="mt-2 text-2xl font-bold text-slate-950">
+                    Application details
+                  </h2>
 
-                  <div className="md:col-span-2">
-                    <Field label="Applied At">
+                  <div className="mt-5 grid gap-4 md:grid-cols-2">
+                    <div>
+                      <label className="mb-2 block text-sm font-semibold text-slate-800">
+                        Provider <span className="text-rose-500">*</span>
+                      </label>
+                      <select
+                        value={selectedProviderId}
+                        onChange={(e) => handleProviderChange(e.target.value)}
+                        className="w-full rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm text-slate-900 outline-none transition focus:border-slate-400 focus:ring-4 focus:ring-slate-100"
+                        required
+                      >
+                        <option value="">
+                          {loadingProviders ? "Loading providers..." : "Select provider"}
+                        </option>
+                        {providers.map((provider) => (
+                          <option key={provider.id} value={provider.id}>
+                            {provider.name}
+                          </option>
+                        ))}
+                      </select>
+                    </div>
+
+                    <div>
+                      <label className="mb-2 block text-sm font-semibold text-slate-800">
+                        Course <span className="text-rose-500">*</span>
+                      </label>
+                      <select
+                        value={selectedCourseId}
+                        onChange={(e) => handleCourseChange(e.target.value)}
+                        disabled={!selectedProviderId || loadingCourses}
+                        className="w-full rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm text-slate-900 outline-none transition focus:border-slate-400 focus:ring-4 focus:ring-slate-100 disabled:cursor-not-allowed disabled:bg-slate-100"
+                        required
+                      >
+                        <option value="">
+                          {!selectedProviderId
+                            ? "Select provider first"
+                            : loadingCourses
+                            ? "Loading courses..."
+                            : "Select course"}
+                        </option>
+                        {courses.map((course) => (
+                          <option key={course.id} value={course.id}>
+                            {course.name}
+                          </option>
+                        ))}
+                      </select>
+                    </div>
+
+                    <div>
+                      <label className="mb-2 block text-sm font-semibold text-slate-800">
+                        Intake <span className="text-rose-500">*</span>
+                      </label>
+                      <input
+                        value={intake}
+                        onChange={(e) => setIntake(e.target.value)}
+                        placeholder="Enter intake"
+                        className="w-full rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm text-slate-900 outline-none transition focus:border-slate-400 focus:ring-4 focus:ring-slate-100"
+                        required
+                      />
+                    </div>
+
+                    <div>
+                      <label className="mb-2 block text-sm font-semibold text-slate-800">
+                        Intake Year
+                      </label>
+                      <input
+                        value={intakeYear}
+                        onChange={(e) => setIntakeYear(e.target.value)}
+                        placeholder="2026"
+                        inputMode="numeric"
+                        className="w-full rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm text-slate-900 outline-none transition focus:border-slate-400 focus:ring-4 focus:ring-slate-100"
+                      />
+                    </div>
+
+                    <div>
+                      <label className="mb-2 block text-sm font-semibold text-slate-800">
+                        Status
+                      </label>
+                      <select
+                        value={status}
+                        onChange={(e) => setStatus(e.target.value)}
+                        className="w-full rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm text-slate-900 outline-none transition focus:border-slate-400 focus:ring-4 focus:ring-slate-100"
+                      >
+                        <option value="applied">Applied</option>
+                        <option value="draft">Draft</option>
+                        <option value="under_review">Under Review</option>
+                        <option value="offer_received">Offer Received</option>
+                      </select>
+                    </div>
+
+                    <div>
+                      <label className="mb-2 block text-sm font-semibold text-slate-800">
+                        Application No
+                      </label>
+                      <input
+                        value={applicationNo}
+                        onChange={(e) => setApplicationNo(e.target.value)}
+                        placeholder="Optional application number"
+                        className="w-full rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm text-slate-900 outline-none transition focus:border-slate-400 focus:ring-4 focus:ring-slate-100"
+                      />
+                    </div>
+
+                    <div>
+                      <label className="mb-2 block text-sm font-semibold text-slate-800">
+                        Applied At
+                      </label>
                       <input
                         type="date"
                         value={appliedAt}
                         onChange={(e) => setAppliedAt(e.target.value)}
-                        className={inputClassName()}
+                        className="w-full rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm text-slate-900 outline-none transition focus:border-slate-400 focus:ring-4 focus:ring-slate-100"
                       />
-                    </Field>
-                  </div>
-                </div>
-              </SectionCard>
-
-              <SectionCard
-                title="Notes"
-                description="Internal notes for processing, handover, and special handling."
-                icon={FileText}
-              >
-                <Field label="Internal Notes">
-                  <textarea
-                    value={notes}
-                    onChange={(e) => setNotes(e.target.value)}
-                    rows={6}
-                    placeholder="Optional application notes"
-                    className={textareaClassName()}
-                  />
-                </Field>
-              </SectionCard>
-            </div>
-
-            <div className="space-y-6 xl:sticky xl:top-6 xl:self-start">
-              <SectionCard
-                title="Application Snapshot"
-                description="Live summary while creating the record."
-                icon={Sparkles}
-              >
-                <div className="space-y-4">
-                  <div className="rounded-3xl border border-slate-200 bg-slate-50/80 p-4">
-                    <p className="text-xs font-medium uppercase tracking-[0.16em] text-slate-400">
-                      Selected Client
-                    </p>
-                    <p className="mt-2 text-sm font-semibold text-slate-900">
-                      {selectedClient
-                        ? `${selectedClient.firstName} ${selectedClient.lastName}`
-                        : "No client selected"}
-                    </p>
-                    <p className="mt-1 text-xs text-slate-500">
-                      {selectedClient?.email || "—"}
-                    </p>
-                  </div>
-
-                  <div className="flex flex-wrap gap-2">
-                    <StatBadge
-                      label="Completion"
-                      value={`${completionScore}%`}
-                      tone={completionTone}
-                    />
-                    <StatBadge
-                      label="Status"
-                      value={status || "draft"}
-                      tone="blue"
-                    />
-                  </div>
-
-                  <div className="grid grid-cols-1 gap-3">
-                    <div className="rounded-2xl border border-slate-200 bg-white p-4">
-                      <p className="text-xs font-medium uppercase tracking-[0.16em] text-slate-400">
-                        Provider
-                      </p>
-                      <p className="mt-2 text-sm font-medium text-slate-800">
-                        {selectedProvider?.name || "—"}
-                      </p>
                     </div>
 
-                    <div className="rounded-2xl border border-slate-200 bg-white p-4">
-                      <p className="text-xs font-medium uppercase tracking-[0.16em] text-slate-400">
-                        Course
-                      </p>
-                      <p className="mt-2 text-sm font-medium text-slate-800">
-                        {selectedCourse?.name || "—"}
-                      </p>
+                    <div>
+                      <label className="mb-2 block text-sm font-semibold text-slate-800">
+                        Offer Date
+                      </label>
+                      <input
+                        type="date"
+                        value={offerDate}
+                        onChange={(e) => setOfferDate(e.target.value)}
+                        className="w-full rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm text-slate-900 outline-none transition focus:border-slate-400 focus:ring-4 focus:ring-slate-100"
+                      />
                     </div>
 
-                    <div className="rounded-2xl border border-slate-200 bg-white p-4">
-                      <p className="text-xs font-medium uppercase tracking-[0.16em] text-slate-400">
-                        Intake Window
-                      </p>
-                      <p className="mt-2 text-sm font-medium text-slate-800">
-                        {[intake, intakeYear].filter(Boolean).join(" ") || "—"}
-                      </p>
+                    <div className="md:col-span-2">
+                      <label className="mb-2 block text-sm font-semibold text-slate-800">
+                        Notes
+                      </label>
+                      <textarea
+                        rows={5}
+                        value={notes}
+                        onChange={(e) => setNotes(e.target.value)}
+                        placeholder="Application notes"
+                        className="w-full rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm text-slate-900 outline-none transition focus:border-slate-400 focus:ring-4 focus:ring-slate-100"
+                      />
                     </div>
                   </div>
-                </div>
-              </SectionCard>
+                </section>
 
-              <SectionCard
-                title="Course Intelligence"
-                description="Provider-linked course context for application decisions."
-                icon={GraduationCap}
-              >
-                <div className="space-y-4">
-                  <div className="rounded-2xl border border-slate-200 bg-slate-50 p-4">
-                    <p className="text-xs font-medium uppercase tracking-[0.16em] text-slate-400">
-                      Level
-                    </p>
-                    <p className="mt-2 text-sm font-medium text-slate-800">
-                      {selectedCourse?.level || "—"}
-                    </p>
+                {submitError ? (
+                  <div className="rounded-2xl border border-rose-200 bg-rose-50 px-4 py-3 text-sm text-rose-700">
+                    {submitError}
                   </div>
+                ) : null}
 
-                  <div className="rounded-2xl border border-slate-200 bg-slate-50 p-4">
-                    <p className="text-xs font-medium uppercase tracking-[0.16em] text-slate-400">
-                      Campus
-                    </p>
-                    <p className="mt-2 text-sm font-medium text-slate-800">
-                      {selectedCourse?.campus || "—"}
-                    </p>
-                  </div>
-
-                  <div className="rounded-2xl border border-slate-200 bg-slate-50 p-4">
-                    <p className="text-xs font-medium uppercase tracking-[0.16em] text-slate-400">
-                      Intake Months
-                    </p>
-                    <p className="mt-2 text-sm font-medium text-slate-800">
-                      {selectedCourse?.intakeMonths || "—"}
-                    </p>
-                  </div>
-
-                  <div className="rounded-2xl border border-slate-200 bg-slate-50 p-4">
-                    <p className="text-xs font-medium uppercase tracking-[0.16em] text-slate-400">
-                      Tuition
-                    </p>
-                    <p className="mt-2 text-sm font-medium text-slate-800">
-                      {formatCurrency(
-                        selectedCourse?.tuitionFee,
-                        selectedCourse?.currency
-                      )}
-                    </p>
-                  </div>
-                </div>
-              </SectionCard>
-
-              <SectionCard
-                title="Save Application"
-                description="Create the record and open the application workspace."
-                icon={CheckCircle2}
-              >
-                <div className="space-y-3">
+                <div className="flex flex-wrap gap-3">
                   <button
                     type="submit"
-                    disabled={loading}
-                    className="inline-flex w-full items-center justify-center gap-2 rounded-2xl bg-slate-950 px-4 py-3 text-sm font-semibold text-white shadow-[0_12px_30px_rgba(15,23,42,0.18)] transition hover:bg-slate-900 disabled:cursor-not-allowed disabled:opacity-60"
+                    disabled={submitting}
+                    className="inline-flex items-center justify-center rounded-2xl bg-slate-950 px-5 py-3 text-sm font-semibold text-white transition hover:bg-slate-800 disabled:cursor-not-allowed disabled:opacity-60"
                   >
-                    {loading ? (
-                      <>
-                        <Loader2 className="h-4 w-4 animate-spin" />
-                        Creating Application...
-                      </>
-                    ) : (
-                      <>
-                        <FilePlus2 className="h-4 w-4" />
-                        Create Application
-                      </>
-                    )}
+                    {submitting ? "Creating..." : "Create Application"}
                   </button>
 
                   <Link
                     href="/applications"
-                    className="inline-flex w-full items-center justify-center rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm font-medium text-slate-700 transition hover:border-slate-300 hover:bg-slate-50"
+                    className="inline-flex items-center justify-center rounded-2xl border border-slate-300 bg-white px-5 py-3 text-sm font-semibold text-slate-700 transition hover:bg-slate-50"
                   >
                     Cancel
                   </Link>
                 </div>
-              </SectionCard>
-            </div>
-          </div>
-        </form>
+              </div>
+
+              <aside className="space-y-4">
+                <div className="rounded-[28px] border border-slate-200 bg-white p-5 shadow-sm">
+                  <h2 className="text-base font-semibold text-slate-950">
+                    Summary
+                  </h2>
+
+                  <div className="mt-4 space-y-3 text-sm">
+                    <div>
+                      <p className="text-slate-500">Client</p>
+                      <p className="mt-1 font-medium text-slate-900">
+                        {selectedClient ? getClientLabel(selectedClient) : "Not selected"}
+                      </p>
+                    </div>
+
+                    <div>
+                      <p className="text-slate-500">Provider</p>
+                      <p className="mt-1 font-medium text-slate-900">
+                        {selectedProvider?.name || leadPrefill?.applicationPrefill?.providerName || "Not selected"}
+                      </p>
+                    </div>
+
+                    <div>
+                      <p className="text-slate-500">Course</p>
+                      <p className="mt-1 font-medium text-slate-900">
+                        {selectedCourse?.name || leadPrefill?.applicationPrefill?.courseName || "Not selected"}
+                      </p>
+                    </div>
+
+                    <div>
+                      <p className="text-slate-500">Intake</p>
+                      <p className="mt-1 font-medium text-slate-900">
+                        {intake || "Not set"}
+                      </p>
+                    </div>
+                  </div>
+                </div>
+
+                {leadPrefill ? (
+                  <div className="rounded-[28px] border border-slate-200 bg-white p-5 shadow-sm">
+                    <h2 className="text-base font-semibold text-slate-950">
+                      Lead prefill
+                    </h2>
+
+                    <div className="mt-4 space-y-3 text-sm">
+                      <div>
+                        <p className="text-slate-500">Lead</p>
+                        <p className="mt-1 font-medium text-slate-900">
+                          {[leadPrefill.lead.firstName, leadPrefill.lead.lastName]
+                            .filter(Boolean)
+                            .join(" ") || "Unnamed lead"}
+                        </p>
+                      </div>
+
+                      <div>
+                        <p className="text-slate-500">Referral</p>
+                        <p className="mt-1 font-medium text-slate-900">
+                          {leadPrefill.subagent?.name || "Direct / unassigned"}
+                        </p>
+                        <p className="mt-1 text-slate-600">
+                          {leadPrefill.subagent?.agencyName ||
+                            leadPrefill.subagent?.referralCode ||
+                            "No agency/referral code"}
+                        </p>
+                      </div>
+
+                      <div>
+                        <p className="text-slate-500">Destination</p>
+                        <p className="mt-1 font-medium text-slate-900">
+                          {leadPrefill.applicationPrefill.destinationCountry || "—"}
+                        </p>
+                      </div>
+
+                      <div>
+                        <p className="text-slate-500">Suggested study level</p>
+                        <p className="mt-1 font-medium text-slate-900">
+                          {leadPrefill.applicationPrefill.studyLevel || "—"}
+                        </p>
+                      </div>
+
+                      <div>
+                        <p className="text-slate-500">Preferred campus</p>
+                        <p className="mt-1 font-medium text-slate-900">
+                          {leadPrefill.applicationPrefill.preferredCampus || "—"}
+                        </p>
+                      </div>
+                    </div>
+                  </div>
+                ) : null}
+              </aside>
+            </form>
+          )}
+        </div>
       </div>
     </div>
   );

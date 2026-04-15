@@ -2,66 +2,34 @@
 
 import Link from "next/link";
 import { useMemo, useState } from "react";
+import { useRouter } from "next/navigation";
 
-type SubmissionStatus =
+type JsonRecord = Record<string, unknown>;
+
+type LeadStatus =
   | "new"
+  | "new_lead"
   | "assigned"
   | "contacted"
   | "under_review"
   | "converted"
   | "closed";
 
-type SubmissionMeta = {
-  applicationInterest?: {
-    destinationCountry?: string | null;
-    providerName?: string | null;
-    providerId?: string | null;
-    courseName?: string | null;
-    courseId?: string | null;
-    subjectArea?: string | null;
-    intake?: string | null;
-    studyLevel?: string | null;
-    preferredCampus?: string | null;
-    duration?: string | null;
-  } | null;
-  subagent?: {
-    name?: string | null;
-    agencyName?: string | null;
-    email?: string | null;
-    phone?: string | null;
-    reference?: string | null;
-  } | null;
-};
-
-type SubmissionItem = {
+type LeadItem = {
   id: string;
-  intakeFormRequestId: string;
-  branchId: string | null;
   firstName: string | null;
   lastName: string | null;
   email: string | null;
   phone: string | null;
-  country: string | null;
-  city: string | null;
-  address: string | null;
-  nationality: string | null;
-  dateOfBirth: Date | string | null;
   passportNumber: string | null;
+  country: string | null;
   notes: string | null;
-  internalNotes: string | null;
-  status: SubmissionStatus;
+  source: string | null;
+  status: LeadStatus | string;
   assignedAt: Date | string | null;
-  reviewedAt: Date | string | null;
-  convertedAt: Date | string | null;
-  closedAt: Date | string | null;
-  submittedAt: Date | string;
-  submissionMeta?: unknown;
-
-  intakeFormRequest: {
-    id: string;
-    title: string;
-    token: string;
-  } | null;
+  createdAt: Date | string;
+  updatedAt: Date | string | null;
+  lastActivityAt: Date | string | null;
 
   branch: {
     id: string;
@@ -77,18 +45,59 @@ type SubmissionItem = {
     branchId: string | null;
   } | null;
 
-  reviewedBy: {
-    id: string;
-    firstName: string | null;
-    lastName: string | null;
-    email: string;
-  } | null;
-
   client: {
     id: string;
     firstName: string | null;
     lastName: string | null;
+    email: string | null;
+    phone: string | null;
   } | null;
+
+  agent: {
+    id: string;
+    name: string;
+    referralCode: string;
+  } | null;
+
+  intakeSubmission: {
+    id: string;
+    status: string | null;
+    submittedAt: Date | string;
+    reviewedAt: Date | string | null;
+    convertedAt: Date | string | null;
+    closedAt: Date | string | null;
+    firstName: string | null;
+    lastName: string | null;
+    email: string | null;
+    phone: string | null;
+    country: string | null;
+    city: string | null;
+    address: string | null;
+    nationality: string | null;
+    dateOfBirth: Date | string | null;
+    passportNumber: string | null;
+    notes: string | null;
+    internalNotes: string | null;
+    submissionMeta: unknown;
+    reviewedBy: {
+      id: string;
+      firstName: string | null;
+      lastName: string | null;
+      email: string;
+    } | null;
+  } | null;
+
+  clientCheckIn: {
+    id: string;
+    checkInMethod: string | null;
+    visitReason: string | null;
+    notes: string | null;
+    checkedInAt: Date | string;
+    intakeSubmissionId: string | null;
+  } | null;
+
+  followers: { id: string }[];
+  activities: { id: string }[];
 };
 
 type UserItem = {
@@ -104,7 +113,7 @@ type UserItem = {
 };
 
 type Props = {
-  submissions: SubmissionItem[];
+  leads: LeadItem[];
   users: UserItem[];
   currentUserRole: string;
   currentUserBranchId: string | null;
@@ -155,9 +164,10 @@ function formatRole(value?: string | null) {
     .replace(/\b\w/g, (char) => char.toUpperCase());
 }
 
-function getStatusClasses(status: SubmissionStatus) {
+function getStatusClasses(status: string) {
   switch (status) {
     case "new":
+    case "new_lead":
       return "bg-blue-50 text-blue-700 ring-1 ring-inset ring-blue-200";
     case "assigned":
       return "bg-violet-50 text-violet-700 ring-1 ring-inset ring-violet-200";
@@ -174,11 +184,27 @@ function getStatusClasses(status: SubmissionStatus) {
   }
 }
 
-function formatStatus(status: SubmissionStatus) {
+function formatStatus(status: string) {
   return status
     .split("_")
     .map((word) => word.charAt(0).toUpperCase() + word.slice(1))
     .join(" ");
+}
+
+function safeObject(value: unknown): JsonRecord | null {
+  if (!value || typeof value !== "object" || Array.isArray(value)) {
+    return null;
+  }
+  return value as JsonRecord;
+}
+
+function safeNestedObject(parent: JsonRecord | null, key: string): JsonRecord | null {
+  const value = parent?.[key];
+  return safeObject(value);
+}
+
+function safeString(value: unknown) {
+  return typeof value === "string" ? value.trim() : "";
 }
 
 function DetailItem({
@@ -200,23 +226,52 @@ function DetailItem({
   );
 }
 
-function parseSubmissionMeta(value: unknown): SubmissionMeta | null {
-  if (!value || typeof value !== "object" || Array.isArray(value)) {
-    return null;
+function DeleteLeadButton({ leadId }: { leadId: string }) {
+  const router = useRouter();
+
+  async function handleDelete() {
+    const confirmed = window.confirm(
+      "Are you sure you want to delete this lead?"
+    );
+    if (!confirmed) return;
+
+    try {
+      const response = await fetch(`/api/leads/${leadId}`, {
+        method: "DELETE",
+      });
+
+      const payload = await response.json().catch(() => null);
+
+      if (!response.ok) {
+        throw new Error(payload?.message || payload?.error || "Failed to delete lead");
+      }
+
+      router.refresh();
+    } catch (error) {
+      alert(error instanceof Error ? error.message : "Failed to delete lead");
+    }
   }
 
-  return value as SubmissionMeta;
+  return (
+    <button
+      type="button"
+      onClick={handleDelete}
+      className="inline-flex items-center justify-center rounded-2xl border border-rose-300 bg-white px-4 py-3 text-sm font-semibold text-rose-700 transition hover:bg-rose-50"
+    >
+      Delete Lead
+    </button>
+  );
 }
 
-export default function IntakeSubmissionsClient({
-  submissions,
+export default function LeadsWorkspaceClient({
+  leads,
   users,
   currentUserRole,
   currentUserBranchId,
   canCrossBranchAssign,
 }: Props) {
-  const [items, setItems] = useState(submissions);
-  const [selectedId, setSelectedId] = useState(submissions[0]?.id ?? null);
+  const [items, setItems] = useState(leads);
+  const [selectedId, setSelectedId] = useState(leads[0]?.id ?? null);
   const [assigningId, setAssigningId] = useState<string | null>(null);
 
   const selected = useMemo(
@@ -226,29 +281,30 @@ export default function IntakeSubmissionsClient({
 
   const assignableUsers = useMemo(() => {
     if (!selected) return [];
-
     if (canCrossBranchAssign) return users;
 
     return users.filter(
-      (user) => user.branchId && user.branchId === selected.branchId
+      (user) => user.branchId && user.branchId === selected.branch?.id
     );
   }, [users, selected, canCrossBranchAssign]);
 
-  const meta = useMemo(
-    () => parseSubmissionMeta(selected?.submissionMeta),
-    [selected]
-  );
+  const meta = useMemo(() => {
+    if (!selected?.intakeSubmission?.submissionMeta) return null;
+    return safeObject(selected.intakeSubmission.submissionMeta);
+  }, [selected]);
 
-  const applicationInterest = meta?.applicationInterest ?? null;
-  const subagent = meta?.subagent ?? null;
+  const applicationInterest = safeNestedObject(meta, "applicationInterest");
+  const subagent = safeNestedObject(meta, "subagent");
+  const visa = safeNestedObject(meta, "visaDetails");
+  const emergency = safeNestedObject(meta, "emergencyContact");
 
-  async function assign(submissionId: string, assignedToId: string) {
+  async function assign(leadId: string, assignedToId: string) {
     if (!assignedToId) return;
 
     try {
-      setAssigningId(submissionId);
+      setAssigningId(leadId);
 
-      const response = await fetch(`/api/intake-submissions/${submissionId}/assign`, {
+      const response = await fetch(`/api/leads/${leadId}/assign`, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
@@ -257,17 +313,21 @@ export default function IntakeSubmissionsClient({
       });
 
       if (!response.ok) {
-        throw new Error("Failed to assign submission");
+        throw new Error("Failed to assign lead");
       }
 
       const assignedUser = users.find((user) => user.id === assignedToId) || null;
 
       setItems((prev) =>
         prev.map((item) =>
-          item.id === submissionId
+          item.id === leadId
             ? {
                 ...item,
-                status: item.status === "new" ? "assigned" : item.status,
+                status:
+                  item.status === "new" || item.status === "new_lead"
+                    ? "assigned"
+                    : item.status,
+                assignedAt: new Date().toISOString(),
                 assignedTo: assignedUser
                   ? {
                       id: assignedUser.id,
@@ -283,11 +343,13 @@ export default function IntakeSubmissionsClient({
       );
     } catch (error) {
       console.error(error);
-      alert("Failed to assign submission.");
+      alert("Failed to assign lead.");
     } finally {
       setAssigningId(null);
     }
   }
+
+  const totalLeads = items.length;
 
   return (
     <div className="space-y-6">
@@ -298,11 +360,11 @@ export default function IntakeSubmissionsClient({
               Lead Workspace
             </p>
             <h1 className="mt-2 text-2xl font-bold tracking-tight text-slate-950 sm:text-3xl">
-              Intake Submissions
+              Leads
             </h1>
             <p className="mt-2 max-w-2xl text-sm text-slate-500">
-              Review incoming leads, assign ownership, and convert qualified
-              submissions into clients with a cleaner operations workflow.
+              Review incoming leads, whether from public intake or check-in, and
+              convert qualified records into clients.
             </p>
           </div>
 
@@ -310,7 +372,7 @@ export default function IntakeSubmissionsClient({
             <div className="rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3">
               <p className="text-xs font-medium text-slate-500">Total Leads</p>
               <p className="mt-1 text-xl font-bold text-slate-950">
-                {items.length}
+                {totalLeads}
               </p>
             </div>
 
@@ -340,7 +402,7 @@ export default function IntakeSubmissionsClient({
                   Lead Queue
                 </h2>
                 <p className="mt-1 text-sm text-slate-500">
-                  Select a submission to view full details
+                  Select a lead to view full details
                 </p>
               </div>
 
@@ -353,23 +415,23 @@ export default function IntakeSubmissionsClient({
           <div className="max-h-[75vh] overflow-y-auto">
             {items.length === 0 ? (
               <div className="p-6 text-sm text-slate-500">
-                No intake submissions found.
+                No leads found.
               </div>
             ) : (
-              items.map((submission) => {
-                const isActive = selectedId === submission.id;
-                const assignedName = submission.assignedTo
+              items.map((lead) => {
+                const isActive = selectedId === lead.id;
+                const assignedName = lead.assignedTo
                   ? formatPersonName(
-                      submission.assignedTo.firstName,
-                      submission.assignedTo.lastName
+                      lead.assignedTo.firstName,
+                      lead.assignedTo.lastName
                     )
                   : "Unassigned";
 
                 return (
                   <button
-                    key={submission.id}
+                    key={lead.id}
                     type="button"
-                    onClick={() => setSelectedId(submission.id)}
+                    onClick={() => setSelectedId(lead.id)}
                     className={`w-full border-b border-slate-200 px-5 py-4 text-left transition last:border-b-0 ${
                       isActive
                         ? "bg-slate-950 text-white"
@@ -384,7 +446,7 @@ export default function IntakeSubmissionsClient({
                             : "bg-slate-100 text-slate-700"
                         }`}
                       >
-                        {getInitials(submission.firstName, submission.lastName)}
+                        {getInitials(lead.firstName, lead.lastName)}
                       </div>
 
                       <div className="min-w-0 flex-1">
@@ -394,20 +456,17 @@ export default function IntakeSubmissionsClient({
                               isActive ? "text-white" : "text-slate-950"
                             }`}
                           >
-                            {formatPersonName(
-                              submission.firstName,
-                              submission.lastName
-                            )}
+                            {formatPersonName(lead.firstName, lead.lastName)}
                           </p>
 
                           <span
                             className={`shrink-0 rounded-full px-2.5 py-1 text-[11px] font-semibold ${
                               isActive
                                 ? "bg-white/10 text-white ring-1 ring-inset ring-white/15"
-                                : getStatusClasses(submission.status)
+                                : getStatusClasses(lead.status)
                             }`}
                           >
-                            {formatStatus(submission.status)}
+                            {formatStatus(lead.status)}
                           </span>
                         </div>
 
@@ -416,7 +475,7 @@ export default function IntakeSubmissionsClient({
                             isActive ? "text-slate-200" : "text-slate-500"
                           }`}
                         >
-                          {submission.phone || submission.email || "No contact info"}
+                          {lead.phone || lead.email || "No contact info"}
                         </p>
 
                         <p
@@ -424,7 +483,11 @@ export default function IntakeSubmissionsClient({
                             isActive ? "text-slate-300" : "text-slate-400"
                           }`}
                         >
-                          {submission.intakeFormRequest?.title ?? "Direct check-in"}
+                          {lead.intakeSubmission
+                            ? "Intake Submission"
+                            : lead.clientCheckIn
+                            ? "Check-in"
+                            : lead.source || "Direct lead"}
                         </p>
 
                         <div
@@ -434,7 +497,7 @@ export default function IntakeSubmissionsClient({
                         >
                           <span className="truncate">Assigned: {assignedName}</span>
                           <span className="shrink-0">
-                            {formatDate(submission.submittedAt)}
+                            {formatDate(lead.createdAt)}
                           </span>
                         </div>
                       </div>
@@ -449,7 +512,7 @@ export default function IntakeSubmissionsClient({
         <div className="min-w-0">
           {!selected ? (
             <div className="rounded-3xl border border-dashed border-slate-300 bg-white p-10 text-center text-sm text-slate-500 shadow-sm">
-              Select a submission from the left to view details.
+              Select a lead from the left to view details.
             </div>
           ) : (
             <div className="space-y-6">
@@ -476,7 +539,11 @@ export default function IntakeSubmissionsClient({
                       </div>
 
                       <p className="mt-2 text-sm text-slate-500">
-                        Form: {selected.intakeFormRequest?.title ?? "Direct check-in"}
+                        {selected.intakeSubmission
+                          ? "Source: Intake Submission"
+                          : selected.clientCheckIn
+                          ? "Source: Check-in"
+                          : `Source: ${selected.source || "Direct lead"}`}
                       </p>
 
                       <div className="mt-4 flex flex-wrap gap-2">
@@ -507,13 +574,21 @@ export default function IntakeSubmissionsClient({
                       >
                         View Client
                       </Link>
-                    ) : (
+                    ) : selected.intakeSubmission ? (
                       <Link
-                        href={`/intake-submissions/${selected.id}/convert`}
+                        href={`/intake-submissions/${selected.intakeSubmission.id}/convert`}
                         className="inline-flex items-center justify-center rounded-2xl bg-slate-950 px-4 py-3 text-sm font-semibold text-white transition hover:bg-slate-800"
                       >
                         Convert to Client
                       </Link>
+                    ) : (
+                      <button
+                        type="button"
+                        className="inline-flex items-center justify-center rounded-2xl bg-slate-200 px-4 py-3 text-sm font-semibold text-slate-500"
+                        disabled
+                      >
+                        Convert flow not linked
+                      </button>
                     )}
 
                     <button
@@ -530,143 +605,280 @@ export default function IntakeSubmissionsClient({
               <div className="grid gap-6 2xl:grid-cols-[minmax(0,1fr)_360px]">
                 <div className="space-y-6">
                   <div className="rounded-3xl border border-slate-200 bg-white p-6 shadow-sm">
-                    <div className="flex items-center justify-between gap-3">
-                      <div>
-                        <h3 className="text-lg font-semibold text-slate-950">
-                          Lead Details
-                        </h3>
-                        <p className="mt-1 text-sm text-slate-500">
-                          Core contact and intake information
-                        </p>
-                      </div>
+                    <div>
+                      <h3 className="text-lg font-semibold text-slate-950">
+                        Lead Details
+                      </h3>
+                      <p className="mt-1 text-sm text-slate-500">
+                        Core contact and lead information
+                      </p>
                     </div>
 
                     <div className="mt-5 grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
                       <DetailItem label="Email" value={selected.email || "—"} />
                       <DetailItem label="Phone" value={selected.phone || "—"} />
                       <DetailItem label="Country" value={selected.country || "—"} />
-                      <DetailItem label="City" value={selected.city || "—"} />
-                      <DetailItem
-                        label="Nationality"
-                        value={selected.nationality || "—"}
-                      />
                       <DetailItem
                         label="Passport Number"
                         value={selected.passportNumber || "—"}
                       />
                       <DetailItem
-                        label="Date of Birth"
-                        value={formatDate(selected.dateOfBirth)}
+                        label="Created At"
+                        value={formatDateTime(selected.createdAt)}
                       />
                       <DetailItem
-                        label="Submitted At"
-                        value={formatDateTime(selected.submittedAt)}
+                        label="Assigned At"
+                        value={formatDateTime(selected.assignedAt)}
                       />
                       <DetailItem
-                        label="Converted At"
-                        value={formatDateTime(selected.convertedAt)}
+                        label="Last Activity"
+                        value={formatDateTime(selected.lastActivityAt)}
                       />
                     </div>
 
                     <div className="mt-4 grid gap-4">
-                      <DetailItem
-                        label="Address"
-                        value={selected.address || "—"}
-                      />
-                      <DetailItem
-                        label="Applicant Notes"
-                        value={selected.notes || "—"}
-                      />
-                      <DetailItem
-                        label="Internal Notes"
-                        value={selected.internalNotes || "—"}
-                      />
+                      <DetailItem label="Lead Notes" value={selected.notes || "—"} />
                     </div>
                   </div>
 
-                  <div className="rounded-3xl border border-slate-200 bg-white p-6 shadow-sm">
-                    <div className="flex items-center justify-between gap-3">
-                      <div>
+                  {selected.intakeSubmission ? (
+                    <>
+                      <div className="rounded-3xl border border-slate-200 bg-white p-6 shadow-sm">
+                        <h3 className="text-lg font-semibold text-slate-950">
+                          Intake Details
+                        </h3>
+                        <p className="mt-1 text-sm text-slate-500">
+                          Full source information from the intake submission
+                        </p>
+
+                        <div className="mt-5 grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
+                          <DetailItem
+                            label="Email"
+                            value={selected.intakeSubmission.email || "—"}
+                          />
+                          <DetailItem
+                            label="Phone"
+                            value={selected.intakeSubmission.phone || "—"}
+                          />
+                          <DetailItem
+                            label="Country"
+                            value={selected.intakeSubmission.country || "—"}
+                          />
+                          <DetailItem
+                            label="City"
+                            value={selected.intakeSubmission.city || "—"}
+                          />
+                          <DetailItem
+                            label="Nationality"
+                            value={selected.intakeSubmission.nationality || "—"}
+                          />
+                          <DetailItem
+                            label="Passport Number"
+                            value={selected.intakeSubmission.passportNumber || "—"}
+                          />
+                          <DetailItem
+                            label="Date of Birth"
+                            value={formatDate(selected.intakeSubmission.dateOfBirth)}
+                          />
+                          <DetailItem
+                            label="Submitted At"
+                            value={formatDateTime(selected.intakeSubmission.submittedAt)}
+                          />
+                          <DetailItem
+                            label="Converted At"
+                            value={formatDateTime(selected.intakeSubmission.convertedAt)}
+                          />
+                        </div>
+
+                        <div className="mt-4 grid gap-4">
+                          <DetailItem
+                            label="Address"
+                            value={selected.intakeSubmission.address || "—"}
+                          />
+                          <DetailItem
+                            label="Applicant Notes"
+                            value={selected.intakeSubmission.notes || "—"}
+                          />
+                          <DetailItem
+                            label="Internal Notes"
+                            value={selected.intakeSubmission.internalNotes || "—"}
+                          />
+                        </div>
+                      </div>
+
+                      <div className="rounded-3xl border border-slate-200 bg-white p-6 shadow-sm">
                         <h3 className="text-lg font-semibold text-slate-950">
                           Application Interest
                         </h3>
                         <p className="mt-1 text-sm text-slate-500">
-                          Provider, course, intake, and study preferences from the public intake
+                          Provider, course, intake, and study preferences
                         </p>
+
+                        <div className="mt-5 grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
+                          <DetailItem
+                            label="Destination Country"
+                            value={safeString(applicationInterest?.destinationCountry) || "—"}
+                          />
+                          <DetailItem
+                            label="Provider"
+                            value={safeString(applicationInterest?.providerName) || "—"}
+                          />
+                          <DetailItem
+                            label="Course"
+                            value={safeString(applicationInterest?.courseName) || "—"}
+                          />
+                          <DetailItem
+                            label="Intake"
+                            value={safeString(applicationInterest?.intake) || "—"}
+                          />
+                          <DetailItem
+                            label="Study Level"
+                            value={safeString(applicationInterest?.studyLevel) || "—"}
+                          />
+                          <DetailItem
+                            label="Preferred Campus"
+                            value={safeString(applicationInterest?.preferredCampus) || "—"}
+                          />
+                          <DetailItem
+                            label="Subject Area"
+                            value={safeString(applicationInterest?.subjectArea) || "—"}
+                          />
+                          <DetailItem
+                            label="Duration"
+                            value={safeString(applicationInterest?.duration) || "—"}
+                          />
+                        </div>
                       </div>
-                    </div>
 
-                    <div className="mt-5 grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
-                      <DetailItem
-                        label="Destination Country"
-                        value={applicationInterest?.destinationCountry || "—"}
-                      />
-                      <DetailItem
-                        label="Provider"
-                        value={applicationInterest?.providerName || "—"}
-                      />
-                      <DetailItem
-                        label="Course"
-                        value={applicationInterest?.courseName || "—"}
-                      />
-                      <DetailItem
-                        label="Intake"
-                        value={applicationInterest?.intake || "—"}
-                      />
-                      <DetailItem
-                        label="Study Level"
-                        value={applicationInterest?.studyLevel || "—"}
-                      />
-                      <DetailItem
-                        label="Preferred Campus"
-                        value={applicationInterest?.preferredCampus || "—"}
-                      />
-                      <DetailItem
-                        label="Subject Area"
-                        value={applicationInterest?.subjectArea || "—"}
-                      />
-                      <DetailItem
-                        label="Duration"
-                        value={applicationInterest?.duration || "—"}
-                      />
-                    </div>
-                  </div>
-
-                  <div className="rounded-3xl border border-slate-200 bg-white p-6 shadow-sm">
-                    <div className="flex items-center justify-between gap-3">
-                      <div>
+                      <div className="rounded-3xl border border-slate-200 bg-white p-6 shadow-sm">
                         <h3 className="text-lg font-semibold text-slate-950">
                           Referral / Subagent
                         </h3>
                         <p className="mt-1 text-sm text-slate-500">
-                          Captured referral ownership from the public subagent intake
+                          Captured referral ownership from the public intake
                         </p>
+
+                        <div className="mt-5 grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
+                          <DetailItem
+                            label="Subagent Name"
+                            value={safeString(subagent?.name) || "—"}
+                          />
+                          <DetailItem
+                            label="Agency"
+                            value={safeString(subagent?.agencyName) || "—"}
+                          />
+                          <DetailItem
+                            label="Reference Code"
+                            value={safeString(subagent?.reference) || "—"}
+                          />
+                          <DetailItem
+                            label="Subagent Email"
+                            value={safeString(subagent?.email) || "—"}
+                          />
+                          <DetailItem
+                            label="Subagent Phone"
+                            value={safeString(subagent?.phone) || "—"}
+                          />
+                        </div>
+                      </div>
+
+                      <div className="rounded-3xl border border-slate-200 bg-white p-6 shadow-sm">
+                        <h3 className="text-lg font-semibold text-slate-950">
+                          Visa
+                        </h3>
+
+                        <div className="mt-5 grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
+                          <DetailItem
+                            label="Subclass"
+                            value={safeString(visa?.subclass) || "—"}
+                          />
+                          <DetailItem
+                            label="Expiry"
+                            value={safeString(visa?.expiry) || "—"}
+                          />
+                          <DetailItem
+                            label="Conditions"
+                            value={safeString(visa?.conditions) || "—"}
+                          />
+                          <DetailItem
+                            label="Applicable Members"
+                            value={safeString(visa?.applicableFamilyMembers) || "—"}
+                          />
+                        </div>
+                      </div>
+
+                      <div className="rounded-3xl border border-slate-200 bg-white p-6 shadow-sm">
+                        <h3 className="text-lg font-semibold text-slate-950">
+                          Emergency Contact
+                        </h3>
+
+                        <div className="mt-5 grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
+                          <DetailItem
+                            label="First Name"
+                            value={safeString(emergency?.firstName) || "—"}
+                          />
+                          <DetailItem
+                            label="Surname"
+                            value={safeString(emergency?.lastName) || "—"}
+                          />
+                          <DetailItem
+                            label="Address"
+                            value={safeString(emergency?.address) || "—"}
+                          />
+                          <DetailItem
+                            label="Mobile"
+                            value={safeString(emergency?.mobile) || "—"}
+                          />
+                          <DetailItem
+                            label="Home"
+                            value={safeString(emergency?.home) || "—"}
+                          />
+                          <DetailItem
+                            label="Work"
+                            value={safeString(emergency?.work) || "—"}
+                          />
+                          <DetailItem
+                            label="Email"
+                            value={safeString(emergency?.email) || "—"}
+                          />
+                        </div>
+                      </div>
+                    </>
+                  ) : null}
+
+                  {selected.clientCheckIn ? (
+                    <div className="rounded-3xl border border-slate-200 bg-white p-6 shadow-sm">
+                      <h3 className="text-lg font-semibold text-slate-950">
+                        Check-in Details
+                      </h3>
+                      <p className="mt-1 text-sm text-slate-500">
+                        Source information from the client check-in
+                      </p>
+
+                      <div className="mt-5 grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
+                        <DetailItem
+                          label="Checked In At"
+                          value={formatDateTime(selected.clientCheckIn.checkedInAt)}
+                        />
+                        <DetailItem
+                          label="Method"
+                          value={selected.clientCheckIn.checkInMethod || "—"}
+                        />
+                        <DetailItem
+                          label="Visit Reason"
+                          value={selected.clientCheckIn.visitReason || "—"}
+                        />
+                        <DetailItem
+                          label="Check-in Notes"
+                          value={selected.clientCheckIn.notes || "—"}
+                        />
+                        <DetailItem
+                          label="Linked Intake Submission"
+                          value={selected.clientCheckIn.intakeSubmissionId || "—"}
+                        />
                       </div>
                     </div>
-
-                    <div className="mt-5 grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
-                      <DetailItem
-                        label="Subagent Name"
-                        value={subagent?.name || "—"}
-                      />
-                      <DetailItem
-                        label="Agency"
-                        value={subagent?.agencyName || "—"}
-                      />
-                      <DetailItem
-                        label="Reference Code"
-                        value={subagent?.reference || "—"}
-                      />
-                      <DetailItem
-                        label="Subagent Email"
-                        value={subagent?.email || "—"}
-                      />
-                      <DetailItem
-                        label="Subagent Phone"
-                        value={subagent?.phone || "—"}
-                      />
-                    </div>
-                  </div>
+                  ) : null}
                 </div>
 
                 <div className="space-y-6">
@@ -675,7 +887,7 @@ export default function IntakeSubmissionsClient({
                       Assignment
                     </h3>
                     <p className="mt-1 text-sm text-slate-500">
-                      Assign or reassign this submission to a team member
+                      Assign or reassign this lead to a team member
                     </p>
 
                     <div className="mt-5">
@@ -725,7 +937,7 @@ export default function IntakeSubmissionsClient({
                         </div>
                       ) : (
                         <div className="mt-4 rounded-2xl border border-dashed border-slate-300 bg-slate-50/60 p-4 text-sm text-slate-500">
-                          This submission has not been assigned yet.
+                          This lead has not been assigned yet.
                         </div>
                       )}
                     </div>
@@ -742,10 +954,10 @@ export default function IntakeSubmissionsClient({
                           Reviewed By
                         </p>
                         <p className="mt-1 text-sm font-medium text-slate-900">
-                          {selected.reviewedBy
+                          {selected.intakeSubmission?.reviewedBy
                             ? formatPersonName(
-                                selected.reviewedBy.firstName,
-                                selected.reviewedBy.lastName
+                                selected.intakeSubmission.reviewedBy.firstName,
+                                selected.intakeSubmission.reviewedBy.lastName
                               )
                             : "Not reviewed yet"}
                         </p>
@@ -756,7 +968,7 @@ export default function IntakeSubmissionsClient({
                           Reviewed At
                         </p>
                         <p className="mt-1 text-sm font-medium text-slate-900">
-                          {formatDateTime(selected.reviewedAt)}
+                          {formatDateTime(selected.intakeSubmission?.reviewedAt)}
                         </p>
                       </div>
 
@@ -774,7 +986,7 @@ export default function IntakeSubmissionsClient({
                           Closed At
                         </p>
                         <p className="mt-1 text-sm font-medium text-slate-900">
-                          {formatDateTime(selected.closedAt)}
+                          {formatDateTime(selected.intakeSubmission?.closedAt)}
                         </p>
                       </div>
                     </div>
@@ -787,20 +999,31 @@ export default function IntakeSubmissionsClient({
 
                     <div className="mt-5 grid gap-3">
                       {selected.client ? (
+                        <>
+                          <Link
+                            href={`/clients/${selected.client.id}`}
+                            className="inline-flex items-center justify-center rounded-2xl bg-slate-950 px-4 py-3 text-sm font-semibold text-white transition hover:bg-slate-800"
+                          >
+                            Open Client
+                          </Link>
+
+                          <Link
+                            href={`/applications/new?leadId=${selected.id}`}
+                            className="inline-flex items-center justify-center rounded-2xl bg-indigo-600 px-4 py-3 text-sm font-semibold text-white transition hover:bg-indigo-700"
+                          >
+                            Create Application
+                          </Link>
+                        </>
+                      ) : selected.intakeSubmission ? (
                         <Link
-                          href={`/clients/${selected.client.id}`}
-                          className="inline-flex items-center justify-center rounded-2xl bg-slate-950 px-4 py-3 text-sm font-semibold text-white transition hover:bg-slate-800"
-                        >
-                          Open Client Profile
-                        </Link>
-                      ) : (
-                        <Link
-                          href={`/intake-submissions/${selected.id}/convert`}
+                          href={`/intake-submissions/${selected.intakeSubmission.id}/convert`}
                           className="inline-flex items-center justify-center rounded-2xl bg-slate-950 px-4 py-3 text-sm font-semibold text-white transition hover:bg-slate-800"
                         >
                           Convert to Client
                         </Link>
-                      )}
+                      ) : null}
+
+                      <DeleteLeadButton leadId={selected.id} />
 
                       <Link
                         href="/clients"

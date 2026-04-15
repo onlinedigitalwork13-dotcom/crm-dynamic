@@ -13,6 +13,11 @@ type RouteContext = {
   }>;
 };
 
+function toNullableRelation(value?: string | null) {
+  if (value === undefined) return undefined;
+  return value === null ? null : value;
+}
+
 export async function GET(_request: Request, { params }: RouteContext) {
   try {
     const session = await requireApiAuth();
@@ -111,23 +116,58 @@ export async function PATCH(request: Request, { params }: RouteContext) {
       finalBranchId = sessionBranchId ?? undefined;
     }
 
-    const client = await prisma.client.update({
-      where: { id },
-      data: {
-        firstName: parsed.data.firstName,
-        lastName: parsed.data.lastName,
-        email: parsed.data.email ?? undefined,
-        phone: parsed.data.phone,
-        passport: parsed.data.passport ?? undefined,
-        branchId: finalBranchId ?? undefined,
-        sourceId: parsed.data.sourceId ?? undefined,
-        workflowId: parsed.data.workflowId ?? undefined,
-        currentStageId: parsed.data.currentStageId ?? undefined,
-        subagentId: parsed.data.subagentId ?? undefined,
-        profileData: parsed.data.profileData
+    const updateData: Prisma.ClientUpdateInput = {
+      firstName: parsed.data.firstName,
+      lastName: parsed.data.lastName,
+      email: parsed.data.email ?? null,
+      phone: parsed.data.phone,
+      passport: parsed.data.passport ?? null,
+      profileData:
+        parsed.data.profileData !== undefined
           ? (parsed.data.profileData as Prisma.InputJsonValue)
           : undefined,
-      },
+    };
+
+    const normalizedBranchId = toNullableRelation(finalBranchId);
+    if (normalizedBranchId !== undefined) {
+      updateData.branch = normalizedBranchId
+        ? { connect: { id: normalizedBranchId } }
+        : { disconnect: true };
+    }
+
+    const normalizedSourceId = toNullableRelation(parsed.data.sourceId);
+    if (normalizedSourceId !== undefined) {
+      updateData.source = normalizedSourceId
+        ? { connect: { id: normalizedSourceId } }
+        : { disconnect: true };
+    }
+
+    const normalizedWorkflowId = toNullableRelation(parsed.data.workflowId);
+    if (normalizedWorkflowId !== undefined) {
+      updateData.workflow = normalizedWorkflowId
+        ? { connect: { id: normalizedWorkflowId } }
+        : { disconnect: true };
+    }
+
+    const normalizedCurrentStageId = toNullableRelation(
+      parsed.data.currentStageId
+    );
+    if (normalizedCurrentStageId !== undefined) {
+      updateData.currentStage = normalizedCurrentStageId
+        ? { connect: { id: normalizedCurrentStageId } }
+        : { disconnect: true };
+    }
+
+    const normalizedSubagentId = toNullableRelation(parsed.data.subagentId);
+    if (normalizedSubagentId !== undefined) {
+      updateData.subagent = normalizedSubagentId
+        ? { connect: { id: normalizedSubagentId } }
+        : { disconnect: true };
+    }
+
+    const client = await prisma.client.update({
+      where: { id },
+      data: updateData,
       select: {
         id: true,
         firstName: true,
@@ -173,5 +213,85 @@ export async function PATCH(request: Request, { params }: RouteContext) {
       error instanceof Error ? error.message : "Internal server error",
       500
     );
+  }
+}
+
+export async function DELETE(_request: Request, { params }: RouteContext) {
+  try {
+    const session = await requireApiAuth();
+    const { id } = await params;
+
+    const roleName = session.user.roleName;
+    const branchId = session.user.branchId ?? null;
+
+    const client = await prisma.client.findUnique({
+      where: { id },
+      select: {
+        id: true,
+        branchId: true,
+      },
+    });
+
+    if (!client) {
+      throw new ApiError("Client not found", 404);
+    }
+
+    if (!isAdmin(roleName) && client.branchId !== branchId) {
+      throw new ApiError("Forbidden", 403);
+    }
+
+    await prisma.$transaction(async (tx) => {
+      await tx.intakeFormSubmission.updateMany({
+        where: { clientId: id },
+        data: { clientId: null },
+      });
+
+      await tx.lead.updateMany({
+        where: { clientId: id },
+        data: { clientId: null },
+      });
+
+      await tx.clientActivity.deleteMany({
+        where: { clientId: id },
+      });
+
+      await tx.clientFollower.deleteMany({
+        where: { clientId: id },
+      });
+
+      await tx.clientNote.deleteMany({
+        where: { clientId: id },
+      });
+
+      await tx.clientDocument.deleteMany({
+        where: { clientId: id },
+      });
+
+      await tx.clientCheckIn.deleteMany({
+        where: { clientId: id },
+      });
+
+      await tx.client.delete({
+        where: { id },
+      });
+    });
+
+    await createAuditLog({
+      actorUserId: session.user.id,
+      action: "client.deleted",
+      entityType: "client",
+      entityId: id,
+      message: `Client deleted`,
+    });
+
+    return ok({ success: true });
+  } catch (error) {
+    console.error("Client DELETE error:", error);
+
+    if (isApiError(error)) {
+      return fail(error.message, error.status, error.details);
+    }
+
+    return fail("Failed to delete client", 500);
   }
 }

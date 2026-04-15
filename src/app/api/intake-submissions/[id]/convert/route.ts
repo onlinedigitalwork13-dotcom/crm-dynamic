@@ -46,6 +46,55 @@ function generateReferralCode() {
   return `SAG-${Date.now().toString(36).toUpperCase()}-${randomPart}`;
 }
 
+function getSubmissionMetaObject(
+  value: Prisma.JsonValue | null
+): Prisma.InputJsonObject {
+  if (!value || typeof value !== "object" || Array.isArray(value)) {
+    return {};
+  }
+
+  return value as Prisma.InputJsonObject;
+}
+
+function getLeadNotesWithPrefillData(params: {
+  existingNotes: string | null;
+  submissionMeta: Prisma.JsonValue | null;
+}) {
+  const { existingNotes, submissionMeta } = params;
+
+  const meta =
+    submissionMeta && typeof submissionMeta === "object" && !Array.isArray(submissionMeta)
+      ? (submissionMeta as Record<string, unknown>)
+      : null;
+
+  const applicationInterest =
+    meta &&
+    meta.applicationInterest &&
+    typeof meta.applicationInterest === "object" &&
+    !Array.isArray(meta.applicationInterest)
+      ? (meta.applicationInterest as Record<string, unknown>)
+      : {};
+
+  const subagent =
+    meta &&
+    meta.subagent &&
+    typeof meta.subagent === "object" &&
+    !Array.isArray(meta.subagent)
+      ? (meta.subagent as Record<string, unknown>)
+      : {};
+
+  const payload = JSON.stringify({
+    applicationInterest,
+    subagent,
+  });
+
+  if (!existingNotes?.trim()) {
+    return payload;
+  }
+
+  return `${existingNotes.trim()}\n\n[PREFILL_DATA]\n${payload}`;
+}
+
 export async function POST(request: NextRequest, { params }: RouteContext) {
   try {
     const session = await getServerSession(authOptions);
@@ -119,6 +168,7 @@ export async function POST(request: NextRequest, { params }: RouteContext) {
           select: {
             id: true,
             assignedToId: true,
+            notes: true,
           },
         },
       },
@@ -416,6 +466,8 @@ export async function POST(request: NextRequest, { params }: RouteContext) {
       );
     }
 
+    const submissionMetaObject = getSubmissionMetaObject(submission.submissionMeta);
+
     const profileData: Prisma.InputJsonObject = {
       convertedFromSubmissionId: submission.id,
       convertedAtIso: new Date().toISOString(),
@@ -435,10 +487,7 @@ export async function POST(request: NextRequest, { params }: RouteContext) {
         submission.answers && typeof submission.answers === "object"
           ? (submission.answers as Prisma.InputJsonObject)
           : {},
-      submissionMeta:
-        submission.submissionMeta && typeof submission.submissionMeta === "object"
-          ? (submission.submissionMeta as Prisma.InputJsonObject)
-          : {},
+      submissionMeta: submissionMetaObject,
       newSubagentAgency: newSubagentAgency ?? null,
     };
 
@@ -516,6 +565,10 @@ export async function POST(request: NextRequest, { params }: RouteContext) {
             status: "converted",
             lastActivityAt: new Date(),
             agentId: resolvedSubagentId ?? undefined,
+            notes: getLeadNotesWithPrefillData({
+              existingNotes: submission.lead.notes ?? submission.notes ?? notes,
+              submissionMeta: submission.submissionMeta,
+            }),
             activities: {
               create: {
                 actorUserId: currentUser.id,

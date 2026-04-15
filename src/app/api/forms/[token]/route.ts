@@ -122,6 +122,72 @@ async function resolveDefaultSubagentId(settings: IntakeFormSettings) {
   return null;
 }
 
+async function resolveSubmittedSubagentId(params: {
+  reference: string | null;
+  email: string | null;
+  phone: string | null;
+}) {
+  const { reference, email, phone } = params;
+
+  if (reference) {
+    const byReferralCode = await prisma.subagent.findFirst({
+      where: {
+        referralCode: {
+          equals: reference,
+          mode: Prisma.QueryMode.insensitive,
+        },
+        isActive: true,
+      },
+      select: {
+        id: true,
+      },
+    });
+
+    if (byReferralCode) {
+      return byReferralCode.id;
+    }
+  }
+
+  if (email) {
+    const byEmail = await prisma.subagent.findFirst({
+      where: {
+        email: {
+          equals: email,
+          mode: Prisma.QueryMode.insensitive,
+        },
+        isActive: true,
+      },
+      select: {
+        id: true,
+      },
+    });
+
+    if (byEmail) {
+      return byEmail.id;
+    }
+  }
+
+  if (phone) {
+    const byPhone = await prisma.subagent.findFirst({
+      where: {
+        phone: {
+          equals: phone,
+        },
+        isActive: true,
+      },
+      select: {
+        id: true,
+      },
+    });
+
+    if (byPhone) {
+      return byPhone.id;
+    }
+  }
+
+  return null;
+}
+
 async function findExistingClient(params: {
   email: string | null;
   phone: string | null;
@@ -302,6 +368,13 @@ export async function POST(
     );
 
     const defaultSubagentId = await resolveDefaultSubagentId(settings);
+    const submittedSubagentId = await resolveSubmittedSubagentId({
+      reference: subagentReference,
+      email: subagentEmail,
+      phone: subagentPhone,
+    });
+
+    const resolvedSubagentId = submittedSubagentId ?? defaultSubagentId;
     const source = buildSource(settings);
 
     // Priority:
@@ -316,10 +389,7 @@ export async function POST(
       phone,
     });
 
-    const existingClient =
-      selectedExistingClient ??
-      fallbackExistingClient ??
-      null;
+    const existingClient = selectedExistingClient ?? fallbackExistingClient ?? null;
 
     const submissionMeta: Prisma.InputJsonObject = {
       submittedFromToken: token,
@@ -341,6 +411,8 @@ export async function POST(
       legacyAgentId: settings.agentId || null,
 
       defaultSubagentId,
+      submittedSubagentId,
+      resolvedSubagentId,
 
       subagent: {
         name: subagentName,
@@ -382,6 +454,7 @@ export async function POST(
           intakeFormRequestId: intakeForm.id,
           branchId: intakeForm.branchId,
           clientId: existingClient?.id ?? null,
+          subagentId: resolvedSubagentId,
           firstName,
           lastName,
           phone,
@@ -399,6 +472,7 @@ export async function POST(
         select: {
           id: true,
           clientId: true,
+          subagentId: true,
         },
       });
 
@@ -407,7 +481,7 @@ export async function POST(
           intakeSubmissionId: submission.id,
           clientId: existingClient?.id ?? null,
           branchId: existingClient?.branchId ?? intakeForm.branchId,
-          agentId: defaultSubagentId,
+          agentId: resolvedSubagentId,
           firstName,
           lastName,
           email,
@@ -458,6 +532,8 @@ export async function POST(
                 existingClientMatched,
                 selectedExistingClientId: selectedExistingClient?.id ?? null,
                 defaultSubagentId,
+                submittedSubagentId,
+                resolvedSubagentId,
                 subagentName,
                 agencyName,
                 courseName,
@@ -469,6 +545,7 @@ export async function POST(
         select: {
           id: true,
           clientId: true,
+          agentId: true,
         },
       });
 
@@ -518,6 +595,7 @@ export async function POST(
       leadId: result.lead.id,
       matchedExistingClient: Boolean(result.existingClient),
       existingClientId: result.existingClient?.id ?? null,
+      subagentId: result.submission.subagentId ?? result.lead.agentId ?? null,
       message: result.existingClient
         ? "Submission received and linked to the existing student profile."
         : "Submission received successfully.",

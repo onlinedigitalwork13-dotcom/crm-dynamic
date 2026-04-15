@@ -1,232 +1,155 @@
-import { getServerSession } from "next-auth";
-import { authOptions } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
-import LeadsClient from "./leads-client";
-
-function normalizeRole(value?: string | null) {
-  return (value || "").trim().toUpperCase().replace(/\s+/g, "_");
-}
+import { requireAuth } from "@/lib/require-auth";
+import LeadsWorkspaceClient from "./leads-workspace-client";
 
 export default async function LeadsPage() {
-  const session = await getServerSession(authOptions);
+  const session = await requireAuth();
 
-  if (!session?.user) {
-    return null;
-  }
-
-  const currentUserId = session.user.id;
-  const currentUserRole = normalizeRole(session.user.roleName);
-  const currentUserBranchId = session.user.branchId ?? null;
-
-  const canManageAll =
-    currentUserRole === "SUPER_ADMIN" || currentUserRole === "ADMIN";
-
-  const canCrossBranchAssign = canManageAll;
-
-  const leads = await prisma.lead.findMany({
-    where: canManageAll
-      ? undefined
-      : {
-          OR: [
-            ...(currentUserBranchId ? [{ branchId: currentUserBranchId }] : []),
-            { assignedToId: currentUserId },
-            {
-              followers: {
-                some: {
-                  userId: currentUserId,
-                },
-              },
-            },
-          ],
-        },
-    orderBy: [{ lastActivityAt: "desc" }, { createdAt: "desc" }],
-    include: {
-      branch: {
-        select: {
-          id: true,
-          name: true,
-          code: true,
-        },
+  const [leads, users] = await Promise.all([
+    prisma.lead.findMany({
+      orderBy: {
+        createdAt: "desc",
       },
-      agent: {
-        select: {
-          id: true,
-          name: true,
-          referralCode: true,
-          country: true,
-          contact: true,
-          email: true,
-          phone: true,
-          isActive: true,
-        },
-      },
-      assignedTo: {
-        select: {
-          id: true,
-          firstName: true,
-          lastName: true,
-          email: true,
-          branchId: true,
-          role: {
-            select: {
-              id: true,
-              name: true,
-            },
+      select: {
+        id: true,
+        firstName: true,
+        lastName: true,
+        email: true,
+        phone: true,
+        passportNumber: true,
+        country: true,
+        source: true,
+        status: true,
+        notes: true,
+        assignedAt: true,
+        createdAt: true,
+        updatedAt: true,
+        lastActivityAt: true,
+
+        branch: {
+          select: {
+            id: true,
+            name: true,
+            code: true,
           },
         },
-      },
-      client: {
-        select: {
-          id: true,
-          firstName: true,
-          lastName: true,
-          email: true,
-          phone: true,
-          assignedToId: true,
-          createdById: true,
-          branchId: true,
-        },
-      },
-      intakeSubmission: {
-        select: {
-          id: true,
-          firstName: true,
-          lastName: true,
-          email: true,
-          phone: true,
-          status: true,
-          assignedToId: true,
-          clientId: true,
-          country: true,
-          city: true,
-          address: true,
-          nationality: true,
-          passportNumber: true,
-          dateOfBirth: true,
-          notes: true,
-          createdAt: true,
-          updatedAt: true,
-          submissionMeta: true,
-          intakeFormRequest: {
-            select: {
-              id: true,
-              title: true,
-              token: true,
-            },
-          },
-          branch: {
-            select: {
-              id: true,
-              name: true,
-              code: true,
-            },
-          },
-          assignedTo: {
-            select: {
-              id: true,
-              firstName: true,
-              lastName: true,
-              email: true,
-            },
-          },
-          reviewedBy: {
-            select: {
-              id: true,
-              firstName: true,
-              lastName: true,
-              email: true,
-            },
+
+        assignedTo: {
+          select: {
+            id: true,
+            firstName: true,
+            lastName: true,
+            email: true,
+            branchId: true,
           },
         },
-      },
-      clientCheckIn: {
-        select: {
-          id: true,
-          checkedInAt: true,
-          checkInMethod: true,
-          visitReason: true,
-          notes: true,
+
+        client: {
+          select: {
+            id: true,
+            firstName: true,
+            lastName: true,
+            email: true,
+            phone: true,
+          },
         },
-      },
-      followers: {
-        include: {
-          user: {
-            select: {
-              id: true,
-              firstName: true,
-              lastName: true,
-              email: true,
-              branchId: true,
-              role: {
-                select: {
-                  id: true,
-                  name: true,
-                },
+
+        agent: {
+          select: {
+            id: true,
+            name: true,
+            referralCode: true,
+          },
+        },
+
+        intakeSubmission: {
+          select: {
+            id: true,
+            status: true,
+            submittedAt: true,
+            reviewedAt: true,
+            convertedAt: true,
+            closedAt: true,
+            firstName: true,
+            lastName: true,
+            email: true,
+            phone: true,
+            country: true,
+            city: true,
+            address: true,
+            nationality: true,
+            dateOfBirth: true,
+            passportNumber: true,
+            notes: true,
+            internalNotes: true,
+            submissionMeta: true,
+            reviewedBy: {
+              select: {
+                id: true,
+                firstName: true,
+                lastName: true,
+                email: true,
               },
             },
           },
         },
-        orderBy: {
-          createdAt: "asc",
+
+        clientCheckIn: {
+          select: {
+            id: true,
+            checkInMethod: true,
+            visitReason: true,
+            notes: true,
+            checkedInAt: true,
+            intakeSubmissionId: true,
+          },
         },
-      },
-      activities: {
-        orderBy: {
-          createdAt: "desc",
+
+        followers: {
+          select: {
+            id: true,
+          },
         },
-        take: 10,
-        select: {
-          id: true,
-          action: true,
-          details: true,
-          createdAt: true,
-          actorUserId: true,
-          actorUser: {
-            select: {
-              id: true,
-              firstName: true,
-              lastName: true,
-              email: true,
-            },
+
+        activities: {
+          select: {
+            id: true,
           },
         },
       },
-    },
-  });
+    }),
 
-  const users = await prisma.user.findMany({
-    where: {
-      isActive: true,
-      ...(canCrossBranchAssign
-        ? {}
-        : currentUserBranchId
-        ? { branchId: currentUserBranchId }
-        : {}),
-    },
-    orderBy: [{ firstName: "asc" }, { lastName: "asc" }, { email: "asc" }],
-    select: {
-      id: true,
-      firstName: true,
-      lastName: true,
-      email: true,
-      branchId: true,
-      role: {
-        select: {
-          id: true,
-          name: true,
+    prisma.user.findMany({
+      where: {
+        isActive: true,
+      },
+      orderBy: [{ firstName: "asc" }, { lastName: "asc" }],
+      select: {
+        id: true,
+        firstName: true,
+        lastName: true,
+        email: true,
+        branchId: true,
+        role: {
+          select: {
+            id: true,
+            name: true,
+          },
         },
       },
-    },
-  });
+    }),
+  ]);
 
   return (
-    <LeadsClient
+    <LeadsWorkspaceClient
       leads={leads}
       users={users}
-      currentUserId={currentUserId}
-      currentUserRole={currentUserRole}
-      currentUserBranchId={currentUserBranchId}
-      canCrossBranchAssign={canCrossBranchAssign}
+      currentUserRole={session.user.roleName || "user"}
+      currentUserBranchId={session.user.branchId ?? null}
+      canCrossBranchAssign={
+        session.user.roleName === "super_admin" ||
+        session.user.roleName === "admin"
+      }
     />
   );
 }
