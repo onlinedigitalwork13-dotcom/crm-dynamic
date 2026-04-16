@@ -26,6 +26,7 @@ export async function DELETE(_request: Request, { params }: RouteContext) {
         branchId: true,
         clientId: true,
         intakeSubmissionId: true,
+        clientCheckInId: true,
         firstName: true,
         lastName: true,
       },
@@ -54,12 +55,31 @@ export async function DELETE(_request: Request, { params }: RouteContext) {
         where: { leadId: id },
       });
 
+      await tx.clientCheckIn.deleteMany({
+        where: {
+          OR: [
+            lead.clientCheckInId ? { id: lead.clientCheckInId } : undefined,
+            lead.clientId ? { clientId: lead.clientId } : undefined,
+            lead.intakeSubmissionId
+              ? { intakeSubmissionId: lead.intakeSubmissionId }
+              : undefined,
+          ].filter(Boolean) as Array<
+            | { id: string }
+            | { clientId: string }
+            | { intakeSubmissionId: string }
+          >,
+        },
+      });
+
       if (lead.intakeSubmissionId) {
-        await tx.intakeFormSubmission.update({
+        await tx.intakeFormSubmission.delete({
           where: { id: lead.intakeSubmissionId },
-          data: {
-            clientId: null,
-          },
+        });
+      }
+
+      if (lead.clientId) {
+        await tx.client.delete({
+          where: { id: lead.clientId },
         });
       }
 
@@ -74,12 +94,14 @@ export async function DELETE(_request: Request, { params }: RouteContext) {
       entityType: "lead",
       entityId: id,
       message: `Lead ${lead.firstName || ""} ${lead.lastName || ""}`.trim()
-        ? `Lead ${lead.firstName || ""} ${lead.lastName || ""}`.trim() + " deleted"
-        : "Lead deleted",
+        ? `Lead ${lead.firstName || ""} ${lead.lastName || ""}`.trim() + " deleted with related data"
+        : "Lead deleted with related data",
       metadata: {
         branchId: lead.branchId,
         clientId: lead.clientId,
         intakeSubmissionId: lead.intakeSubmissionId,
+        clientCheckInId: lead.clientCheckInId,
+        cascadeDeleted: true,
       },
     });
 

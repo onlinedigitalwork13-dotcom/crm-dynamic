@@ -42,18 +42,34 @@ function EmptyState({ text }: { text: string }) {
   );
 }
 
+const DATE_FORMATTER = new Intl.DateTimeFormat("en-GB", {
+  day: "2-digit",
+  month: "2-digit",
+  year: "numeric",
+});
+
+const DATE_TIME_FORMATTER = new Intl.DateTimeFormat("en-GB", {
+  day: "2-digit",
+  month: "2-digit",
+  year: "numeric",
+  hour: "2-digit",
+  minute: "2-digit",
+  second: "2-digit",
+  hour12: false,
+});
+
 function formatDate(value: Date | string | null | undefined) {
   if (!value) return "—";
   const date = new Date(value);
   if (Number.isNaN(date.getTime())) return "—";
-  return date.toLocaleDateString();
+  return DATE_FORMATTER.format(date);
 }
 
 function formatDateTime(value: Date | string | null | undefined) {
   if (!value) return "—";
   const date = new Date(value);
   if (Number.isNaN(date.getTime())) return "—";
-  return date.toLocaleString();
+  return DATE_TIME_FORMATTER.format(date);
 }
 
 function formatPersonName(firstName?: string | null, lastName?: string | null) {
@@ -214,26 +230,28 @@ export default async function DashboardPage() {
 
   const [
     totalClients,
+    totalLeads,
     totalProviders,
     totalCourses,
     totalApplications,
     totalTasks,
-    totalIntakeSubmissions,
+    totalCheckIns,
     assignedTasks,
     createdTasks,
     recentClients,
     recentApplications,
-    intakeStatusCounts,
     recentCheckIns,
     myClients,
     visaExpiryAlerts,
+    recentLeads,
   ] = await Promise.all([
     prisma.client.count(),
+    prisma.lead.count(),
     prisma.provider.count(),
     prisma.course.count(),
     prisma.clientApplication.count(),
     prisma.task.count(),
-    prisma.intakeFormSubmission.count(),
+    prisma.clientCheckIn.count(),
 
     prisma.task.findMany({
       where: {
@@ -280,17 +298,16 @@ export default async function DashboardPage() {
       },
     }),
 
-    prisma.intakeFormSubmission.groupBy({
-      by: ["status"],
-      _count: { status: true },
-    }),
-
     prisma.clientCheckIn.findMany({
       orderBy: { checkedInAt: "desc" },
       take: 6,
       include: {
         client: true,
-        intakeSubmission: true,
+        intakeSubmission: {
+          include: {
+            lead: true,
+          },
+        },
         branch: true,
       },
     }),
@@ -331,20 +348,17 @@ export default async function DashboardPage() {
         },
       },
     }),
+
+    prisma.lead.findMany({
+      orderBy: [{ lastActivityAt: "desc" }, { createdAt: "desc" }],
+      take: 6,
+      include: {
+        client: true,
+        branch: true,
+        assignedTo: true,
+      },
+    }),
   ]);
-
-  const intakeStatusMap = {
-    new: 0,
-    assigned: 0,
-    contacted: 0,
-    under_review: 0,
-    converted: 0,
-    closed: 0,
-  } as Record<string, number>;
-
-  for (const item of intakeStatusCounts) {
-    intakeStatusMap[item.status] = item._count.status;
-  }
 
   const statCards = [
     {
@@ -354,6 +368,14 @@ export default async function DashboardPage() {
       accent: "from-blue-500/15 to-blue-100",
       valueClass: "text-blue-900",
       icon: "C",
+    },
+    {
+      label: "Leads",
+      value: totalLeads,
+      href: "/leads",
+      accent: "from-teal-500/15 to-teal-100",
+      valueClass: "text-teal-900",
+      icon: "L",
     },
     {
       label: "Applications",
@@ -388,12 +410,12 @@ export default async function DashboardPage() {
       icon: "Co",
     },
     {
-      label: "Intake Submissions",
-      value: totalIntakeSubmissions,
-      href: "/intake-submissions",
+      label: "Check-ins",
+      value: totalCheckIns,
+      href: "/leads",
       accent: "from-cyan-500/15 to-cyan-100",
       valueClass: "text-cyan-900",
-      icon: "I",
+      icon: "CI",
     },
   ];
 
@@ -410,8 +432,8 @@ export default async function DashboardPage() {
               Welcome back, {currentUser.firstName}
             </h1>
             <p className="mt-2 max-w-2xl text-sm text-slate-300">
-              Monitor check-ins, clients, applications, and daily operations from
-              one premium workspace designed for fast action.
+              Monitor check-ins, leads, clients, applications, and daily operations
+              from one premium workspace designed for fast action.
             </p>
 
             <div className="mt-5 flex flex-wrap gap-2">
@@ -452,7 +474,7 @@ export default async function DashboardPage() {
         </div>
       </div>
 
-      <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-6">
+      <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4 2xl:grid-cols-7">
         {statCards.map((card) => (
           <Link
             key={card.label}
@@ -486,7 +508,7 @@ export default async function DashboardPage() {
         <div className="rounded-3xl border border-slate-200 bg-white p-6 shadow-sm xl:col-span-7">
           <SectionHeader
             title="Recent Check-ins"
-            description="Live visibility into student arrivals and check-in type"
+            description="Live visibility into student arrivals and lead routing"
             href="/leads"
             hrefLabel="Open lead queue"
           />
@@ -500,11 +522,11 @@ export default async function DashboardPage() {
                 const displayName = item.client
                   ? formatPersonName(item.client.firstName, item.client.lastName)
                   : item.intakeSubmission
-                  ? formatPersonName(
-                      item.intakeSubmission.firstName,
-                      item.intakeSubmission.lastName
-                    )
-                  : "Unknown";
+                    ? formatPersonName(
+                        item.intakeSubmission.firstName,
+                        item.intakeSubmission.lastName
+                      )
+                    : "Unknown";
 
                 const subText = item.client
                   ? item.client.phone || item.client.email || "—"
@@ -543,14 +565,18 @@ export default async function DashboardPage() {
                           >
                             Open Client
                           </Link>
-                        ) : item.intakeSubmission ? (
+                        ) : item.intakeSubmission?.lead ? (
                           <Link
-                            href={`/intake-submissions/${item.intakeSubmission.id}/convert`}
+                            href={`/leads/${item.intakeSubmission.lead.id}`}
                             className="rounded-full border border-slate-200 bg-white px-3 py-1 text-xs font-medium text-slate-700 hover:bg-slate-100"
                           >
-                            Open Intake
+                            Open Lead
                           </Link>
-                        ) : null}
+                        ) : (
+                          <span className="rounded-full border border-slate-200 bg-white px-3 py-1 text-xs font-medium text-slate-400">
+                            Pending lead creation
+                          </span>
+                        )}
                       </div>
                     </div>
                   </div>
@@ -609,6 +635,137 @@ export default async function DashboardPage() {
                     </span>
                   </div>
                 </Link>
+              ))}
+            </div>
+          )}
+        </div>
+      </div>
+
+      <div className="grid gap-6 xl:grid-cols-12">
+        <div className="rounded-3xl border border-slate-200 bg-white p-6 shadow-sm xl:col-span-4">
+          <SectionHeader
+            title="Recent Leads"
+            description="Latest lead activity across check-ins and intake flows"
+            href="/leads"
+            hrefLabel="Open leads"
+          />
+
+          {recentLeads.length === 0 ? (
+            <EmptyState text="No leads yet." />
+          ) : (
+            <div className="mt-5 space-y-3">
+              {recentLeads.map((lead) => (
+                <Link
+                  key={lead.id}
+                  href={`/leads/${lead.id}`}
+                  className="block rounded-2xl border border-slate-200 bg-slate-50 p-4 transition hover:bg-slate-100"
+                >
+                  <div className="flex items-start justify-between gap-3">
+                    <div>
+                      <div className="text-sm font-semibold text-slate-900">
+                        {formatPersonName(lead.firstName, lead.lastName)}
+                      </div>
+                      <div className="mt-1 text-sm text-slate-600">
+                        {lead.phone || lead.email || "No contact details"}
+                      </div>
+                      <div className="mt-1 text-xs text-slate-500">
+                        {lead.branch?.name || "No branch"} • {lead.source || "No source"}
+                      </div>
+                      <div className="mt-2 flex flex-wrap gap-2">
+                        {lead.clientId ? (
+                          <span className="rounded-full bg-emerald-100 px-2.5 py-1 text-xs font-medium text-emerald-700">
+                            Linked to client
+                          </span>
+                        ) : (
+                          <span className="rounded-full bg-blue-100 px-2.5 py-1 text-xs font-medium text-blue-700">
+                            Active lead
+                          </span>
+                        )}
+                        {lead.assignedTo ? (
+                          <span className="rounded-full bg-slate-200 px-2.5 py-1 text-xs font-medium text-slate-700">
+                            {lead.assignedTo.firstName} {lead.assignedTo.lastName}
+                          </span>
+                        ) : null}
+                      </div>
+                    </div>
+
+                    <span className="rounded-full bg-slate-200 px-2.5 py-1 text-xs font-medium text-slate-700">
+                      {formatDate(lead.lastActivityAt || lead.createdAt)}
+                    </span>
+                  </div>
+                </Link>
+              ))}
+            </div>
+          )}
+        </div>
+
+        <div className="rounded-3xl border border-slate-200 bg-white p-6 shadow-sm xl:col-span-4">
+          <SectionHeader
+            title="Recent Applications"
+            description="Latest education applications"
+            href="/applications"
+            hrefLabel="View all"
+          />
+
+          {recentApplications.length === 0 ? (
+            <EmptyState text="No applications yet." />
+          ) : (
+            <div className="mt-5 space-y-3">
+              {recentApplications.map((app) => (
+                <div
+                  key={app.id}
+                  className="rounded-2xl border border-slate-200 bg-slate-50 p-4"
+                >
+                  <div className="text-sm font-semibold text-slate-900">
+                    {app.client.firstName} {app.client.lastName}
+                  </div>
+
+                  <div className="mt-1 text-xs text-slate-600">
+                    {app.provider.name} • {app.course.name}
+                  </div>
+
+                  <div className="mt-2 flex flex-wrap gap-2">
+                    <span className="rounded-full bg-slate-200 px-2.5 py-1 text-xs font-medium text-slate-700">
+                      {app.intake} {app.intakeYear || ""}
+                    </span>
+                    <span className="rounded-full bg-indigo-100 px-2.5 py-1 text-xs font-medium text-indigo-700">
+                      {app.status}
+                    </span>
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+
+        <div className="rounded-3xl border border-slate-200 bg-white p-6 shadow-sm xl:col-span-4">
+          <SectionHeader
+            title="Recent Clients"
+            description="Latest clients added to the system"
+            href="/clients"
+            hrefLabel="View all"
+          />
+
+          {recentClients.length === 0 ? (
+            <EmptyState text="No clients yet." />
+          ) : (
+            <div className="mt-5 space-y-3">
+              {recentClients.map((client) => (
+                <div
+                  key={client.id}
+                  className="rounded-2xl border border-slate-200 bg-slate-50 p-4"
+                >
+                  <div className="text-sm font-semibold text-slate-900">
+                    {client.firstName} {client.lastName}
+                  </div>
+
+                  <div className="mt-1 text-xs text-slate-600">{client.phone}</div>
+
+                  <div className="mt-1 text-xs text-slate-500">
+                    {client.branch?.name || "No branch"} •{" "}
+                    {client.source?.name || "No source"}
+                  </div>
+                </div>
               ))}
             </div>
           )}
@@ -768,8 +925,8 @@ export default async function DashboardPage() {
                           {daysLeft === null
                             ? "Days left unknown"
                             : daysLeft === 0
-                            ? "Expires today"
-                            : `${daysLeft} day${daysLeft === 1 ? "" : "s"} left`}
+                              ? "Expires today"
+                              : `${daysLeft} day${daysLeft === 1 ? "" : "s"} left`}
                         </span>
                       </div>
                     </div>
@@ -797,110 +954,6 @@ export default async function DashboardPage() {
         )}
       </div>
 
-      <div className="grid gap-6 xl:grid-cols-12">
-        <div className="rounded-3xl border border-slate-200 bg-white p-6 shadow-sm xl:col-span-4">
-          <SectionHeader
-            title="Intake Pipeline"
-            description="Current submission flow snapshot"
-            href="/intake-submissions"
-            hrefLabel="Open queue"
-          />
-
-          <div className="mt-5 space-y-3">
-            {[
-              ["New", intakeStatusMap.new],
-              ["Assigned", intakeStatusMap.assigned],
-              ["Contacted", intakeStatusMap.contacted],
-              ["Under Review", intakeStatusMap.under_review],
-              ["Converted", intakeStatusMap.converted],
-              ["Closed", intakeStatusMap.closed],
-            ].map(([label, value]) => (
-              <div
-                key={String(label)}
-                className="flex items-center justify-between rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3"
-              >
-                <span className="text-sm font-medium text-slate-700">{label}</span>
-                <span className="text-sm font-semibold text-slate-900">
-                  {value as number}
-                </span>
-              </div>
-            ))}
-          </div>
-        </div>
-
-        <div className="rounded-3xl border border-slate-200 bg-white p-6 shadow-sm xl:col-span-4">
-          <SectionHeader
-            title="Recent Applications"
-            description="Latest education applications"
-            href="/applications"
-            hrefLabel="View all"
-          />
-
-          {recentApplications.length === 0 ? (
-            <EmptyState text="No applications yet." />
-          ) : (
-            <div className="mt-5 space-y-3">
-              {recentApplications.map((app) => (
-                <div
-                  key={app.id}
-                  className="rounded-2xl border border-slate-200 bg-slate-50 p-4"
-                >
-                  <div className="text-sm font-semibold text-slate-900">
-                    {app.client.firstName} {app.client.lastName}
-                  </div>
-
-                  <div className="mt-1 text-xs text-slate-600">
-                    {app.provider.name} • {app.course.name}
-                  </div>
-
-                  <div className="mt-2 flex flex-wrap gap-2">
-                    <span className="rounded-full bg-slate-200 px-2.5 py-1 text-xs font-medium text-slate-700">
-                      {app.intake} {app.intakeYear || ""}
-                    </span>
-                    <span className="rounded-full bg-indigo-100 px-2.5 py-1 text-xs font-medium text-indigo-700">
-                      {app.status}
-                    </span>
-                  </div>
-                </div>
-              ))}
-            </div>
-          )}
-        </div>
-
-        <div className="rounded-3xl border border-slate-200 bg-white p-6 shadow-sm xl:col-span-4">
-          <SectionHeader
-            title="Recent Clients"
-            description="Latest clients added to the system"
-            href="/clients"
-            hrefLabel="View all"
-          />
-
-          {recentClients.length === 0 ? (
-            <EmptyState text="No clients yet." />
-          ) : (
-            <div className="mt-5 space-y-3">
-              {recentClients.map((client) => (
-                <div
-                  key={client.id}
-                  className="rounded-2xl border border-slate-200 bg-slate-50 p-4"
-                >
-                  <div className="text-sm font-semibold text-slate-900">
-                    {client.firstName} {client.lastName}
-                  </div>
-
-                  <div className="mt-1 text-xs text-slate-600">{client.phone}</div>
-
-                  <div className="mt-1 text-xs text-slate-500">
-                    {client.branch?.name || "No branch"} •{" "}
-                    {client.source?.name || "No source"}
-                  </div>
-                </div>
-              ))}
-            </div>
-          )}
-        </div>
-      </div>
-
       <div className="rounded-3xl border border-slate-200 bg-white p-6 shadow-sm">
         <SectionHeader
           title="Quick Navigation"
@@ -915,8 +968,8 @@ export default async function DashboardPage() {
             { label: "Courses", href: "/courses-config" },
             { label: "Applications", href: "/applications" },
             { label: "Intake Forms", href: "/intake-forms" },
-            { label: "Submissions", href: "/intake-submissions" },
             { label: "Tasks", href: "/tasks" },
+            { label: "Check-ins", href: "/leads" },
           ].map((item) => (
             <Link
               key={item.label}

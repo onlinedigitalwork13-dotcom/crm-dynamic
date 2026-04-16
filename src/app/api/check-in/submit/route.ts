@@ -2,6 +2,7 @@ import { Prisma, PrismaClient } from "@prisma/client";
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { mapFormValuesToClient } from "@/lib/clients/map-form-values-to-client";
+import { createNotification } from "@/lib/notification-service";
 
 function normalizeString(value: unknown) {
   if (typeof value !== "string") return null;
@@ -39,6 +40,95 @@ type CreateSubmissionInput = {
 };
 
 type DbClient = Prisma.TransactionClient | PrismaClient;
+
+type CheckInResult =
+  | {
+      success: true;
+      mode: "existing_client";
+      allowFormFill: false;
+      message: string;
+      client: {
+        id: string;
+        firstName: string | null;
+        lastName: string | null;
+        email: string | null;
+        phone: string | null;
+        passport: string | null;
+        branchId: string | null;
+      };
+      checkIn: {
+        id: string;
+        checkedInAt: Date;
+        branchId: string | null;
+        clientId: string | null;
+        intakeSubmissionId: string | null;
+      };
+      previousCheckInCount: number;
+    }
+  | {
+      success: true;
+      mode: "historical_intake_match";
+      allowFormFill: true;
+      message: string;
+      intakeSubmission: {
+        id: string;
+        firstName: string | null;
+        lastName: string | null;
+        email: string | null;
+        phone: string | null;
+        passportNumber: string | null;
+        branchId: string | null;
+        clientId: string | null;
+        assignedToId: string | null;
+      };
+      lead: {
+        id: string;
+        branchId: string | null;
+        intakeSubmissionId: string | null;
+        clientId: string | null;
+        clientCheckInId: string | null;
+        firstName: string | null;
+        lastName: string | null;
+        email: string | null;
+        phone: string | null;
+        passportNumber: string | null;
+        source: string | null;
+        lastActivityAt: Date | null;
+      };
+      checkIn: {
+        id: string;
+        checkedInAt: Date;
+        branchId: string | null;
+        clientId: string | null;
+        intakeSubmissionId: string | null;
+      };
+      previousCheckInCount: number;
+    }
+  | {
+      success: true;
+      mode: "new_submission";
+      allowFormFill: true;
+      message: string;
+      submission: {
+        id: string;
+        firstName: string | null;
+        lastName: string | null;
+        email: string | null;
+        phone: string | null;
+        branchId: string | null;
+        passportNumber: string | null;
+        answers: Prisma.JsonValue;
+        assignedToId: string | null;
+      };
+      checkIn: {
+        id: string;
+        checkedInAt: Date;
+        branchId: string | null;
+        clientId: string | null;
+        intakeSubmissionId: string | null;
+      };
+      previousCheckInCount: number;
+    };
 
 async function findExistingPerson(params: {
   tx: DbClient;
@@ -148,32 +238,85 @@ async function upsertLead(
   }
 
   if (existingLead) {
-    return tx.lead.update({
+    const updatedLead = await tx.lead.update({
       where: { id: existingLead.id },
       data: {
         clientId: data.clientId ?? undefined,
         clientCheckInId: data.clientCheckInId ?? undefined,
         lastActivityAt: new Date(),
       },
+      select: {
+        id: true,
+        branchId: true,
+        intakeSubmissionId: true,
+        clientId: true,
+        clientCheckInId: true,
+        firstName: true,
+        lastName: true,
+        email: true,
+        phone: true,
+        passportNumber: true,
+        source: true,
+        lastActivityAt: true,
+      },
+    });
+
+    if (data.intakeSubmissionId) {
+      await tx.intakeFormSubmission.update({
+        where: { id: data.intakeSubmissionId },
+        data: {
+          lead: {
+            connect: { id: updatedLead.id },
+          },
+        },
+      });
+    }
+
+    return updatedLead;
+  }
+
+  const lead = await tx.lead.create({
+    data: {
+      branchId: data.branchId,
+      intakeSubmissionId: data.intakeSubmissionId ?? null,
+      clientId: data.clientId ?? null,
+      clientCheckInId: data.clientCheckInId ?? null,
+      firstName: data.firstName ?? null,
+      lastName: data.lastName ?? null,
+      email: data.email ?? null,
+      phone: data.phone ?? null,
+      passportNumber: data.passportNumber ?? null,
+      source: data.source,
+      lastActivityAt: new Date(),
+    },
+    select: {
+      id: true,
+      branchId: true,
+      intakeSubmissionId: true,
+      clientId: true,
+      clientCheckInId: true,
+      firstName: true,
+      lastName: true,
+      email: true,
+      phone: true,
+      passportNumber: true,
+      source: true,
+      lastActivityAt: true,
+    },
+  });
+
+  if (data.intakeSubmissionId) {
+    await tx.intakeFormSubmission.update({
+      where: { id: data.intakeSubmissionId },
+      data: {
+        lead: {
+          connect: { id: lead.id },
+        },
+      },
     });
   }
 
-  return tx.lead.create({
-  data: {
-    branchId: data.branchId,
-    intakeSubmissionId: data.intakeSubmissionId ?? null,
-    clientId: data.clientId ?? null,
-    clientCheckInId: data.clientCheckInId ?? null,
-    firstName: data.firstName ?? null,
-    lastName: data.lastName ?? null,
-    email: data.email ?? null,
-    phone: data.phone ?? null,
-    passportNumber: data.passportNumber ?? null,
-    source: data.source,
-    lastActivityAt: new Date(), // ✅ CRITICAL FIX
-  },
-});
-
+  return lead;
 }
 
 async function createSubmissionAndCheckIn(
@@ -358,15 +501,15 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    const existing = await findExistingPerson({
-      tx: prisma,
-      phone,
-      email,
-      passportNumber,
-    });
-
     const result = await prisma.$transaction(
-      async (tx) => {
+      async (tx): Promise<CheckInResult> => {
+        const existing = await findExistingPerson({
+          tx,
+          phone,
+          email,
+          passportNumber,
+        });
+
         if (existing.type === "client") {
           const checkIn = await tx.clientCheckIn.create({
             data: {
@@ -405,9 +548,10 @@ export async function POST(req: NextRequest) {
 
           return {
             success: true,
-            mode: "existing_client" as const,
+            mode: "existing_client",
             allowFormFill: false,
-            message: "Existing client found. Form entry is locked and check-in has been completed.",
+            message:
+              "Existing client found. Form entry is locked and check-in has been completed.",
             client: existing.client,
             checkIn,
             previousCheckInCount,
@@ -415,12 +559,11 @@ export async function POST(req: NextRequest) {
         }
 
         if (existing.type === "intake_submission") {
-          const linkedClientId = existing.intakeSubmission.clientId ?? null;
+          const intake = existing.intakeSubmission;
 
           const checkIn = await tx.clientCheckIn.create({
             data: {
-              clientId: linkedClientId,
-              intakeSubmissionId: existing.intakeSubmission.id,
+              intakeSubmissionId: intake.id,
               branchId,
               checkInMethod: "qr",
               visitReason: visitReason ?? null,
@@ -435,31 +578,31 @@ export async function POST(req: NextRequest) {
             },
           });
 
-          await upsertLead(tx, {
+          const lead = await upsertLead(tx, {
             branchId,
-            intakeSubmissionId: existing.intakeSubmission.id,
-            clientId: linkedClientId,
+            intakeSubmissionId: intake.id,
+            clientId: intake.clientId ?? null,
             clientCheckInId: checkIn.id,
-            firstName: existing.intakeSubmission.firstName,
-            lastName: existing.intakeSubmission.lastName,
-            email: existing.intakeSubmission.email,
-            phone: existing.intakeSubmission.phone,
-            passportNumber: existing.intakeSubmission.passportNumber,
-            source: "existing_intake",
+            firstName: intake.firstName,
+            lastName: intake.lastName,
+            email: intake.email,
+            phone: intake.phone,
+            passportNumber: intake.passportNumber,
+            source: "check_in_from_intake",
           });
 
           const previousCheckInCount = await tx.clientCheckIn.count({
-            where: linkedClientId
-              ? { clientId: linkedClientId }
-              : { intakeSubmissionId: existing.intakeSubmission.id },
+            where: { intakeSubmissionId: intake.id },
           });
 
           return {
             success: true,
-            mode: "existing_intake_submission" as const,
-            allowFormFill: false,
-            message: "Existing intake record found. Form entry is locked and check-in has been completed.",
-            intakeSubmission: existing.intakeSubmission,
+            mode: "historical_intake_match",
+            allowFormFill: true,
+            message:
+              "Previous intake found. Lead has been created/updated and routed into live queue.",
+            intakeSubmission: intake,
+            lead,
             checkIn,
             previousCheckInCount,
           };
@@ -491,7 +634,7 @@ export async function POST(req: NextRequest) {
 
         return {
           success: true,
-          mode: "new_submission" as const,
+          mode: "new_submission",
           allowFormFill: true,
           message: "New intake submission, client, and check-in created successfully.",
           submission: created.submission,
@@ -504,6 +647,48 @@ export async function POST(req: NextRequest) {
         timeout: 15000,
       }
     );
+
+    // Send in-app notification after successful DB transaction.
+    // Notification failure must never break successful check-in.
+    try {
+      let userId: string | null = null;
+      let title = "New Check-In";
+      let message = "A check-in has been completed";
+      let link: string | null = null;
+
+      if (result.mode === "existing_client") {
+        userId = null;
+        title = "Existing Client Check-In";
+        message = `${result.client.firstName ?? ""} ${result.client.lastName ?? ""} checked in`.trim();
+        link = `/clients/${result.client.id}`;
+      }
+
+      if (result.mode === "historical_intake_match") {
+        userId = result.intakeSubmission.assignedToId;
+        title = "Lead Activity Updated";
+        message = `${result.intakeSubmission.firstName ?? ""} ${result.intakeSubmission.lastName ?? ""} checked in (from intake)`.trim();
+        link = `/leads/${result.lead.id}`;
+      }
+
+      if (result.mode === "new_submission") {
+        userId = result.submission.assignedToId;
+        title = "New Lead Created";
+        message = `${result.submission.firstName ?? ""} ${result.submission.lastName ?? ""} submitted check-in`.trim();
+        link = `/leads`;
+      }
+
+      if (userId) {
+        await createNotification({
+          userId,
+          title,
+          message,
+          type: "check_in",
+          link,
+        });
+      }
+    } catch (notificationError) {
+      console.error("Check-in notification error:", notificationError);
+    }
 
     return NextResponse.json(result);
   } catch (error) {

@@ -1,4 +1,5 @@
 import { prisma } from "@/lib/prisma";
+import { createNotification } from "@/lib/notification-service";
 
 function normalizeRequiredString(value: unknown) {
   if (typeof value !== "string") return "";
@@ -19,6 +20,48 @@ function normalizeOptionalEmail(value: unknown) {
 
   const emailPattern = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
   return emailPattern.test(trimmed) ? trimmed : null;
+}
+
+async function notifyFallbackAdmins(params: {
+  leadId: string;
+  firstName: string;
+  lastName: string;
+  referralCode: string;
+}) {
+  try {
+    const adminUsers = await prisma.user.findMany({
+      where: {
+        isActive: true,
+        role: {
+          name: {
+            in: ["super_admin", "admin"],
+          },
+        },
+      },
+      select: {
+        id: true,
+      },
+    });
+
+    if (adminUsers.length === 0) {
+      console.warn("No active admin users found for fallback subagent notification");
+      return;
+    }
+
+    await Promise.all(
+      adminUsers.map((user) =>
+        createNotification({
+          userId: user.id,
+          title: "New Subagent Lead",
+          message: `${params.firstName} ${params.lastName} submitted via subagent referral (${params.referralCode})`,
+          type: "subagent_lead",
+          link: `/leads/${params.leadId}`,
+        })
+      )
+    );
+  } catch (error) {
+    console.error("Fallback admin notification error:", error);
+  }
 }
 
 export async function POST(req: Request) {
@@ -87,6 +130,15 @@ export async function POST(req: Request) {
       select: {
         id: true,
       },
+    });
+
+    // Fallback notification to active admins/super admins.
+    // Notification failure must never break successful public submissions.
+    await notifyFallbackAdmins({
+      leadId: lead.id,
+      firstName,
+      lastName,
+      referralCode,
     });
 
     return Response.json(
