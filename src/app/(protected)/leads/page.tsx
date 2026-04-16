@@ -1,17 +1,29 @@
 import { prisma } from "@/lib/prisma";
 import { requireAuth } from "@/lib/require-auth";
-import LeadsWorkspaceClient from "./leads-workspace-client";
+import LeadsClient from "./leads-client";
 
 export default async function LeadsPage() {
   const session = await requireAuth();
 
   const [leads, users] = await Promise.all([
     prisma.lead.findMany({
-      orderBy: {
-        createdAt: "desc",
-      },
+      orderBy: [
+        {
+          lastActivityAt: "desc",
+        },
+        {
+          updatedAt: "desc",
+        },
+        {
+          createdAt: "desc",
+        },
+      ],
       select: {
         id: true,
+        branchId: true,
+        intakeSubmissionId: true,
+        clientId: true,
+        clientCheckInId: true,
         firstName: true,
         lastName: true,
         email: true,
@@ -20,8 +32,9 @@ export default async function LeadsPage() {
         country: true,
         source: true,
         status: true,
-        notes: true,
+        assignedToId: true,
         assignedAt: true,
+        notes: true,
         createdAt: true,
         updatedAt: true,
         lastActivityAt: true,
@@ -41,6 +54,12 @@ export default async function LeadsPage() {
             lastName: true,
             email: true,
             branchId: true,
+            role: {
+              select: {
+                id: true,
+                name: true,
+              },
+            },
           },
         },
 
@@ -51,6 +70,8 @@ export default async function LeadsPage() {
             lastName: true,
             email: true,
             phone: true,
+            assignedToId: true,
+            createdById: true,
           },
         },
 
@@ -59,61 +80,57 @@ export default async function LeadsPage() {
             id: true,
             name: true,
             referralCode: true,
+            country: true,
+            contact: true,
+            email: true,
+            phone: true,
+            isActive: true,
           },
         },
 
         intakeSubmission: {
           select: {
             id: true,
-            status: true,
-            submittedAt: true,
-            reviewedAt: true,
-            convertedAt: true,
-            closedAt: true,
             firstName: true,
             lastName: true,
             email: true,
             phone: true,
-            country: true,
-            city: true,
-            address: true,
-            nationality: true,
-            dateOfBirth: true,
-            passportNumber: true,
-            notes: true,
-            internalNotes: true,
+            status: true,
+            assignedToId: true,
             submissionMeta: true,
-            reviewedBy: {
-              select: {
-                id: true,
-                firstName: true,
-                lastName: true,
-                email: true,
-              },
-            },
           },
         },
 
         clientCheckIn: {
           select: {
             id: true,
+            checkedInAt: true,
             checkInMethod: true,
             visitReason: true,
             notes: true,
-            checkedInAt: true,
-            intakeSubmissionId: true,
           },
         },
 
         followers: {
           select: {
             id: true,
-          },
-        },
-
-        activities: {
-          select: {
-            id: true,
+            userId: true,
+            createdAt: true,
+            user: {
+              select: {
+                id: true,
+                firstName: true,
+                lastName: true,
+                email: true,
+                branchId: true,
+                role: {
+                  select: {
+                    id: true,
+                    name: true,
+                  },
+                },
+              },
+            },
           },
         },
       },
@@ -141,9 +158,10 @@ export default async function LeadsPage() {
   ]);
 
   return (
-    <LeadsWorkspaceClient
+    <LeadsClient
       leads={leads}
       users={users}
+      currentUserId={session.user.id}
       currentUserRole={session.user.roleName || "user"}
       currentUserBranchId={session.user.branchId ?? null}
       canCrossBranchAssign={

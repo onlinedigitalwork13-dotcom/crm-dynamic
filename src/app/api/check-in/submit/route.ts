@@ -159,19 +159,21 @@ async function upsertLead(
   }
 
   return tx.lead.create({
-    data: {
-      branchId: data.branchId,
-      intakeSubmissionId: data.intakeSubmissionId ?? null,
-      clientId: data.clientId ?? null,
-      clientCheckInId: data.clientCheckInId ?? null,
-      firstName: data.firstName ?? null,
-      lastName: data.lastName ?? null,
-      email: data.email ?? null,
-      phone: data.phone ?? null,
-      passportNumber: data.passportNumber ?? null,
-      source: data.source,
-    },
-  });
+  data: {
+    branchId: data.branchId,
+    intakeSubmissionId: data.intakeSubmissionId ?? null,
+    clientId: data.clientId ?? null,
+    clientCheckInId: data.clientCheckInId ?? null,
+    firstName: data.firstName ?? null,
+    lastName: data.lastName ?? null,
+    email: data.email ?? null,
+    phone: data.phone ?? null,
+    passportNumber: data.passportNumber ?? null,
+    source: data.source,
+    lastActivityAt: new Date(), // ✅ CRITICAL FIX
+  },
+});
+
 }
 
 async function createSubmissionAndCheckIn(

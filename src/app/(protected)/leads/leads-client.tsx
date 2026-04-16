@@ -111,18 +111,34 @@ type LeadResponse = {
   lead: LeadItem;
 };
 
+const DATE_FORMATTER = new Intl.DateTimeFormat("en-GB", {
+  day: "2-digit",
+  month: "2-digit",
+  year: "numeric",
+});
+
+const DATE_TIME_FORMATTER = new Intl.DateTimeFormat("en-GB", {
+  day: "2-digit",
+  month: "2-digit",
+  year: "numeric",
+  hour: "2-digit",
+  minute: "2-digit",
+  second: "2-digit",
+  hour12: false,
+});
+
 function formatDate(value: Date | string | null | undefined) {
   if (!value) return "—";
   const date = new Date(value);
   if (Number.isNaN(date.getTime())) return "—";
-  return date.toLocaleDateString();
+  return DATE_FORMATTER.format(date);
 }
 
 function formatDateTime(value: Date | string | null | undefined) {
   if (!value) return "—";
   const date = new Date(value);
   if (Number.isNaN(date.getTime())) return "—";
-  return date.toLocaleString();
+  return DATE_TIME_FORMATTER.format(date);
 }
 
 function formatPersonName(firstName?: string | null, lastName?: string | null) {
@@ -157,6 +173,8 @@ function getLeadStatusBadgeClass(status: LeadStatus) {
 }
 
 function getSourceBadgeClass(source?: string | null) {
+  if (!source) return "bg-slate-100 text-slate-700 ring-1 ring-slate-200";
+
   if (source === "agent") {
     return "bg-violet-100 text-violet-700 ring-1 ring-violet-200";
   }
@@ -177,7 +195,13 @@ function getSourceBadgeClass(source?: string | null) {
     return "bg-indigo-100 text-indigo-700 ring-1 ring-indigo-200";
   }
 
-  if (source === "check_in" || source === "walk_in") {
+  if (
+    source === "check_in" ||
+    source === "walk_in" ||
+    source === "check_in_new" ||
+    source === "existing_client" ||
+    source === "existing_intake"
+  ) {
     return "bg-amber-100 text-amber-700 ring-1 ring-amber-200";
   }
 
@@ -187,6 +211,14 @@ function getSourceBadgeClass(source?: string | null) {
 function formatSource(source?: string | null) {
   if (!source) return "Unknown";
   return source.replaceAll("_", " ");
+}
+
+function sortLeadsByActivity(leads: LeadItem[]) {
+  return [...leads].sort(
+    (a, b) =>
+      new Date(b.lastActivityAt).getTime() -
+      new Date(a.lastActivityAt).getTime()
+  );
 }
 
 type SubmissionMeta = {
@@ -247,14 +279,17 @@ export default function LeadsClient({
   currentUserBranchId,
   canCrossBranchAssign,
 }: Props) {
-  const [items, setItems] = useState<LeadItem[]>(leads);
+  const initialSortedLeads = useMemo(() => sortLeadsByActivity(leads), [leads]);
+
+  const [items, setItems] = useState<LeadItem[]>(initialSortedLeads);
   const [selectedLeadId, setSelectedLeadId] = useState<string | null>(
-    leads[0]?.id ?? null
+    initialSortedLeads[0]?.id ?? null
   );
   const [assigningId, setAssigningId] = useState<string | null>(null);
   const [savingStatusId, setSavingStatusId] = useState<string | null>(null);
   const [savingNotesId, setSavingNotesId] = useState<string | null>(null);
   const [followerLoadingId, setFollowerLoadingId] = useState<string | null>(null);
+  const [deletingId, setDeletingId] = useState<string | null>(null);
   const [selectedFollowerUserId, setSelectedFollowerUserId] = useState("");
   const [message, setMessage] = useState<string | null>(null);
   const [draftAssignedUserId, setDraftAssignedUserId] = useState("");
@@ -317,7 +352,9 @@ export default function LeadsClient({
           : 0),
       0
     );
-    const agentLeads = items.filter((item) => item.source === "agent" || item.source === "subagent").length;
+    const agentLeads = items.filter(
+      (item) => item.source === "agent" || item.source === "subagent"
+    ).length;
 
     return { total, unassigned, converted, followed, agentLeads };
   }, [items, currentUserId]);
@@ -348,9 +385,14 @@ export default function LeadsClient({
       const successData = data as LeadResponse;
 
       setItems((prev) =>
-        prev.map((item) => (item.id === leadId ? successData.lead : item))
+        sortLeadsByActivity(
+          prev.map((item) =>
+            item.id === leadId ? successData.lead : item
+          )
+        )
       );
 
+      setSelectedLeadId(successData.lead.id);
       setDraftAssignedUserId(successData.lead.assignedToId || "");
       setMessage(
         successData.lead.assignedTo
@@ -393,9 +435,14 @@ export default function LeadsClient({
       const successData = data as LeadResponse;
 
       setItems((prev) =>
-        prev.map((item) => (item.id === leadId ? successData.lead : item))
+        sortLeadsByActivity(
+          prev.map((item) =>
+            item.id === leadId ? successData.lead : item
+          )
+        )
       );
 
+      setSelectedLeadId(successData.lead.id);
       setMessage("Lead status updated.");
     } catch (error) {
       setMessage(error instanceof Error ? error.message : "Failed to update lead");
@@ -430,9 +477,14 @@ export default function LeadsClient({
       const successData = data as LeadResponse;
 
       setItems((prev) =>
-        prev.map((item) => (item.id === leadId ? successData.lead : item))
+        sortLeadsByActivity(
+          prev.map((item) =>
+            item.id === leadId ? successData.lead : item
+          )
+        )
       );
 
+      setSelectedLeadId(successData.lead.id);
       setDraftNotes(successData.lead.notes || "");
       setMessage("Lead notes saved.");
     } catch (error) {
@@ -468,9 +520,14 @@ export default function LeadsClient({
       const successData = data as LeadResponse;
 
       setItems((prev) =>
-        prev.map((item) => (item.id === leadId ? successData.lead : item))
+        sortLeadsByActivity(
+          prev.map((item) =>
+            item.id === leadId ? successData.lead : item
+          )
+        )
       );
 
+      setSelectedLeadId(successData.lead.id);
       setSelectedFollowerUserId("");
       setMessage("Follower added successfully.");
     } catch (error) {
@@ -506,9 +563,14 @@ export default function LeadsClient({
       const successData = data as LeadResponse;
 
       setItems((prev) =>
-        prev.map((item) => (item.id === leadId ? successData.lead : item))
+        sortLeadsByActivity(
+          prev.map((item) =>
+            item.id === leadId ? successData.lead : item
+          )
+        )
       );
 
+      setSelectedLeadId(successData.lead.id);
       setMessage("Follower removed successfully.");
     } catch (error) {
       setMessage(
@@ -516,6 +578,51 @@ export default function LeadsClient({
       );
     } finally {
       setFollowerLoadingId(null);
+    }
+  }
+
+  async function handleDeleteLead(leadId: string) {
+    const leadToDelete = items.find((item) => item.id === leadId);
+    const leadName = formatPersonName(
+      leadToDelete?.firstName,
+      leadToDelete?.lastName
+    );
+
+    const confirmed = window.confirm(
+      `Delete lead "${leadName}"?\n\nThis will permanently remove the lead record, followers, and lead activities.`
+    );
+
+    if (!confirmed) return;
+
+    try {
+      setDeletingId(leadId);
+      setMessage(null);
+
+      const response = await fetch(`/api/leads/${leadId}`, {
+        method: "DELETE",
+      });
+
+      const data: { success?: boolean; error?: string } = await response.json();
+
+      if (!response.ok) {
+        throw new Error(data.error || "Failed to delete lead");
+      }
+
+      setItems((prev) => {
+        const next = prev.filter((item) => item.id !== leadId);
+
+        if (selectedLeadId === leadId) {
+          setSelectedLeadId(next[0]?.id ?? null);
+        }
+
+        return sortLeadsByActivity(next);
+      });
+
+      setMessage(`Lead "${leadName}" deleted successfully.`);
+    } catch (error) {
+      setMessage(error instanceof Error ? error.message : "Failed to delete lead");
+    } finally {
+      setDeletingId(null);
     }
   }
 
@@ -685,6 +792,12 @@ export default function LeadsClient({
                               Linked Client
                             </span>
                           ) : null}
+
+                          {lead.clientCheckIn ? (
+                            <span className="rounded-full bg-blue-100 px-2.5 py-1 text-[11px] font-medium text-blue-700 ring-1 ring-blue-200">
+                              Recent Check-in
+                            </span>
+                          ) : null}
                         </div>
                       </div>
                     </div>
@@ -746,8 +859,8 @@ export default function LeadsClient({
                       ) : null}
 
                       {selectedLead.clientCheckIn ? (
-                        <span className="rounded-full bg-blue-100 px-3 py-1 text-xs font-medium text-blue-700">
-                          Check-in Recorded
+                        <span className="rounded-full bg-blue-100 px-3 py-1 text-xs font-medium text-blue-700 ring-1 ring-blue-200">
+                          Recent Check-in
                         </span>
                       ) : null}
                     </div>
@@ -1308,7 +1421,7 @@ export default function LeadsClient({
 
                   {selectedLead.intakeSubmission ? (
                     <Link
-                      href={`/intake-submissions/${selectedLead.intakeSubmission.id}/convert`}
+                      href={`/leads/${selectedLead.id}/convert`}
                       className="rounded-2xl border border-slate-300 bg-white px-4 py-3 text-sm font-medium text-slate-700 transition hover:bg-slate-50"
                     >
                       Convert Submission
@@ -1321,6 +1434,15 @@ export default function LeadsClient({
                   >
                     Intake Submissions
                   </Link>
+
+                  <button
+                    type="button"
+                    onClick={() => void handleDeleteLead(selectedLead.id)}
+                    disabled={deletingId === selectedLead.id}
+                    className="rounded-2xl border border-red-300 bg-white px-4 py-3 text-sm font-medium text-red-700 transition hover:bg-red-50 disabled:cursor-not-allowed disabled:opacity-50"
+                  >
+                    {deletingId === selectedLead.id ? "Deleting..." : "Delete Lead"}
+                  </button>
                 </div>
               </div>
             </div>

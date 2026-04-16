@@ -20,6 +20,10 @@ function formatName(firstName?: string | null, lastName?: string | null) {
   return [firstName, lastName].filter(Boolean).join(" ").trim() || "Unnamed";
 }
 
+function normalizeText(value?: string | null) {
+  return (value || "").trim();
+}
+
 export default async function ConvertIntakeSubmissionPage({
   params,
 }: PageProps) {
@@ -65,6 +69,13 @@ export default async function ConvertIntakeSubmissionPage({
           lastName: true,
         },
       },
+      lead: {
+        select: {
+          id: true,
+          clientId: true,
+          status: true,
+        },
+      },
     },
   });
 
@@ -76,70 +87,181 @@ export default async function ConvertIntakeSubmissionPage({
     redirect(`/clients/${submission.clientId}`);
   }
 
-  const branches = await prisma.branch.findMany({
-    where: {
-      isActive: true,
-    },
-    orderBy: {
-      name: "asc",
-    },
-    select: {
-      id: true,
-      name: true,
-      code: true,
-    },
+  const firstName = normalizeText(submission.firstName);
+  const lastName = normalizeText(submission.lastName);
+  const email = normalizeText(submission.email);
+  const phone = normalizeText(submission.phone);
+  const passport = normalizeText(submission.passportNumber);
+
+  const duplicateWhereOr: Array<{
+    email?: { equals: string; mode: "insensitive" };
+    phone?: string;
+    passport?: { equals: string; mode: "insensitive" };
+  }> = [];
+
+  if (email) {
+    duplicateWhereOr.push({
+      email: {
+        equals: email,
+        mode: "insensitive",
+      },
+    });
+  }
+
+  if (phone) {
+    duplicateWhereOr.push({
+      phone,
+    });
+  }
+
+  if (passport) {
+    duplicateWhereOr.push({
+      passport: {
+        equals: passport,
+        mode: "insensitive",
+      },
+    });
+  }
+
+  const [
+    branches,
+    leadSources,
+    workflows,
+    workflowStages,
+    subagents,
+    duplicateCandidates,
+  ] = await Promise.all([
+    prisma.branch.findMany({
+      where: {
+        isActive: true,
+      },
+      orderBy: {
+        name: "asc",
+      },
+      select: {
+        id: true,
+        name: true,
+        code: true,
+      },
+    }),
+
+    prisma.leadSource.findMany({
+      where: {
+        isActive: true,
+      },
+      orderBy: {
+        name: "asc",
+      },
+      select: {
+        id: true,
+        name: true,
+      },
+    }),
+
+    prisma.workflow.findMany({
+      where: {
+        isActive: true,
+      },
+      orderBy: {
+        name: "asc",
+      },
+      select: {
+        id: true,
+        name: true,
+      },
+    }),
+
+    prisma.workflowStage.findMany({
+      orderBy: {
+        orderSequence: "asc",
+      },
+      select: {
+        id: true,
+        stageName: true,
+        workflowId: true,
+        orderSequence: true,
+      },
+    }),
+
+    prisma.subagent.findMany({
+      where: {
+        isActive: true,
+      },
+      orderBy: {
+        name: "asc",
+      },
+      select: {
+        id: true,
+        name: true,
+      },
+    }),
+
+    duplicateWhereOr.length > 0
+      ? prisma.client.findMany({
+          where: {
+            OR: duplicateWhereOr,
+          },
+          orderBy: {
+            createdAt: "desc",
+          },
+          select: {
+            id: true,
+            firstName: true,
+            lastName: true,
+            email: true,
+            phone: true,
+            passport: true,
+            branchId: true,
+            createdAt: true,
+            updatedAt: true,
+            subagentId: true,
+          },
+          take: 10,
+        })
+      : Promise.resolve([]),
+  ]);
+
+  const duplicateCandidatesWithReasons = duplicateCandidates.map((client) => {
+    const reasons: string[] = [];
+
+    if (
+      email &&
+      client.email &&
+      client.email.trim().toLowerCase() === email.toLowerCase()
+    ) {
+      reasons.push("Email match");
+    }
+
+    if (phone && client.phone && client.phone.trim() === phone) {
+      reasons.push("Phone match");
+    }
+
+    if (
+      passport &&
+      client.passport &&
+      client.passport.trim().toLowerCase() === passport.toLowerCase()
+    ) {
+      reasons.push("Passport match");
+    }
+
+    const nameMatch = Boolean(
+      firstName &&
+        lastName &&
+        client.firstName?.trim().toLowerCase() === firstName.toLowerCase() &&
+        client.lastName?.trim().toLowerCase() === lastName.toLowerCase()
+    );
+
+    return {
+      ...client,
+      reasons,
+      matchScore: reasons.length * 100 + (nameMatch ? 25 : 0),
+      nameMatch,
+    };
   });
 
-  const leadSources = await prisma.leadSource.findMany({
-    where: {
-      isActive: true,
-    },
-    orderBy: {
-      name: "asc",
-    },
-    select: {
-      id: true,
-      name: true,
-    },
-  });
-
-  const workflows = await prisma.workflow.findMany({
-    where: {
-      isActive: true,
-    },
-    orderBy: {
-      name: "asc",
-    },
-    select: {
-      id: true,
-      name: true,
-    },
-  });
-
-  const workflowStages = await prisma.workflowStage.findMany({
-    orderBy: {
-      orderSequence: "asc",
-    },
-    select: {
-      id: true,
-      stageName: true,
-      workflowId: true,
-      orderSequence: true,
-    },
-  });
-
-  const subagents = await prisma.subagent.findMany({
-    where: {
-      isActive: true,
-    },
-    orderBy: {
-      name: "asc",
-    },
-    select: {
-      id: true,
-      name: true,
-    },
-  });
+  const sortedDuplicateCandidates = duplicateCandidatesWithReasons.sort(
+    (a, b) => b.matchScore - a.matchScore
+  );
 
   return (
     <div className="space-y-6">
@@ -245,6 +367,8 @@ export default async function ConvertIntakeSubmissionPage({
           orderIndex: stage.orderSequence,
         }))}
         subagents={subagents}
+        submissionMeta={submission.submissionMeta}
+        duplicateCandidates={sortedDuplicateCandidates}
       />
     </div>
   );
