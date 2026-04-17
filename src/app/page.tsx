@@ -1,182 +1,245 @@
-import Link from "next/link";
+"use client";
 
-const stats = [
+import Image from "next/image";
+import Link from "next/link";
+import { motion, type Variants } from "framer-motion";
+
+const heroStats = [
   {
-    title: "Multi-branch",
-    description: "Built for branch-ready teams managing growing operations.",
-  },
-  {
-    title: "Workflow-driven",
-    description: "Move every client through structured operational stages.",
-  },
-  {
-    title: "End-to-end",
+    value: "All-in-one",
+    title: "Operations CRM",
     description:
-      "Manage leads, applications, tasks, and follow-up in one connected system.",
+      "Manage leads, clients, intake, applications, tasks, and workflows from one connected platform.",
+  },
+  {
+    value: "Modern UI",
+    title: "Premium experience",
+    description:
+      "A cleaner, more advanced interface built to look trustworthy and feel enterprise-ready.",
+  },
+  {
+    value: "Built to scale",
+    title: "Multi-branch ready",
+    description:
+      "Support growing education and migration teams with better visibility and control.",
+  },
+];
+
+const platformScreens = [
+  {
+    eyebrow: "Executive overview",
+    title: "Executive Control at a Glance",
+    description:
+      "Track clients, leads, applications, tasks, providers, courses, and check-ins from one premium command layer.",
+    image: "/home/dashboard-overview.png",
+    alt: "CRM Dynamic dashboard overview",
+    reverse: false,
+  },
+  {
+    eyebrow: "Task workspace",
+    title: "Smart Task and Workflow Management",
+    description:
+      "Assign, manage, and monitor follow-up across the team with clear ownership and cleaner execution.",
+    image: "/home/tasks-workspace.png",
+    alt: "CRM Dynamic tasks workspace",
+    reverse: true,
+  },
+  {
+    eyebrow: "Reception desk",
+    title: "Fast Client Check-In and Identity Resolution",
+    description:
+      "Search by phone, email, or passport number to resolve identity before creating or updating a live CRM record.",
+    image: "/home/checkin-screen.png",
+    alt: "CRM Dynamic check-in screen",
+    reverse: false,
+  },
+  {
+    eyebrow: "Public intake",
+    title: "Structured Intake Without Duplicate Records",
+    description:
+      "Guide new enquiries through a clean search-first intake flow that keeps your CRM more accurate from day one.",
+    image: "/home/intake-form.png",
+    alt: "CRM Dynamic intake form",
+    reverse: true,
+  },
+  {
+    eyebrow: "Provider import",
+    title: "Clean Provider Import Pipeline",
+    description:
+      "Import provider data from CSV, website, or API with validation, duplicate detection, and safer preview before commit.",
+    image: "/home/provider-import.png",
+    alt: "CRM Dynamic provider import screen",
+    reverse: false,
+  },
+  {
+    eyebrow: "Course import",
+    title: "Structured Course Import With Validation",
+    description:
+      "Import provider-linked course data through a production-ready pipeline with deduplication and review before final commit.",
+    image: "/home/course-import.png",
+    alt: "CRM Dynamic course import screen",
+    reverse: true,
+  },
+  {
+    eyebrow: "System settings",
+    title: "Centralized Configuration for Real Operations",
+    description:
+      "Control branches, workflows, lead sources, checklist templates, academic setup, and users from one administrative layer.",
+    image: "/home/settings-overview.png",
+    alt: "CRM Dynamic general settings screen",
+    reverse: false,
+  },
+  {
+    eyebrow: "Email center",
+    title: "Workflow-Linked Communication Hub",
+    description:
+      "Manage rules, template keys, channels, and targets through a clean email center built around real automation logic.",
+    image: "/home/email-center.png",
+    alt: "CRM Dynamic email center screen",
+    reverse: true,
   },
 ];
 
 const features = [
   {
-    title: "Lead & Intake Capture",
+    title: "Lead and Intake Capture",
     description:
-      "Collect new enquiries, public form submissions, and check-ins in one connected intake flow.",
+      "Collect public enquiries, walk-ins, and intake submissions in one connected system.",
   },
   {
     title: "Client Journey Management",
     description:
-      "Track each student or client from first contact through every operational stage with clarity.",
+      "Track every student or client from first contact through each operational stage.",
   },
   {
     title: "Workflow Automation",
     description:
-      "Automate movement, follow-ups, alerts, and stage-based actions without relying on spreadsheets.",
+      "Move records through structured stages with cleaner internal execution and follow-up.",
   },
   {
     title: "Applications Tracking",
     description:
-      "Manage providers, courses, submissions, milestones, and application progress in one place.",
+      "Manage providers, courses, submissions, milestones, and application progression in one place.",
   },
   {
-    title: "Task & Team Execution",
+    title: "Task and Team Execution",
     description:
-      "Coordinate staff assignments, priorities, reminders, and actions across teams and branches.",
+      "Coordinate staff assignments, reminders, actions, and operational accountability across teams.",
   },
   {
     title: "Front Desk Check-In",
     description:
-      "Handle walk-ins and reception flow with direct CRM-linked check-in, lookup, and follow-up.",
+      "Handle reception flow with CRM-linked search, lookup, and intake before record creation.",
   },
 ];
 
-const modulePills = [
+const comparisonRows = [
+  {
+    other: "Spreadsheets, email, WhatsApp, and disconnected tools",
+    dynamic:
+      "One connected platform for leads, clients, applications, intake, tasks, and workflows",
+  },
+  {
+    other: "Hard to track the full student or client journey",
+    dynamic: "Clear operational movement from first enquiry to outcome",
+  },
+  {
+    other: "Missed follow-up and weak accountability",
+    dynamic: "Structured ownership, workflow progression, and team visibility",
+  },
+  {
+    other: "Generic CRM not built for your industry process",
+    dynamic: "Purpose-built for education and migration operations",
+  },
+  {
+    other: "No reception or intake flow built in",
+    dynamic: "Check-in, search-first intake, and workflow-ready forms all connected",
+  },
+];
+
+const modules = [
   "Clients",
   "Leads",
+  "Check-In",
   "Intake Forms",
-  "Submissions",
   "Applications",
   "Providers",
   "Courses",
   "Tasks",
   "Notifications",
   "Workflows",
+  "Settings",
+  "Email Center",
 ];
 
-const intelligenceBlocks = [
+const testimonials = [
   {
-    label: "Student Pipeline",
-    value: "Controlled",
-    description:
-      "Track every client from enquiry to application with full visibility.",
+    quote:
+      "CRM Dynamic gave our team a much clearer way to manage leads, check-ins, and applications. The workflow is faster, cleaner, and much easier for staff to follow every day.",
+    name: "Ava Thompson",
+    role: "Operations Manager, Southern Bridge Education",
   },
   {
-    label: "Intake & Forms",
-    value: "Connected",
-    description:
-      "Move from public form capture to internal action without messy handoff.",
+    quote:
+      "We were using too many disconnected tools before. This platform helped us centralize our intake, task management, and provider workflows in one place.",
+    name: "Daniel Brooks",
+    role: "Director, Horizon Migration Advisory",
   },
   {
-    label: "Applications",
-    value: "Tracked",
-    description:
-      "Monitor providers, courses, submissions, and progression in one flow.",
-  },
-  {
-    label: "Team Operations",
-    value: "Aligned",
-    description:
-      "Keep staff, tasks, follow-up, and accountability structured across branches.",
+    quote:
+      "The product looks premium and the structure behind it is strong. We especially like the provider and course import flow because it makes data control much easier.",
+    name: "Mia Collins",
+    role: "Compliance Lead, Future Pathways Group",
   },
 ];
 
-const useCases = [
-  "Education Consultants",
-  "Migration Agents",
-  "Multi-branch Agencies",
-  "Student Recruitment Teams",
-];
-
-const trustItems = [
-  "Role-based access control",
-  "Multi-branch architecture",
-  "Workflow-driven operations",
-  "Notifications and task accountability",
-  "Built for live operational use",
-  "Reception and intake ready",
-];
-
-const proofCards = [
+const officePhotos = [
   {
-    eyebrow: "Dashboard",
-    title: "Operational visibility at a glance",
-    description:
-      "Surface key numbers, active tasks, workflow movement, and team activity from one central command layer.",
-    accent: "from-sky-500/20 via-blue-500/10 to-indigo-500/20",
-    lines: [
-      "Live KPI overview",
-      "Follow-up workload",
-      "Branch operations snapshot",
-    ],
+    src: "/home/office-1.png",
+    alt: "Modern reception interior",
   },
   {
-    eyebrow: "Client Workspace",
-    title: "Everything around the client in one place",
-    description:
-      "Keep profile details, activity, applications, stage movement, notes, and tasks connected to the same record.",
-    accent: "from-violet-500/20 via-fuchsia-500/10 to-pink-500/20",
-    lines: [
-      "Profile + workflow stage",
-      "Notes, tasks, activity",
-      "Applications and documents",
-    ],
+    src: "/home/office-2.png",
+    alt: "Modern conference room interior",
   },
   {
-    eyebrow: "Workflow Engine",
-    title: "Structured movement with accountability",
-    description:
-      "Standardize progression, improve handoff, and reduce missed follow-up with configurable workflow execution.",
-    accent: "from-emerald-500/20 via-teal-500/10 to-cyan-500/20",
-    lines: [
-      "Configurable stages",
-      "Team ownership",
-      "Alerts and follow-up triggers",
-    ],
+    src: "/home/office-3.png",
+    alt: "Modern open office interior",
   },
 ];
 
-const chooseReasons = [
-  {
-    title: "No more spreadsheet chaos",
-    description:
-      "Bring leads, applications, tasks, and follow-up into one operational system instead of scattered tools.",
+const fadeUp: Variants = {
+  hidden: {
+    opacity: 0,
+    y: 30,
   },
-  {
-    title: "Built for branch operations",
-    description:
-      "Support multi-user and multi-branch workflows with clearer accountability and visibility across teams.",
+  visible: {
+    opacity: 1,
+    y: 0,
+    transition: {
+      duration: 0.7,
+    },
   },
-  {
-    title: "Made for real process flow",
-    description:
-      "Track how work actually moves from intake to outcome, instead of using a static contact list.",
-  },
-  {
-    title: "Better operational discipline",
-    description:
-      "Use structured stages, notifications, and task ownership to reduce missed action and internal confusion.",
-  },
-];
+};
 
-const trustStrip = [
-  "Role-based access",
-  "Audit visibility",
-  "Workflow automation",
-  "Task accountability",
-  "Front-desk check-in",
-  "Live-ready architecture",
-];
+const stagger: Variants = {
+  hidden: {},
+  visible: {
+    transition: {
+      staggerChildren: 0.12,
+    },
+  },
+};
 
-function SectionEyebrow({ children }: { children: React.ReactNode }) {
+function DarkEyebrow({ children }: { children: React.ReactNode }) {
+  return (
+    <p className="text-[11px] font-semibold uppercase tracking-[0.28em] text-sky-300/90">
+      {children}
+    </p>
+  );
+}
+
+function LightEyebrow({ children }: { children: React.ReactNode }) {
   return (
     <p className="text-[11px] font-semibold uppercase tracking-[0.28em] text-slate-500">
       {children}
@@ -184,558 +247,507 @@ function SectionEyebrow({ children }: { children: React.ReactNode }) {
   );
 }
 
+function GlowCard({
+  children,
+  className = "",
+}: {
+  children: React.ReactNode;
+  className?: string;
+}) {
+  return (
+    <motion.div
+      variants={fadeUp}
+      whileHover={{ y: -6, scale: 1.01 }}
+      transition={{ duration: 0.25 }}
+      className={`group relative overflow-hidden rounded-[28px] border border-white/10 bg-white/[0.05] ${className}`}
+    >
+      <div className="absolute inset-0 bg-[radial-gradient(circle_at_top_left,rgba(56,189,248,0.18),transparent_35%),radial-gradient(circle_at_bottom_right,rgba(99,102,241,0.16),transparent_35%)] opacity-0 transition duration-500 group-hover:opacity-100" />
+      <div className="relative">{children}</div>
+    </motion.div>
+  );
+}
+
 export default function HomePage() {
   return (
-    <main className="min-h-screen bg-[#f6f8fc] text-slate-900">
+    <main className="min-h-screen bg-[#06101f] text-white selection:bg-sky-400/20 selection:text-white">
       <div className="relative overflow-hidden">
-        <div className="absolute inset-0 bg-[radial-gradient(circle_at_top_left,rgba(59,130,246,0.18),transparent_28%),radial-gradient(circle_at_top_right,rgba(129,140,248,0.16),transparent_26%),radial-gradient(circle_at_70%_30%,rgba(15,23,42,0.05),transparent_26%),linear-gradient(to_bottom,rgba(255,255,255,0.96),rgba(241,245,249,0.96))]" />
-        <div className="absolute inset-0 opacity-[0.035] [background-image:linear-gradient(to_right,#0f172a_1px,transparent_1px),linear-gradient(to_bottom,#0f172a_1px,transparent_1px)] [background-size:36px_36px]" />
+        <div className="absolute inset-0 bg-[radial-gradient(circle_at_top_left,rgba(56,189,248,0.22),transparent_26%),radial-gradient(circle_at_top_right,rgba(99,102,241,0.18),transparent_24%),radial-gradient(circle_at_center,rgba(15,23,42,0.45),transparent_52%),linear-gradient(180deg,#020817_0%,#071124_40%,#0b1220_100%)]" />
+        <div className="absolute inset-0 opacity-[0.08] [background-image:linear-gradient(to_right,#ffffff_1px,transparent_1px),linear-gradient(to_bottom,#ffffff_1px,transparent_1px)] [background-size:72px_72px]" />
+        <div className="absolute left-0 top-32 h-72 w-72 rounded-full bg-sky-400/20 blur-3xl" />
+        <div className="absolute right-0 top-20 h-72 w-72 rounded-full bg-indigo-500/20 blur-3xl" />
 
         <div className="relative mx-auto max-w-7xl px-4 pb-16 pt-6 sm:px-6 lg:px-8 lg:pb-24">
-          <header className="rounded-full border border-white/70 bg-white/80 px-4 py-3 shadow-[0_12px_40px_-18px_rgba(15,23,42,0.18)] backdrop-blur-xl md:px-6">
+          <motion.header
+            initial={{ opacity: 0, y: -20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.7 }}
+            className="sticky top-4 z-50 rounded-full border border-white/10 bg-white/5 px-4 py-3 shadow-[0_20px_60px_-30px_rgba(0,0,0,0.6)] backdrop-blur-xl md:px-6"
+          >
             <div className="flex items-center justify-between gap-4">
               <Link href="/" className="flex min-w-0 items-center gap-3">
-                <div className="flex h-11 w-11 items-center justify-center rounded-2xl bg-slate-950 text-sm font-bold text-white shadow-lg">
-                  C
+                <div className="flex h-11 w-11 items-center justify-center overflow-hidden rounded-2xl bg-white shadow-lg">
+                  <Image
+                    src="/home/logo.png"
+                    alt="CRM Dynamic logo"
+                    width={44}
+                    height={44}
+                    className="h-11 w-11 object-contain"
+                    unoptimized
+                  />
                 </div>
                 <div className="min-w-0">
-                  <p className="truncate text-sm font-semibold tracking-tight text-slate-950">
+                  <p className="truncate text-sm font-semibold tracking-tight text-white">
                     CRM Dynamic
                   </p>
-                  <p className="truncate text-xs text-slate-500">
-                    Education & Migration Operations Platform
+                  <p className="truncate text-xs text-slate-300">
+                    Education and Migration Operations Platform
                   </p>
                 </div>
               </Link>
 
               <nav className="hidden items-center gap-7 lg:flex">
-                <a
-                  href="#features"
-                  className="text-sm font-medium text-slate-600 transition hover:text-slate-950"
-                >
+                <a href="#platform" className="text-sm font-medium text-slate-300 transition hover:text-white">
+                  Platform
+                </a>
+                <a href="#features" className="text-sm font-medium text-slate-300 transition hover:text-white">
                   Features
                 </a>
-                <a
-                  href="#how-it-works"
-                  className="text-sm font-medium text-slate-600 transition hover:text-slate-950"
-                >
-                  How It Works
+                <a href="#reviews" className="text-sm font-medium text-slate-300 transition hover:text-white">
+                  Reviews
                 </a>
-                <a
-                  href="#proof"
-                  className="text-sm font-medium text-slate-600 transition hover:text-slate-950"
-                >
-                  Product Proof
-                </a>
-                <a
-                  href="#modules"
-                  className="text-sm font-medium text-slate-600 transition hover:text-slate-950"
-                >
-                  Modules
+                <a href="#comparison" className="text-sm font-medium text-slate-300 transition hover:text-white">
+                  Why Us
                 </a>
               </nav>
 
               <div className="flex items-center gap-2">
                 <Link
                   href="/login"
-                  className="rounded-xl border border-slate-300 bg-white px-4 py-2 text-sm font-semibold text-slate-700 transition hover:-translate-y-0.5 hover:bg-slate-50"
+                  className="rounded-xl border border-white/15 bg-white/5 px-4 py-2 text-sm font-semibold text-white transition hover:-translate-y-0.5 hover:bg-white/10"
                 >
                   Sign In
                 </Link>
                 <Link
                   href="/dashboard"
-                  className="rounded-xl bg-slate-950 px-4 py-2 text-sm font-semibold text-white shadow-[0_10px_20px_-10px_rgba(15,23,42,0.6)] transition hover:-translate-y-0.5 hover:bg-slate-800"
+                  className="rounded-xl bg-gradient-to-r from-sky-400 to-indigo-500 px-4 py-2 text-sm font-semibold text-white shadow-[0_12px_24px_-12px_rgba(99,102,241,0.55)] transition hover:-translate-y-0.5"
                 >
                   Open CRM
                 </Link>
               </div>
             </div>
-          </header>
+          </motion.header>
 
-          <section className="grid gap-14 pt-14 lg:grid-cols-[1.05fr_0.95fr] lg:items-center lg:pt-20">
-            <div>
-              <div className="inline-flex rounded-full border border-blue-200 bg-blue-50 px-4 py-2 text-[11px] font-semibold uppercase tracking-[0.26em] text-blue-700 shadow-sm">
-                Built for real operations
+          <motion.section
+            initial="hidden"
+            whileInView="visible"
+            viewport={{ once: true, amount: 0.2 }}
+            variants={stagger}
+            className="grid gap-14 pt-14 lg:grid-cols-[1.02fr_0.98fr] lg:items-center lg:pt-20"
+          >
+            <motion.div variants={fadeUp}>
+              <div className="inline-flex rounded-full border border-sky-400/20 bg-sky-400/10 px-4 py-2 text-[11px] font-semibold uppercase tracking-[0.26em] text-sky-200 shadow-sm">
+                Future-ready CRM
               </div>
 
-              <h1 className="mt-6 max-w-4xl text-[42px] font-semibold leading-[0.96] tracking-[-0.05em] text-slate-950 sm:text-[58px] lg:text-[72px]">
-                All-in-One CRM for
+              <h1 className="mt-6 max-w-4xl text-[42px] font-semibold leading-[0.96] tracking-[-0.05em] text-white sm:text-[58px] lg:text-[74px]">
+                Ultra-Premium CRM for
                 <br />
-                Education & Migration
+                Education and Migration
                 <br />
-                Businesses
+                Teams
               </h1>
 
-              <p className="mt-7 max-w-2xl text-base leading-8 text-slate-600 sm:text-lg">
-                Manage students, applications, workflows, and multi-branch
-                operations in one powerful system — built for real teams, not
-                spreadsheets.
+              <p className="mt-7 max-w-2xl text-base leading-8 text-slate-300 sm:text-lg">
+                Run leads, clients, applications, intake, imports, tasks, workflows, and branch operations from one premium platform with a high-trust modern experience.
               </p>
 
               <div className="mt-8 flex flex-col gap-3 sm:flex-row">
                 <Link
                   href="/login"
-                  className="inline-flex items-center justify-center rounded-2xl bg-slate-950 px-6 py-3.5 text-sm font-semibold text-white shadow-[0_12px_24px_-12px_rgba(15,23,42,0.55)] transition hover:-translate-y-0.5 hover:bg-slate-800"
+                  className="inline-flex items-center justify-center rounded-2xl bg-gradient-to-r from-sky-400 to-indigo-500 px-6 py-3.5 text-sm font-semibold text-white shadow-[0_18px_40px_-20px_rgba(99,102,241,0.5)] transition hover:-translate-y-0.5"
                 >
-                  Request Demo
+                  Book Demo
                 </Link>
                 <Link
-                  href="/check-in"
-                  className="inline-flex items-center justify-center rounded-2xl border border-slate-300 bg-white px-6 py-3.5 text-sm font-semibold text-slate-700 transition hover:-translate-y-0.5 hover:bg-slate-50"
+                  href="#platform"
+                  className="inline-flex items-center justify-center rounded-2xl border border-white/15 bg-white/5 px-6 py-3.5 text-sm font-semibold text-white transition hover:-translate-y-0.5 hover:bg-white/10"
                 >
-                  Try Check-In
+                  View Platform
                 </Link>
               </div>
 
-              <div className="mt-10 grid gap-4 sm:grid-cols-3">
-                {stats.map((item) => (
-                  <div
-                    key={item.title}
-                    className="group rounded-[24px] border border-slate-200 bg-white/90 p-5 shadow-[0_16px_40px_-22px_rgba(15,23,42,0.18)] transition duration-300 hover:-translate-y-1 hover:shadow-[0_24px_50px_-24px_rgba(15,23,42,0.22)]"
-                  >
-                    <div className="flex items-start justify-between gap-3">
-                      <div>
-                        <p className="text-lg font-semibold text-slate-950">
-                          {item.title}
-                        </p>
-                        <p className="mt-2 text-sm leading-6 text-slate-500">
-                          {item.description}
-                        </p>
-                      </div>
-                      <div className="h-2.5 w-2.5 rounded-full bg-blue-500 shadow-[0_0_18px_rgba(59,130,246,0.55)]" />
-                    </div>
-                  </div>
+              <motion.div variants={stagger} className="mt-10 grid gap-4 sm:grid-cols-3">
+                {heroStats.map((item) => (
+                  <GlowCard key={item.title} className="p-5 shadow-[0_18px_50px_-24px_rgba(0,0,0,0.45)] backdrop-blur">
+                    <p className="text-lg font-semibold text-white">{item.value}</p>
+                    <p className="mt-1 text-sm font-medium text-slate-200">{item.title}</p>
+                    <p className="mt-3 text-sm leading-6 text-slate-400">{item.description}</p>
+                  </GlowCard>
                 ))}
-              </div>
-            </div>
+              </motion.div>
+            </motion.div>
 
-            <div className="relative">
-              <div className="absolute -inset-8 bg-[radial-gradient(circle_at_center,rgba(15,23,42,0.16),transparent_44%)] blur-3xl" />
-              <div className="absolute -inset-2 rounded-[36px] bg-gradient-to-br from-slate-200/60 via-blue-100/70 to-indigo-100/60 blur-2xl" />
+            <motion.div variants={fadeUp} className="relative">
+              <div className="absolute -inset-8 bg-[radial-gradient(circle_at_center,rgba(56,189,248,0.28),transparent_38%)] blur-3xl" />
+              <div className="absolute -inset-2 rounded-[36px] bg-gradient-to-br from-sky-400/20 via-indigo-400/10 to-cyan-300/10 blur-2xl" />
 
-              <div className="relative overflow-hidden rounded-[34px] border border-slate-900/10 bg-[#040b23] p-4 text-white shadow-[0_40px_100px_-32px_rgba(15,23,42,0.6)] sm:p-5">
-                <div className="absolute inset-0 bg-[radial-gradient(circle_at_top_right,rgba(255,255,255,0.08),transparent_24%),radial-gradient(circle_at_bottom_left,rgba(59,130,246,0.12),transparent_28%)]" />
-
-                <div className="relative rounded-[24px] border border-white/10 bg-white/[0.03] px-5 py-4 backdrop-blur">
-                  <div className="flex items-center justify-between gap-4">
-                    <div>
-                      <p className="text-[11px] font-semibold uppercase tracking-[0.24em] text-slate-400">
-                        Operations Overview
-                      </p>
-                      <h2 className="mt-1 text-[26px] font-semibold tracking-tight text-white">
-                        CRM Intelligence Panel
-                      </h2>
-                    </div>
-
-                    <div className="rounded-full border border-emerald-400/20 bg-emerald-400/10 px-3 py-1.5 text-xs font-semibold text-emerald-300">
-                      Live Ready
-                    </div>
-                  </div>
+              <motion.div
+                animate={{ y: [0, -8, 0], rotate: [-0.5, 0.5, -0.5] }}
+                transition={{ duration: 8, repeat: Infinity, ease: "linear" }}
+                className="relative overflow-hidden rounded-[34px] border border-white/10 bg-white/[0.04] p-3 shadow-[0_40px_100px_-32px_rgba(0,0,0,0.7)] backdrop-blur"
+              >
+                <div className="absolute -inset-px rounded-[34px] bg-gradient-to-r from-sky-400/25 via-indigo-400/15 to-cyan-300/25 opacity-70 blur-md" />
+                <div className="absolute inset-0 bg-[radial-gradient(circle_at_top_right,rgba(255,255,255,0.08),transparent_24%),radial-gradient(circle_at_bottom_left,rgba(56,189,248,0.12),transparent_28%)]" />
+                <div className="relative overflow-hidden rounded-[28px] border border-white/10 bg-[#091325]">
+                  <Image
+                    src="/home/dashboard-overview.png"
+                    alt="CRM Dynamic dashboard preview"
+                    width={1600}
+                    height={980}
+                    className="h-auto w-full object-cover"
+                    priority
+                    unoptimized
+                  />
                 </div>
-
-                <div className="relative mt-4 grid gap-4 sm:grid-cols-2">
-                  {intelligenceBlocks.map((block) => (
-                    <div
-                      key={block.label}
-                      className="rounded-[22px] border border-white/10 bg-white/[0.035] p-5 transition duration-300 hover:-translate-y-1 hover:bg-white/[0.055]"
-                    >
-                      <p className="text-sm text-slate-300">{block.label}</p>
-                      <p className="mt-3 text-[22px] font-semibold tracking-tight text-white sm:text-[25px]">
-                        {block.value}
-                      </p>
-                      <p className="mt-3 text-sm leading-6 text-slate-400">
-                        {block.description}
-                      </p>
-                    </div>
-                  ))}
-                </div>
-
-                <div className="relative mt-4 rounded-[24px] border border-white/10 bg-white/[0.035] p-5">
-                  <p className="text-sm text-slate-300">
-                    Built for high-clarity operations
-                  </p>
-
-                  <div className="mt-4 flex flex-wrap gap-2">
-                    {[
-                      "Education CRM",
-                      "Migration Operations",
-                      "Lead Conversion",
-                      "Workflow Automation",
-                      "Team Productivity",
-                      "Branch Collaboration",
-                    ].map((item) => (
-                      <span
-                        key={item}
-                        className="rounded-full border border-white/10 bg-white/[0.06] px-3 py-1.5 text-xs text-slate-200"
-                      >
-                        {item}
-                      </span>
-                    ))}
-                  </div>
-                </div>
-              </div>
-            </div>
-          </section>
+              </motion.div>
+            </motion.div>
+          </motion.section>
         </div>
       </div>
 
-      <section
-        id="features"
-        className="mx-auto max-w-7xl px-4 py-16 sm:px-6 lg:px-8 lg:py-20"
-      >
-        <div className="max-w-2xl">
-          <SectionEyebrow>Core capabilities</SectionEyebrow>
-          <h2 className="mt-4 text-3xl font-semibold tracking-tight text-slate-950 sm:text-4xl">
-            Everything you need to run your student operations
-          </h2>
-          <p className="mt-4 text-base leading-8 text-slate-600">
-            From lead capture to application tracking and workflow automation,
-            CRM Dynamic gives your team full visibility and control over every
-            stage.
-          </p>
-        </div>
-
-        <div className="mt-10 grid gap-5 md:grid-cols-2 xl:grid-cols-3">
-          {features.map((feature) => (
-            <div
-              key={feature.title}
-              className="group rounded-[30px] border border-slate-200 bg-white p-6 shadow-[0_18px_45px_-26px_rgba(15,23,42,0.16)] transition duration-300 hover:-translate-y-1.5 hover:shadow-[0_28px_60px_-28px_rgba(15,23,42,0.22)]"
-            >
-              <div className="inline-flex rounded-full border border-slate-200 bg-slate-50 px-3 py-1.5 text-[11px] font-semibold uppercase tracking-[0.22em] text-slate-600">
-                CRM Module
-              </div>
-              <h3 className="mt-5 text-2xl font-semibold tracking-tight text-slate-950">
-                {feature.title}
-              </h3>
-              <p className="mt-3 text-sm leading-7 text-slate-600">
-                {feature.description}
-              </p>
-            </div>
-          ))}
-        </div>
-      </section>
-
-      <section
-        id="how-it-works"
-        className="border-y border-slate-200 bg-white/60 backdrop-blur"
+      <motion.section
+        id="reviews"
+        initial="hidden"
+        whileInView="visible"
+        viewport={{ once: true, amount: 0.2 }}
+        variants={stagger}
+        className="border-y border-white/10 bg-white/[0.03]"
       >
         <div className="mx-auto max-w-7xl px-4 py-16 sm:px-6 lg:px-8">
-          <div className="max-w-2xl">
-            <SectionEyebrow>How it works</SectionEyebrow>
-            <h2 className="mt-4 text-3xl font-semibold tracking-tight text-slate-950 sm:text-4xl">
-              A clearer way to run daily operations
+          <motion.div variants={fadeUp} className="max-w-2xl">
+            <DarkEyebrow>Client feedback</DarkEyebrow>
+            <h2 className="mt-4 text-3xl font-semibold tracking-tight text-white sm:text-4xl">
+              Trusted by teams that want cleaner operations
             </h2>
-            <p className="mt-4 text-base leading-8 text-slate-600">
-              CRM Dynamic gives your team one connected system to capture,
-              manage, and move clients through the full operational journey.
+            <p className="mt-4 text-base leading-8 text-slate-300">
+              These are sample testimonial placeholders for demo design. Replace them with your real reviews later.
             </p>
-          </div>
+          </motion.div>
 
-          <div className="mt-10 grid gap-5 lg:grid-cols-3">
-            <div className="rounded-[28px] border border-slate-200 bg-white p-6 shadow-[0_18px_45px_-26px_rgba(15,23,42,0.16)]">
-              <div className="inline-flex h-10 w-10 items-center justify-center rounded-2xl bg-slate-950 text-sm font-semibold text-white">
-                1
-              </div>
-              <h3 className="mt-5 text-xl font-semibold text-slate-950">
-                Capture Leads
-              </h3>
-              <p className="mt-3 text-sm leading-7 text-slate-600">
-                Collect enquiries through forms, intake submissions, and
-                front-desk check-in without losing visibility.
-              </p>
-            </div>
-
-            <div className="rounded-[28px] border border-slate-200 bg-white p-6 shadow-[0_18px_45px_-26px_rgba(15,23,42,0.16)]">
-              <div className="inline-flex h-10 w-10 items-center justify-center rounded-2xl bg-slate-950 text-sm font-semibold text-white">
-                2
-              </div>
-              <h3 className="mt-5 text-xl font-semibold text-slate-950">
-                Manage Workflow
-              </h3>
-              <p className="mt-3 text-sm leading-7 text-slate-600">
-                Move each client through structured stages with assigned tasks,
-                internal coordination, and operational clarity.
-              </p>
-            </div>
-
-            <div className="rounded-[28px] border border-slate-200 bg-white p-6 shadow-[0_18px_45px_-26px_rgba(15,23,42,0.16)]">
-              <div className="inline-flex h-10 w-10 items-center justify-center rounded-2xl bg-slate-950 text-sm font-semibold text-white">
-                3
-              </div>
-              <h3 className="mt-5 text-xl font-semibold text-slate-950">
-                Track Outcomes
-              </h3>
-              <p className="mt-3 text-sm leading-7 text-slate-600">
-                Keep applications, follow-up, notifications, and client progress
-                connected in one accountable system.
-              </p>
-            </div>
-          </div>
-        </div>
-      </section>
-
-      <section
-        id="proof"
-        className="mx-auto max-w-7xl px-4 py-16 sm:px-6 lg:px-8 lg:py-20"
-      >
-        <div className="max-w-2xl">
-          <SectionEyebrow>Product proof</SectionEyebrow>
-          <h2 className="mt-4 text-3xl font-semibold tracking-tight text-slate-950 sm:text-4xl">
-            Built like a real operational platform
-          </h2>
-          <p className="mt-4 text-base leading-8 text-slate-600">
-            CRM Dynamic is more than a contact list. It is designed to support
-            live intake, workflow execution, client movement, and day-to-day
-            internal coordination.
-          </p>
-        </div>
-
-        <div className="mt-10 grid gap-5 xl:grid-cols-3">
-          {proofCards.map((card) => (
-            <div
-              key={card.title}
-              className="group overflow-hidden rounded-[30px] border border-slate-200 bg-white shadow-[0_18px_45px_-26px_rgba(15,23,42,0.16)] transition duration-300 hover:-translate-y-1.5 hover:shadow-[0_30px_70px_-30px_rgba(15,23,42,0.2)]"
-            >
-              <div
-                className={`relative h-56 border-b border-slate-200 bg-gradient-to-br ${card.accent}`}
-              >
-                <div className="absolute inset-4 rounded-[24px] border border-slate-900/10 bg-white/80 p-4 shadow-sm backdrop-blur">
-                  <div className="flex items-center justify-between gap-3">
-                    <div>
-                      <p className="text-[11px] font-semibold uppercase tracking-[0.24em] text-slate-500">
-                        {card.eyebrow}
-                      </p>
-                      <p className="mt-2 text-lg font-semibold text-slate-950">
-                        {card.title}
-                      </p>
-                    </div>
-                    <div className="rounded-full border border-emerald-200 bg-emerald-50 px-3 py-1 text-xs font-semibold text-emerald-700">
-                      Active
-                    </div>
-                  </div>
-
-                  <div className="mt-5 grid gap-2">
-                    {card.lines.map((line) => (
-                      <div
-                        key={line}
-                        className="rounded-xl border border-slate-200 bg-slate-50 px-3 py-2 text-sm text-slate-700"
-                      >
-                        {line}
-                      </div>
-                    ))}
-                  </div>
+          <motion.div variants={stagger} className="mt-10 grid gap-5 lg:grid-cols-3">
+            {testimonials.map((item) => (
+              <GlowCard key={item.name} className="p-6 shadow-[0_20px_50px_-24px_rgba(0,0,0,0.45)]">
+                <div className="mb-5 flex gap-1 text-sky-300">
+                  <span>★</span>
+                  <span>★</span>
+                  <span>★</span>
+                  <span>★</span>
+                  <span>★</span>
                 </div>
-              </div>
-
-              <div className="p-6">
-                <p className="text-sm leading-7 text-slate-600">
-                  {card.description}
-                </p>
-              </div>
-            </div>
-          ))}
+                <p className="text-sm leading-7 text-slate-200">“{item.quote}”</p>
+                <div className="mt-6 border-t border-white/10 pt-4">
+                  <p className="font-semibold text-white">{item.name}</p>
+                  <p className="text-sm text-slate-400">{item.role}</p>
+                </div>
+              </GlowCard>
+            ))}
+          </motion.div>
         </div>
-      </section>
+      </motion.section>
 
-      <section className="border-y border-slate-200 bg-white">
-        <div className="mx-auto max-w-7xl px-4 py-16 sm:px-6 lg:px-8">
-          <div className="max-w-2xl">
-            <SectionEyebrow>Why teams choose CRM Dynamic</SectionEyebrow>
-            <h2 className="mt-4 text-3xl font-semibold tracking-tight text-slate-950 sm:text-4xl">
-              Made for operational control, not just contact storage
-            </h2>
-            <p className="mt-4 text-base leading-8 text-slate-600">
-              The platform is designed to bring structure, accountability, and
-              visibility into real education and migration workflows.
-            </p>
-          </div>
+      <motion.section
+        id="platform"
+        initial="hidden"
+        whileInView="visible"
+        viewport={{ once: true, amount: 0.12 }}
+        variants={stagger}
+        className="mx-auto max-w-7xl px-4 py-16 sm:px-6 lg:px-8 lg:py-24"
+      >
+        <motion.div variants={fadeUp} className="max-w-2xl">
+          <DarkEyebrow>Platform showcase</DarkEyebrow>
+          <h2 className="mt-4 text-3xl font-semibold tracking-tight text-white sm:text-4xl">
+            Show the product, not just the promise
+          </h2>
+          <p className="mt-4 text-base leading-8 text-slate-300">
+            Your product already looks strong internally. This homepage layout puts the real platform at the center of the story.
+          </p>
+        </motion.div>
 
-          <div className="mt-10 grid gap-5 md:grid-cols-2">
-            {chooseReasons.map((item) => (
-              <div
-                key={item.title}
-                className="rounded-[28px] border border-slate-200 bg-slate-50 p-6"
-              >
-                <h3 className="text-xl font-semibold text-slate-950">
+        <motion.div variants={stagger} className="mt-12 space-y-8">
+          {platformScreens.map((item) => (
+            <motion.div
+              key={item.title}
+              variants={fadeUp}
+              whileHover={{ y: -6 }}
+              className={`group relative grid gap-6 overflow-hidden rounded-[32px] border border-white/10 bg-white/[0.04] p-5 shadow-[0_24px_60px_-28px_rgba(0,0,0,0.55)] backdrop-blur lg:grid-cols-2 lg:items-center lg:p-6 ${
+                item.reverse ? "lg:[&>div:first-child]:order-2 lg:[&>div:last-child]:order-1" : ""
+              }`}
+            >
+              <div className="absolute inset-0 bg-[radial-gradient(circle_at_top_left,rgba(56,189,248,0.12),transparent_30%),radial-gradient(circle_at_bottom_right,rgba(99,102,241,0.12),transparent_35%)] opacity-0 transition duration-500 group-hover:opacity-100" />
+
+              <div className="relative overflow-hidden rounded-[24px] border border-white/10 bg-[#0a1323]">
+                <Image
+                  src={item.image}
+                  alt={item.alt}
+                  width={1600}
+                  height={980}
+                  className="h-auto w-full object-cover transition duration-700 group-hover:scale-[1.02]"
+                  unoptimized
+                />
+              </div>
+
+              <div className="relative px-2 py-2 lg:px-6">
+                <DarkEyebrow>{item.eyebrow}</DarkEyebrow>
+                <h3 className="mt-4 text-3xl font-semibold tracking-tight text-white">
                   {item.title}
                 </h3>
-                <p className="mt-3 text-sm leading-7 text-slate-600">
+                <p className="mt-4 text-base leading-8 text-slate-300">
                   {item.description}
                 </p>
+                <div className="mt-6 flex flex-wrap gap-3">
+                  <span className="rounded-full border border-white/10 bg-white/[0.05] px-4 py-2 text-sm text-slate-200">
+                    Premium UI
+                  </span>
+                  <span className="rounded-full border border-white/10 bg-white/[0.05] px-4 py-2 text-sm text-slate-200">
+                    Responsive layout
+                  </span>
+                  <span className="rounded-full border border-white/10 bg-white/[0.05] px-4 py-2 text-sm text-slate-200">
+                    Workflow-ready
+                  </span>
+                </div>
               </div>
-            ))}
-          </div>
+            </motion.div>
+          ))}
+        </motion.div>
+      </motion.section>
 
-          <div className="mt-10 flex flex-wrap gap-3">
-            {trustStrip.map((item) => (
-              <span
-                key={item}
-                className="rounded-full border border-slate-200 bg-white px-4 py-2 text-sm font-medium text-slate-700 shadow-sm"
+      <motion.section
+        id="features"
+        initial="hidden"
+        whileInView="visible"
+        viewport={{ once: true, amount: 0.2 }}
+        variants={stagger}
+        className="bg-[#f8fafc] text-slate-900"
+      >
+        <div className="mx-auto max-w-7xl px-4 py-16 sm:px-6 lg:px-8 lg:py-24">
+          <motion.div variants={fadeUp} className="max-w-2xl">
+            <LightEyebrow>Core features</LightEyebrow>
+            <h2 className="mt-4 text-3xl font-semibold tracking-tight text-slate-950 sm:text-4xl">
+              Everything needed to run modern operations
+            </h2>
+            <p className="mt-4 text-base leading-8 text-slate-600">
+              From intake and check-in to imports, tasks, and applications, CRM Dynamic helps your team work from one clear system.
+            </p>
+          </motion.div>
+
+          <motion.div variants={stagger} className="mt-10 grid gap-5 md:grid-cols-2 xl:grid-cols-3">
+            {features.map((feature) => (
+              <motion.div
+                key={feature.title}
+                variants={fadeUp}
+                whileHover={{ y: -8, scale: 1.02 }}
+                className="group relative overflow-hidden rounded-[28px] border border-slate-200 bg-white p-6 shadow-[0_18px_50px_-28px_rgba(15,23,42,0.14)]"
               >
-                {item}
-              </span>
+                <div className="absolute inset-0 bg-[radial-gradient(circle_at_top_left,rgba(59,130,246,0.1),transparent_30%),radial-gradient(circle_at_bottom_right,rgba(129,140,248,0.1),transparent_35%)] opacity-0 transition duration-500 group-hover:opacity-100" />
+                <div className="relative">
+                  <div className="inline-flex rounded-full border border-slate-200 bg-slate-50 px-3 py-1.5 text-[11px] font-semibold uppercase tracking-[0.22em] text-slate-600">
+                    CRM Module
+                  </div>
+                  <h3 className="mt-5 text-2xl font-semibold tracking-tight text-slate-950">
+                    {feature.title}
+                  </h3>
+                  <p className="mt-3 text-sm leading-7 text-slate-600">
+                    {feature.description}
+                  </p>
+                </div>
+              </motion.div>
             ))}
+          </motion.div>
+        </div>
+      </motion.section>
+
+      <motion.section
+        initial="hidden"
+        whileInView="visible"
+        viewport={{ once: true, amount: 0.2 }}
+        variants={stagger}
+        className="bg-white text-slate-900"
+      >
+        <div className="mx-auto max-w-7xl px-4 py-16 sm:px-6 lg:px-8 lg:py-24">
+          <div className="grid gap-10 lg:grid-cols-[0.95fr_1.05fr] lg:items-center">
+            <motion.div variants={fadeUp}>
+              <LightEyebrow>Office presence</LightEyebrow>
+              <h2 className="mt-4 text-3xl font-semibold tracking-tight text-slate-950 sm:text-4xl">
+                A premium business presence for a premium product
+              </h2>
+              <p className="mt-4 text-base leading-8 text-slate-600">
+                These three office visuals help the homepage feel more trusted, premium, and established.
+              </p>
+              <div className="mt-8 flex flex-wrap gap-3">
+                <span className="rounded-full border border-slate-200 bg-slate-50 px-4 py-2 text-sm font-medium text-slate-700">
+                  Reception interior
+                </span>
+                <span className="rounded-full border border-slate-200 bg-slate-50 px-4 py-2 text-sm font-medium text-slate-700">
+                  Meeting room
+                </span>
+                <span className="rounded-full border border-slate-200 bg-slate-50 px-4 py-2 text-sm font-medium text-slate-700">
+                  Open workspace
+                </span>
+              </div>
+            </motion.div>
+
+            <motion.div variants={stagger} className="grid gap-4 md:grid-cols-3 lg:grid-cols-1 xl:grid-cols-3">
+              {officePhotos.map((photo) => (
+                <motion.div
+                  key={photo.src}
+                  variants={fadeUp}
+                  whileHover={{ y: -8, scale: 1.02 }}
+                  className="group overflow-hidden rounded-[28px] border border-slate-200 bg-slate-100 shadow-[0_18px_50px_-28px_rgba(15,23,42,0.16)]"
+                >
+                  <Image
+                    src={photo.src}
+                    alt={photo.alt}
+                    width={1400}
+                    height={900}
+                    className="h-full w-full object-cover transition duration-700 group-hover:scale-[1.04]"
+                    unoptimized
+                  />
+                </motion.div>
+              ))}
+            </motion.div>
           </div>
         </div>
-      </section>
+      </motion.section>
 
-      <section
-        id="modules"
+      <motion.section
+        id="comparison"
+        initial="hidden"
+        whileInView="visible"
+        viewport={{ once: true, amount: 0.2 }}
+        variants={stagger}
+        className="bg-[#f8fafc] text-slate-900"
+      >
+        <div className="mx-auto max-w-7xl px-4 py-16 sm:px-6 lg:px-8 lg:py-24">
+          <motion.div variants={fadeUp} className="max-w-2xl">
+            <LightEyebrow>Why CRM Dynamic</LightEyebrow>
+            <h2 className="mt-4 text-3xl font-semibold tracking-tight text-slate-950 sm:text-4xl">
+              A smarter alternative to disconnected operations
+            </h2>
+            <p className="mt-4 text-base leading-8 text-slate-600">
+              Use this section to show exactly why your platform is a better fit for education and migration businesses.
+            </p>
+          </motion.div>
+
+          <motion.div variants={fadeUp} className="mt-10 overflow-hidden rounded-[30px] border border-slate-200 bg-white shadow-[0_20px_60px_-32px_rgba(15,23,42,0.18)]">
+            <div className="grid grid-cols-1 border-b border-slate-200 bg-slate-950 text-white md:grid-cols-2">
+              <div className="px-6 py-5 text-sm font-semibold uppercase tracking-[0.22em] text-slate-300">
+                Traditional tools
+              </div>
+              <div className="px-6 py-5 text-sm font-semibold uppercase tracking-[0.22em] text-sky-300">
+                CRM Dynamic
+              </div>
+            </div>
+
+            {comparisonRows.map((row) => (
+              <div key={row.other} className="grid border-b border-slate-200 last:border-b-0 md:grid-cols-2">
+                <div className="px-6 py-5 text-sm leading-7 text-slate-600">{row.other}</div>
+                <div className="bg-sky-50/60 px-6 py-5 text-sm font-medium leading-7 text-slate-900">
+                  {row.dynamic}
+                </div>
+              </div>
+            ))}
+          </motion.div>
+        </div>
+      </motion.section>
+
+      <motion.section
+        initial="hidden"
+        whileInView="visible"
+        viewport={{ once: true, amount: 0.2 }}
+        variants={stagger}
         className="relative overflow-hidden bg-slate-950 text-white"
       >
-        <div className="absolute inset-0 bg-[radial-gradient(circle_at_top_left,rgba(59,130,246,0.16),transparent_26%),radial-gradient(circle_at_bottom_right,rgba(129,140,248,0.14),transparent_24%)]" />
+        <div className="absolute inset-0 bg-[radial-gradient(circle_at_top_left,rgba(56,189,248,0.16),transparent_26%),radial-gradient(circle_at_bottom_right,rgba(99,102,241,0.14),transparent_24%)]" />
 
-        <div className="relative mx-auto max-w-7xl px-4 py-16 sm:px-6 lg:px-8 lg:py-20">
+        <div className="relative mx-auto max-w-7xl px-4 py-16 sm:px-6 lg:px-8 lg:py-24">
           <div className="grid gap-12 lg:grid-cols-[0.95fr_1.05fr] lg:items-center">
-            <div>
-              <SectionEyebrow>Built for serious operations</SectionEyebrow>
+            <motion.div variants={fadeUp}>
+              <DarkEyebrow>Complete module stack</DarkEyebrow>
               <h2 className="mt-4 text-3xl font-semibold tracking-tight sm:text-4xl">
-                Not just a dashboard.
-                <br />
-                A full operational command layer.
+                One homepage. One platform. One clear message.
               </h2>
               <p className="mt-5 text-base leading-8 text-slate-300">
-                Manage leads, intake, applications, tasks, workflows,
-                notifications, providers, and internal execution from one
-                connected platform.
+                This section reinforces that CRM Dynamic is not just a dashboard. It is a full operational command layer for education and migration teams, wrapped in a premium visual experience with motion, glow, depth, and high-trust presentation.
               </p>
 
               <div className="mt-8 flex flex-col gap-3 sm:flex-row">
                 <Link
                   href="/login"
-                  className="inline-flex items-center justify-center rounded-2xl bg-white px-6 py-3 text-sm font-semibold text-slate-950 transition hover:-translate-y-0.5 hover:bg-slate-200"
+                  className="inline-flex items-center justify-center rounded-2xl bg-gradient-to-r from-sky-400 to-indigo-500 px-6 py-3 text-sm font-semibold text-white transition hover:-translate-y-0.5"
                 >
                   Access Platform
                 </Link>
                 <Link
-                  href="/forms"
+                  href="/check-in"
                   className="inline-flex items-center justify-center rounded-2xl border border-white/10 bg-white/[0.05] px-6 py-3 text-sm font-semibold text-white transition hover:-translate-y-0.5 hover:bg-white/[0.1]"
                 >
-                  Open Forms
+                  Try Check-In
                 </Link>
               </div>
-            </div>
+            </motion.div>
 
-            <div className="grid gap-4 sm:grid-cols-2">
-              {modulePills.map((item) => (
-                <div
+            <motion.div variants={stagger} className="grid gap-4 sm:grid-cols-2">
+              {modules.map((item) => (
+                <motion.div
                   key={item}
-                  className="rounded-[22px] border border-white/10 bg-white/[0.05] px-5 py-4 text-sm font-medium text-slate-100 transition duration-300 hover:-translate-y-1 hover:bg-white/[0.08]"
+                  variants={fadeUp}
+                  whileHover={{ y: -6, scale: 1.02 }}
+                  className="rounded-[22px] border border-white/10 bg-white/[0.05] px-5 py-4 text-sm font-medium text-slate-100 transition duration-300 hover:bg-white/[0.08]"
                 >
                   {item}
-                </div>
+                </motion.div>
               ))}
+            </motion.div>
+          </div>
+        </div>
+      </motion.section>
+
+      <motion.section
+        initial="hidden"
+        whileInView="visible"
+        viewport={{ once: true, amount: 0.2 }}
+        variants={stagger}
+        className="bg-white text-slate-900"
+      >
+        <div className="mx-auto max-w-7xl px-4 py-16 sm:px-6 lg:px-8 lg:py-24">
+          <motion.div variants={fadeUp} className="rounded-[34px] border border-slate-200 bg-slate-950 p-8 text-white shadow-[0_24px_70px_-30px_rgba(15,23,42,0.45)] sm:p-10 lg:p-12">
+            <div className="max-w-3xl">
+              <DarkEyebrow>Final CTA</DarkEyebrow>
+              <h2 className="mt-4 text-3xl font-semibold tracking-tight text-white sm:text-4xl">
+                Ready to present CRM Dynamic like a premium platform?
+              </h2>
+              <p className="mt-4 text-base leading-8 text-slate-300">
+                Replace the old homepage with this new version, keep the logo and images in your public home folder, and you will instantly have a more modern and premium first impression.
+              </p>
             </div>
-          </div>
-        </div>
-      </section>
 
-      <section className="mx-auto max-w-7xl px-4 py-16 sm:px-6 lg:px-8 lg:py-20">
-        <div className="grid gap-8 lg:grid-cols-[0.95fr_1.05fr] lg:items-start">
-          <div>
-            <SectionEyebrow>Built for</SectionEyebrow>
-            <h2 className="mt-4 text-3xl font-semibold tracking-tight text-slate-950 sm:text-4xl">
-              Teams that need structure,
-              <br />
-              visibility, and control
-            </h2>
-            <p className="mt-4 text-base leading-8 text-slate-600">
-              CRM Dynamic is designed for operational teams that manage
-              high-volume enquiries, applications, follow-up, and internal
-              workflows across one or multiple branches.
-            </p>
-          </div>
-
-          <div className="grid gap-4 sm:grid-cols-2">
-            {useCases.map((item) => (
-              <div
-                key={item}
-                className="rounded-[24px] border border-slate-200 bg-white px-5 py-5 text-sm font-semibold text-slate-800 shadow-[0_18px_45px_-26px_rgba(15,23,42,0.16)]"
+            <div className="mt-8 flex flex-col gap-3 sm:flex-row">
+              <Link
+                href="/login"
+                className="inline-flex items-center justify-center rounded-2xl bg-gradient-to-r from-sky-400 to-indigo-500 px-6 py-3.5 text-sm font-semibold text-white transition hover:-translate-y-0.5"
               >
-                {item}
-              </div>
-            ))}
-          </div>
-        </div>
-      </section>
-
-      <section className="border-y border-slate-200 bg-white">
-        <div className="mx-auto max-w-7xl px-4 py-16 sm:px-6 lg:px-8">
-          <div className="max-w-2xl">
-            <SectionEyebrow>Trust layer</SectionEyebrow>
-            <h2 className="mt-4 text-3xl font-semibold tracking-tight text-slate-950 sm:text-4xl">
-              Built to support real operational use
-            </h2>
-            <p className="mt-4 text-base leading-8 text-slate-600">
-              The platform is structured for live usage with controlled access,
-              internal accountability, workflow progression, and branch-ready
-              operations.
-            </p>
-          </div>
-
-          <div className="mt-10 grid gap-4 md:grid-cols-2 xl:grid-cols-3">
-            {trustItems.map((item) => (
-              <div
-                key={item}
-                className="rounded-[24px] border border-slate-200 bg-slate-50 px-5 py-4 text-sm font-medium text-slate-800"
+                Book Demo
+              </Link>
+              <Link
+                href="#platform"
+                className="inline-flex items-center justify-center rounded-2xl border border-white/15 bg-white/5 px-6 py-3.5 text-sm font-semibold text-white transition hover:-translate-y-0.5 hover:bg-white/10"
               >
-                {item}
-              </div>
-            ))}
-          </div>
+                View Platform
+              </Link>
+            </div>
+          </motion.div>
         </div>
-      </section>
-
-      <section className="mx-auto max-w-7xl px-4 py-16 sm:px-6 lg:px-8 lg:py-20">
-        <div className="rounded-[34px] border border-slate-200 bg-white p-8 shadow-[0_24px_60px_-30px_rgba(15,23,42,0.18)] sm:p-10 lg:p-12">
-          <div className="max-w-3xl">
-            <SectionEyebrow>Final CTA</SectionEyebrow>
-            <h2 className="mt-4 text-3xl font-semibold tracking-tight text-slate-950 sm:text-4xl">
-              Start managing your operations properly
-            </h2>
-            <p className="mt-4 text-base leading-8 text-slate-600">
-              Replace disconnected systems with a structured CRM built for
-              education, migration, applications, workflows, and team
-              coordination.
-            </p>
-          </div>
-
-          <div className="mt-8 flex flex-col gap-3 sm:flex-row">
-            <Link
-              href="/login"
-              className="inline-flex items-center justify-center rounded-2xl bg-slate-950 px-6 py-3.5 text-sm font-semibold text-white shadow-[0_12px_24px_-12px_rgba(15,23,42,0.55)] transition hover:-translate-y-0.5 hover:bg-slate-800"
-            >
-              Request Demo
-            </Link>
-            <Link
-              href="/check-in"
-              className="inline-flex items-center justify-center rounded-2xl border border-slate-300 bg-white px-6 py-3.5 text-sm font-semibold text-slate-700 transition hover:-translate-y-0.5 hover:bg-slate-50"
-            >
-              Try Check-In
-            </Link>
-          </div>
-        </div>
-      </section>
-
-      <footer className="border-t border-slate-200 bg-white">
-        <div className="mx-auto flex max-w-7xl flex-col gap-4 px-4 py-8 text-sm text-slate-500 sm:px-6 lg:flex-row lg:items-center lg:justify-between lg:px-8">
-          <p>
-            CRM Dynamic — operations software for education and migration teams.
-          </p>
-
-          <div className="flex gap-4">
-            <Link href="/login" className="transition hover:text-slate-950">
-              Login
-            </Link>
-            <Link href="/dashboard" className="transition hover:text-slate-950">
-              Dashboard
-            </Link>
-            <Link href="/check-in" className="transition hover:text-slate-950">
-              Check-In
-            </Link>
-          </div>
-        </div>
-      </footer>
+      </motion.section>
     </main>
   );
 }
